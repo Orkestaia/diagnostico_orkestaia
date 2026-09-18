@@ -79,6 +79,20 @@ describe("Lo que he entendido", () => {
   });
 });
 
+describe("Herramientas con nombre", () => {
+  it("usa el nombre que escribió en las opciones abiertas", () => {
+    const f = loQueHeEntendido(
+      {
+        "herramientas.lista": ["Excel u hojas de cálculo", "Programa de facturación", "Software de mi sector"],
+        "herramientas.lista::Programa de facturación": "Holded",
+        "herramientas.lista::Software de mi sector": "Aranzadi",
+      },
+      "otro",
+    );
+    expect(f).toEqual(["En el día a día usáis Excel, Holded y Aranzadi."]);
+  });
+});
+
 describe("Títulos y resumen", () => {
   it("título con y sin fecha", () => {
     expect(tituloFinal("Pedro", "2026-09-21")).toBe("Gracias, Pedro. Con esto el lunes 21 vamos directos a lo importante.");

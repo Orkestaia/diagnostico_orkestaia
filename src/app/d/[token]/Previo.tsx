@@ -7,7 +7,7 @@ import { Partitura } from "@/components/compartido/Partitura";
 import { movimientosPrevio } from "@/config/previo";
 import type { Pregunta, Respuestas, SectorId, ValorRespuesta } from "@/config/tipos";
 import { sugerenciasTarea } from "@/lib/calculo";
-import { MAX_TEXTO_PREVIO, pasosPrevio, primeraPendiente } from "@/lib/previo";
+import { abiertasElegidas, claveCual, MAX_TEXTO_CUAL, MAX_TEXTO_PREVIO, pasosPrevio, primeraPendiente } from "@/lib/previo";
 import { PREPARACION_CIERRE, PREPARACION_INTRO, preparacionDe } from "@/config/consultor/preparacion";
 import { enlaceGoogle, horaCorta, ics, lineaCita, type Cita } from "@/lib/calendario";
 import { bienvenida, tituloFinal, type ResumenFinal } from "@/lib/resumenPrevio";
@@ -188,7 +188,9 @@ export function Previo({
                   sugerencias={
                     paso.pregunta.id === "prioridad.tarea" ? sugerenciasTarea(respuestas, datos.sector) : []
                   }
+                  respuestas={respuestas}
                   onResponder={(v, avanzarDespues) => responder(paso.pregunta.id, v, avanzarDespues)}
+                  onCual={(etiqueta, texto) => responder(claveCual(paso.pregunta.id, etiqueta), texto, false)}
                   onContinuar={() => avanzar(respuestas, paso.pregunta.id)}
                 />
               </div>
@@ -259,38 +261,119 @@ function IndicadorGuardado({ estado }: { estado: EstadoGuardado }) {
   );
 }
 
+/**
+ * "¿Cuál?" de las opciones abiertas elegidas (decisión de Aitor, 18-sep): obligatorio.
+ * Devuelve los campos y si están todos rellenos.
+ */
+function useCuales(pregunta: Pregunta, valor: ValorRespuesta | undefined, respuestas: Respuestas) {
+  const abiertas = abiertasElegidas(pregunta, valor);
+  const [textos, setTextos] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      (pregunta.opciones ?? [])
+        .filter((o) => o.pideCual)
+        .map((o) => {
+          const v = respuestas[claveCual(pregunta.id, o.etiqueta)];
+          return [o.etiqueta, typeof v === "string" ? v : ""];
+        }),
+    ),
+  );
+  const completos = abiertas.every((e) => (textos[e] ?? "").trim().length >= 2);
+  return { abiertas, textos, setTextos, completos };
+}
+
+function CamposCual({
+  pregunta,
+  abiertas,
+  textos,
+  setTextos,
+  onCual,
+}: {
+  pregunta: Pregunta;
+  abiertas: string[];
+  textos: Record<string, string>;
+  setTextos: (f: (t: Record<string, string>) => Record<string, string>) => void;
+  onCual: (etiqueta: string, texto: string) => void;
+}) {
+  if (abiertas.length === 0) return null;
+  return (
+    <div className="mt-5 space-y-4">
+      {abiertas.map((e) => {
+        const o = pregunta.opciones?.find((x) => x.etiqueta === e);
+        const id = `cual-${e.replace(/\W+/g, "-")}`;
+        return (
+          <div key={e}>
+            <label htmlFor={id} className="mb-1.5 block text-small text-ork-text">
+              {e}: <span className="text-ork-text-muted">{o?.pideCual}</span>
+            </label>
+            <input
+              id={id}
+              value={textos[e] ?? ""}
+              maxLength={MAX_TEXTO_CUAL}
+              autoComplete="off"
+              onChange={(ev) => {
+                const v = ev.target.value;
+                setTextos((t) => ({ ...t, [e]: v }));
+              }}
+              onBlur={() => onCual(e, (textos[e] ?? "").trim())}
+              className={CAMPO}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function CampoPregunta({
   pregunta,
   valor,
   sugerencias,
+  respuestas,
   onResponder,
+  onCual,
   onContinuar,
 }: {
   pregunta: Pregunta;
   valor: ValorRespuesta | undefined;
   sugerencias: string[];
+  respuestas: Respuestas;
   onResponder: (v: ValorRespuesta, avanzar: boolean) => void;
+  onCual: (etiqueta: string, texto: string) => void;
   onContinuar: () => void;
 }) {
   const [texto, setTexto] = useState(typeof valor === "string" ? valor : "");
+  const cuales = useCuales(pregunta, valor, respuestas);
+  const guardarCualesYSeguir = () => {
+    for (const e of cuales.abiertas) onCual(e, (cuales.textos[e] ?? "").trim());
+    onContinuar();
+  };
 
-  // Una opción: un clic responde y avanza.
+  // Una opción: un clic responde y avanza (salvo si es abierta: entonces pide cuál).
   if (pregunta.tipo === "chips" || pregunta.tipo === "rango" || pregunta.tipo === "si_no") {
     const opciones = pregunta.tipo === "si_no" ? ["Sí", "No"] : (pregunta.opciones ?? []).map((o) => o.etiqueta);
+    const esAbierta = (o: string) => !!pregunta.opciones?.find((x) => x.etiqueta === o)?.pideCual;
     return (
-      <div role="radiogroup" aria-label={pregunta.texto} className="grid gap-3 sm:grid-cols-2">
-        {opciones.map((o) => (
-          <button
-            key={o}
-            type="button"
-            role="radio"
-            aria-checked={valor === o}
-            onClick={() => onResponder(o, true)}
-            className={OPCION + (valor === o ? OPCION_ELEGIDA : "")}
-          >
-            {o}
+      <div>
+        <div role="radiogroup" aria-label={pregunta.texto} className="grid gap-3 sm:grid-cols-2">
+          {opciones.map((o) => (
+            <button
+              key={o}
+              type="button"
+              role="radio"
+              aria-checked={valor === o}
+              onClick={() => onResponder(o, !esAbierta(o))}
+              className={OPCION + (valor === o ? OPCION_ELEGIDA : "")}
+            >
+              {o}
+            </button>
+          ))}
+        </div>
+        <CamposCual pregunta={pregunta} {...cuales} onCual={onCual} />
+        {cuales.abiertas.length ? (
+          <button type="button" onClick={guardarCualesYSeguir} disabled={!cuales.completos} className={BOTON_PRIMARIO + " mt-6"}>
+            Continuar
           </button>
-        ))}
+        ) : null}
       </div>
     );
   }
@@ -322,7 +405,13 @@ function CampoPregunta({
             );
           })}
         </div>
-        <button type="button" onClick={onContinuar} disabled={elegidas.length === 0} className={BOTON_PRIMARIO + " mt-6"}>
+        <CamposCual pregunta={pregunta} {...cuales} onCual={onCual} />
+        <button
+          type="button"
+          onClick={guardarCualesYSeguir}
+          disabled={elegidas.length === 0 || !cuales.completos}
+          className={BOTON_PRIMARIO + " mt-6"}
+        >
           Continuar
         </button>
       </div>

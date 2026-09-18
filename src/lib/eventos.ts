@@ -6,8 +6,8 @@ import { VALIDAR_COMUNES } from "@/config/sectores/comunes";
 import type { Respuestas, SectorId } from "@/config/tipos";
 import { calcularQuickWins } from "./calculo";
 import { indicePreguntas } from "./preguntas";
-import { lineaCita } from "./calendario";
-import { pasosPrevio } from "./previo";
+import { enlaceGoogle, horaCorta, lineaCita } from "./calendario";
+import { claveCual, pasosPrevio } from "./previo";
 import { loQueHeEntendido } from "./resumenPrevio";
 
 /**
@@ -43,10 +43,15 @@ export function payloadPrevioCompletado(d: FilaEvento, base: string) {
     .filter((p) => r[p.pregunta.id] !== undefined && r[p.pregunta.id] !== null && r[p.pregunta.id] !== "")
     .map((p) => {
       const v = r[p.pregunta.id];
+      // Opciones abiertas: "Software de mi sector (Aranzadi)"
+      const conCual = (e: string) => {
+        const c = r[claveCual(p.pregunta.id, e)];
+        return typeof c === "string" && c.trim() ? `${e} (${c.trim()})` : e;
+      };
       return {
         fase: movs[p.movimiento].numero,
         pregunta: indice.get(p.pregunta.id)?.texto ?? p.pregunta.id,
-        respuesta: Array.isArray(v) ? v.join(", ") : String(v),
+        respuesta: Array.isArray(v) ? v.map(conCual).join(", ") : conCual(String(v)),
       };
     });
 
@@ -101,6 +106,10 @@ export function payloadPrevioCompletado(d: FilaEvento, base: string) {
     tipo_negocio: d.tipo_negocio,
     // Ya redactado para los emails: "Nos vemos el lunes 21 de septiembre a las 10:00 en …"
     cita_texto: lineaCita(d.fecha_reunion, d.hora_reunion, d.lugar_reunion),
+    calendario_google:
+      d.fecha_reunion && d.hora_reunion && horaCorta(d.hora_reunion)
+        ? enlaceGoogle({ fecha: d.fecha_reunion, hora: d.hora_reunion, lugar: d.lugar_reunion, empresa: d.empresa ?? "" })
+        : null,
     respuestas_legibles,
     // Textos de la pantalla final (plantillas fijas): respaldo si la IA falla, spec del motor §7.
     entendido_base: loQueHeEntendido(r, d.sector),

@@ -175,7 +175,14 @@ function fraseHerramientas(r: Respuestas): string | null {
   const lista = Array.isArray(r["herramientas.lista"]) ? r["herramientas.lista"] : [];
   if (lista.length === 0) return null;
   if (lista.includes("Nada en especial") && lista.length === 1) return "No usáis ningún programa en especial.";
-  const hs = lista.map((h) => HERRAMIENTA[h]).filter(Boolean).slice(0, 3);
+  // Si dijo cuál (opción abierta), se usa su nombre: "Holded" en vez de "un programa de facturación".
+  const hs = lista
+    .map((h) => {
+      const cual = r[`herramientas.lista::${h}`];
+      return typeof cual === "string" && cual.trim() ? cual.trim() : HERRAMIENTA[h];
+    })
+    .filter(Boolean)
+    .slice(0, 3);
   return hs.length ? `En el día a día usáis ${unir(hs)}.` : null;
 }
 

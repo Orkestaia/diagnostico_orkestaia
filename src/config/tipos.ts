@@ -27,6 +27,12 @@ export interface Opcion {
   perfil?: Perfil;
   /** `dia.docs_repetitivos`: grupo de subsector al que pertenece la opción. */
   grupo?: string;
+  /**
+   * Opción abierta ("Software de mi sector", "Otro"): si se elige, el cliente TIENE que escribir
+   * cuál (decisión de Aitor, 18-sep). El valor es el ejemplo que se muestra en el campo.
+   * Se guarda en `respuestas["<id>::<etiqueta>"]`.
+   */
+  pideCual?: string;
 }
 
 /** `mostrar_si` del banco: pregunta condicional. */

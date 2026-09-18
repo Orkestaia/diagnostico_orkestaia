@@ -8,6 +8,17 @@ import { esVisible, indicePreguntas } from "./preguntas";
 
 /** Spec §10: textos del previo ≤ 280. */
 export const MAX_TEXTO_PREVIO = 280;
+/** "¿Cuál?" de una opción abierta (p. ej. el nombre del programa). */
+export const MAX_TEXTO_CUAL = 80;
+
+/** Clave donde se guarda el "¿cuál?" de una opción abierta. */
+export const claveCual = (id: string, etiqueta: string) => `${id}::${etiqueta}`;
+
+/** Opciones abiertas elegidas en esta pregunta (las que exigen escribir cuál). */
+export function abiertasElegidas(p: Pregunta, v: ValorRespuesta | undefined): string[] {
+  const elegidas = Array.isArray(v) ? v : typeof v === "string" ? [v] : [];
+  return (p.opciones ?? []).filter((o) => o.pideCual && elegidas.includes(o.etiqueta)).map((o) => o.etiqueta);
+}
 
 export interface PasoPrevio {
   movimiento: number;
@@ -40,9 +51,19 @@ export function estaRespondida(p: Pregunta, v: ValorRespuesta | undefined): bool
   return true;
 }
 
+/** Respondida y, si eligió opciones abiertas, con el "¿cuál?" escrito (decisión de Aitor, 18-sep). */
+export function estaCompleta(p: Pregunta, r: Respuestas): boolean {
+  const v = r[p.id];
+  if (!estaRespondida(p, v)) return false;
+  return abiertasElegidas(p, v).every((e) => {
+    const cual = r[claveCual(p.id, e)];
+    return typeof cual === "string" && cual.trim().length >= 2;
+  });
+}
+
 /** Primera pregunta visible sin responder (para reanudar), o -1 si está todo. */
 export function primeraPendiente(sector: SectorId, r: Respuestas): number {
-  return pasosPrevio(sector, r).findIndex((x) => !x.pregunta.opcional && !estaRespondida(x.pregunta, r[x.pregunta.id]));
+  return pasosPrevio(sector, r).findIndex((x) => !x.pregunta.opcional && !estaCompleta(x.pregunta, r));
 }
 
 /** ¿Es un valor aceptable para esta pregunta? (lo que llega del navegador no es de fiar) */
@@ -78,6 +99,16 @@ export function filtrarRespuestas(sector: SectorId, lote: Record<string, unknown
   const aceptadas: Respuestas = {};
   const rechazadas: string[] = [];
   for (const [id, v] of Object.entries(lote)) {
+    // "¿Cuál?" de una opción abierta: `<id>::<etiqueta>`
+    const [base, etiqueta] = id.split("::");
+    if (etiqueta !== undefined) {
+      const pb = indice.get(base);
+      const abierta = pb?.opciones?.some((o) => o.etiqueta === etiqueta && o.pideCual);
+      const texto = v === null || (typeof v === "string" && v.length <= MAX_TEXTO_CUAL);
+      if (ids.has(base) && abierta && texto) aceptadas[id] = typeof v === "string" ? v.trim() : null;
+      else rechazadas.push(id);
+      continue;
+    }
     const p = indice.get(id);
     if (!ids.has(id) || !p || !valorValido(p, v)) rechazadas.push(id);
     else aceptadas[id] = typeof v === "string" ? v.trim() : (v as ValorRespuesta);

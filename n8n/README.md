@@ -16,7 +16,7 @@ app (Vercel). Si se cambia en un sitio, hay que cambiarlo en los dos.
 | `diagnostico.visita_cerrada` | Telegram + email a Aitor «listo para JARVIS» + Airtable |
 | Cada día a las 10:00 | Pide a la app los previos sin terminar tras 48 h (`POST /api/motor/pendientes`, firmado; la app los marca para no repetir) → email de recordatorio al cliente (si tiene email) · Telegram a Aitor con el WhatsApp ya escrito · Airtable |
 
-Credenciales: OpenAi account · Orkesta Gmail · Telegram Orkestador (chat 6674289801) ·
+Credenciales: OpenAi account · Orkesta Gmail · Telegram Hermes (avisos diagnóstico) = bot @Hermes_Agent_Orkesta_bot, solo sendMessage (chat 6674289801) ·
 Airtable Personal Access Token account (base `Diagnóstico_orkesta`, tabla `Diagnósticos`).
 
 ## Cambiar la URL de la app

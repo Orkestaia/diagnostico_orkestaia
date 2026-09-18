@@ -2,7 +2,7 @@
   "name": "Orkesta - Motor de Diagnóstico - v1",
   "nodes": [
     {
-      "id": "70d3f5ae-d09c-4854-a8b4-d0e4eeef8427",
+      "id": "ea03f7fb-0ee3-427c-b276-ae6c2e226833",
       "name": "Webhook app",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -16,10 +16,10 @@
         "responseMode": "onReceived",
         "options": {}
       },
-      "webhookId": "0385283d-5933-4116-82a5-adf86230b23b"
+      "webhookId": "bfe2e632-cb20-428a-8bab-d614f7a58c65"
     },
     {
-      "id": "398b4d63-1b46-4650-b9c0-aff4713bda08",
+      "id": "4395de76-d198-44ec-962c-c1a5652a408f",
       "name": "Verificar firma",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -32,7 +32,7 @@
       }
     },
     {
-      "id": "dcaba9ea-cb27-4e2d-9b7f-656bf37c53b2",
+      "id": "210a6682-fec6-45a4-9847-3cd5f63cf07f",
       "name": "Según el evento",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
@@ -53,7 +53,7 @@
                 },
                 "conditions": [
                   {
-                    "id": "4e180a46-ad16-42da-b74e-c4f7ede50ada",
+                    "id": "f9034a5a-d1e7-44e1-97a9-bb95d39c6d7c",
                     "leftValue": "={{ $json.evento }}",
                     "rightValue": "diagnostico.previo_completado",
                     "operator": {
@@ -77,7 +77,7 @@
                 },
                 "conditions": [
                   {
-                    "id": "47579f22-4480-498e-bfb0-fa93408640ad",
+                    "id": "8dcaefc4-8b78-4172-8b0e-44b39611ddd8",
                     "leftValue": "={{ $json.evento }}",
                     "rightValue": "diagnostico.visita_cerrada",
                     "operator": {
@@ -97,7 +97,7 @@
       }
     },
     {
-      "id": "d8580983-583f-492e-af8a-e66d6e9a5459",
+      "id": "06ed36d6-8eed-4b1e-92cf-5e18dcb6fae3",
       "name": "Contexto para la IA",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -110,7 +110,7 @@
       }
     },
     {
-      "id": "06c50583-b809-4556-bc21-415fe88c35fc",
+      "id": "6e6b719f-6d2f-4b26-8040-ca79c4b446a6",
       "name": "Redacción IA (OpenAI)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -142,7 +142,7 @@
       "waitBetweenTries": 3000
     },
     {
-      "id": "9e96d396-42f2-4624-9f4b-ac110708ce2c",
+      "id": "97d6bfab-dff2-4dda-93a2-956457d2ee92",
       "name": "Validar redacción",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -155,7 +155,7 @@
       }
     },
     {
-      "id": "7ee437ce-546e-4a2a-8fdf-907d9ceb2e5d",
+      "id": "5c333eca-1715-455b-939c-7550743915c4",
       "name": "Componer mensajes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -164,11 +164,11 @@
         160
       ],
       "parameters": {
-        "jsCode": "// Emails, Telegram y fila de Airtable. Plantillas fijas (spec del motor §6): el modelo no\n// escribe los emails, solo los textos que ya se validaron.\nconst d = $input.first().json;\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];\nconst nombre = ((d.contacto || {}).nombre || '').trim();\nconst hoy = new Date().toISOString().slice(0, 10);\nconst futura = d.fecha_reunion && d.fecha_reunion >= hoy;\nlet dia = null;\nif (futura) {\n  const [a, m, dd] = d.fecha_reunion.split('-').map(Number);\n  dia = DIAS[new Date(Date.UTC(a, m - 1, dd)).getUTCDay()] + ' ' + dd;\n  if (d.hora_reunion) dia += ' a las ' + String(d.hora_reunion).slice(0, 5);\n}\nconst temas = (d.informe && d.informe.temas_reunion) || d.temas_base || [];\nconst entendido = (d.informe && d.informe.resumen_entendido) || d.entendido_base || [];\nconst lista = xs => xs.length ? '<ul>' + xs.map(x => '<li style=\"margin:4px 0\">' + esc(x) + '</li>').join('') + '</ul>' : '<p>—</p>';\nconst estilo = 'font-family:Inter,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1e1e1e;max-width:560px';\n\n// ── Cliente ──\nconst asunto_cliente = dia ? 'Recibido, ' + nombre + '. Nos vemos el ' + dia : 'Recibido, ' + nombre;\nconst html_cliente = '<div style=\"' + estilo + '\">'\n  + '<p>Hola ' + esc(nombre) + ',</p>'\n  + '<p>Gracias por contestar las preguntas. ' + esc(futura && d.cita_texto ? d.cita_texto : 'Lo vemos cuando nos reunamos.') + '</p>'\n  + (temas.length ? '<p>Esto es lo que revisaremos juntos:</p>' + lista(temas) : '')\n  + ((d.preparacion || []).length ? '<p>Para ese día, si puedes, ten a mano:</p>' + lista(d.preparacion) : '')\n  + '<p>Si quieres añadir algo, responde a este email.</p>'\n  + '<p>Aitor Colino<br><span style=\"color:#00b4d8\">ORKESTA</span> Automatización &amp; IA</p></div>';\n\n// ── Interno (Aitor): aquí sí van las cifras ──\nconst rc = d.resumen_cifras || {};\nconst cifras = (rc.quick_wins || []).map(q => {\n  const partes = [q.id];\n  if (q.horas) partes.push(q.horas.min + '-' + q.horas.max + ' h/mes');\n  if (q.eur) partes.push(q.eur.min + '-' + q.eur.max + ' €/mes');\n  if (q.oportunidades != null) partes.push('~' + q.oportunidades + ' ' + (q.unidad_oportunidad || 'oportunidades/mes'));\n  if (q.sin_cifras) partes.push('sin cifras (falta dato)');\n  return partes.join(' · ');\n});\nconst i = d.interno || {};\nconst hip = (i.hipotesis || []).map(x => x.hipotesis + (x.basada_en ? ' (' + x.basada_en + ')' : ''));\nconst horas_txt = rc.horas_mes_total ? rc.horas_mes_total.min + '-' + rc.horas_mes_total.max + ' h/mes' + (rc.ajustado_por_tope ? ' (ajustado por tope)' : '') : '';\nconst html_interno = '<div style=\"' + estilo + ';max-width:720px\">'\n  + '<h2 style=\"margin:0\">' + esc(d.empresa) + '</h2>'\n  + '<p>' + esc(d.tipo_negocio || d.sector) + ' · ' + esc(nombre) + ' · ' + esc((d.contacto || {}).email || 'sin email') + ' · ' + esc((d.contacto || {}).telefono || 'sin teléfono') + '<br>'\n  + esc(d.cita_texto || 'Sin fecha de reunión') + '</p>'\n  + '<p><a href=\"' + esc((d.urls || {}).admin) + '\">Abrir el panel</a></p>'\n  + '<h3>Lo que se quitaría</h3><p>' + esc(d.prioridad_tarea || '—') + '</p>'\n  + '<h3>Cifras (calculo.ts)</h3>' + lista(cifras) + (horas_txt ? '<p>Total: ' + esc(horas_txt) + '</p>' : '')\n  + '<h3>Hipótesis</h3>' + lista(hip)\n  + '<h3>Preguntas para la visita</h3>' + lista(i.preguntas_visita || [])\n  + ((i.alertas || []).length ? '<h3>Alertas</h3>' + lista(i.alertas) : '')\n  + '<h3>Lo que ve el cliente</h3>' + lista(entendido) + '<p><b>Temas:</b></p>' + lista(temas)\n  + '<h3>Respuestas del previo</h3>' + lista((d.respuestas_legibles || []).map(x => x.fase + ' · ' + x.pregunta + ' → ' + x.respuesta))\n  + '<p style=\"color:#8a8a8a\">Redacción: ' + (d.redaccion === 'ia' ? 'IA' : 'textos base') + '</p></div>';\n\nconst telegram = '🎼 Previo completado · ' + d.empresa + ' (' + (d.tipo_negocio || d.sector) + ')\\n'\n  + (d.cita_texto ? d.cita_texto + '\\n' : '')\n  + temas.map((t, n) => (n + 1) + ') ' + t).join('\\n')\n  + (horas_txt ? '\\nCifras: ' + horas_txt : '')\n  + '\\n' + ((d.urls || {}).admin || '');\n\nconst airtable = {\n  'Empresa': d.empresa,\n  'Diagnóstico ID': d.diagnostico_id,\n  'Estado': 'Previo completado',\n  'Tipo de negocio': d.tipo_negocio || '',\n  'Sector (preguntas)': d.sector,\n  'Contacto': nombre,\n  'Email': (d.contacto || {}).email || null,\n  'Teléfono': (d.contacto || {}).telefono || null,\n  'Fecha reunión': d.fecha_reunion || null,\n  'Hora': d.hora_reunion ? String(d.hora_reunion).slice(0, 5) : '',\n  'Lugar': d.lugar_reunion || '',\n  'Origen': d.origen || '',\n  'Tarea que se quitaría': d.prioridad_tarea || '',\n  'Respuestas del previo': (d.respuestas_legibles || []).map(x => x.fase + ' · ' + x.pregunta + ' → ' + x.respuesta).join('\\n'),\n  'Lo que revisaremos': temas.join('\\n'),\n  'Horas estimadas (interno)': horas_txt,\n  'Hipótesis (interno)': hip.join('\\n'),\n  'Preguntas para la visita (interno)': (i.preguntas_visita || []).join('\\n'),\n  'Alertas (interno)': (i.alertas || []).join('\\n'),\n  'Redacción': d.redaccion === 'ia' ? 'IA' : 'Textos base',\n  'Enlace del previo': (d.urls || {}).previo || null,\n  'Panel': (d.urls || {}).admin || null,\n  'Actualizado': new Date().toISOString(),\n};\nreturn [{ json: { ...d, asunto_cliente, html_cliente, asunto_interno: 'Previo completado · ' + d.empresa, html_interno, telegram, airtable } }];"
+        "jsCode": "// Emails, Telegram y fila de Airtable. Plantillas fijas con la marca (spec del motor §6): el\n// modelo no escribe los emails, solo los textos que ya se validaron.\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst C = { fondo: '#050505', caja: '#111113', borde: '#262626', texto: '#e6e6e6', suave: '#a8a8a8', cian: '#00b4d8', cianHi: '#00e5ff', violeta: '#b58cf0' };\nconst FUENTE = \"Inter,'Segoe UI',Roboto,Helvetica,Arial,sans-serif\";\nconst MONO = \"'JetBrains Mono',Consolas,'Courier New',monospace\";\nconst parrafo = t => '<p style=\"margin:0 0 14px;font:16px/1.6 ' + FUENTE + ';color:' + C.texto + '\">' + t + '</p>';\nconst etiqueta = (t, color) => '<p style=\"margin:26px 0 10px;font:600 12px/1.2 ' + MONO + ';letter-spacing:2px;text-transform:uppercase;color:' + (color || C.cian) + '\">' + esc(t) + '</p>';\nconst lista = (xs, color) => xs.length\n  ? '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">' + xs.map(x =>\n      '<tr><td width=\"18\" valign=\"top\" style=\"padding:9px 0 0\"><div style=\"width:7px;height:7px;border-radius:7px;background:' + (color || C.cian) + '\"></div></td>'\n      + '<td style=\"padding:0 0 8px;font:15px/1.55 ' + FUENTE + ';color:' + C.texto + '\">' + esc(x) + '</td></tr>').join('') + '</table>'\n  : parrafo('—');\nconst boton = (texto, url) => '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:6px 0 4px\"><tr><td style=\"border-radius:10px;background:' + C.cian + '\">'\n  + '<a href=\"' + esc(url) + '\" style=\"display:inline-block;padding:12px 22px;font:600 15px ' + FUENTE + ';color:#050505;text-decoration:none;border-radius:10px\">' + esc(texto) + '</a></td></tr></table>';\nconst email = (previa, titulo, cuerpo) => '<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"color-scheme\" content=\"dark\"><title>' + esc(titulo) + '</title></head>'\n  + '<body style=\"margin:0;padding:0;background:' + C.fondo + '\">'\n  + '<div style=\"display:none;max-height:0;overflow:hidden;opacity:0\">' + esc(previa) + '</div>'\n  + '<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"background:' + C.fondo + '\"><tr><td align=\"center\" style=\"padding:28px 12px\">'\n  + '<table role=\"presentation\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:100%;max-width:600px;background:' + C.caja + ';border:1px solid ' + C.borde + ';border-radius:18px\">'\n  // Cabecera: Orkestador + marca\n  + '<tr><td style=\"padding:26px 30px 0\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr>'\n  + '<td valign=\"middle\" style=\"padding-right:14px\"><img src=\"https://diagnostico-orkestaia-orkesta-automation.vercel.app/orkestador/orkestador-email.png\" width=\"52\" height=\"57\" alt=\"\" style=\"display:block;border:0\"></td>'\n  + '<td valign=\"middle\" style=\"font:700 20px/1 ' + FUENTE + ';letter-spacing:1px;color:#ffffff\">ORKESTA <span style=\"font-weight:400;font-size:14px;letter-spacing:0;color:' + C.suave + '\">Automatización &amp; IA</span></td>'\n  + '</tr></table></td></tr>'\n  // Línea de marca cian → violeta\n  + '<tr><td style=\"padding:22px 30px 0\"><div style=\"height:2px;line-height:2px;font-size:0;background:' + C.cian + ';background-image:linear-gradient(90deg,' + C.cianHi + ',' + C.cian + ' 40%,#7b2cbf)\">&nbsp;</div></td></tr>'\n  + '<tr><td style=\"padding:26px 30px 30px\">'\n  + '<h1 style=\"margin:0 0 18px;font:700 24px/1.25 ' + FUENTE + ';color:#ffffff\">' + esc(titulo) + '</h1>'\n  + cuerpo\n  + '</td></tr></table>'\n  + '</td></tr></table></body></html>';\nconst d = $input.first().json;\nconst DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];\nconst nombre = ((d.contacto || {}).nombre || '').trim();\nconst hoy = new Date().toISOString().slice(0, 10);\nconst futura = d.fecha_reunion && d.fecha_reunion >= hoy;\nlet dia = null;\nif (futura) {\n  const [a, m, dd] = d.fecha_reunion.split('-').map(Number);\n  dia = DIAS[new Date(Date.UTC(a, m - 1, dd)).getUTCDay()] + ' ' + dd;\n  if (d.hora_reunion) dia += ' a las ' + String(d.hora_reunion).slice(0, 5);\n}\nconst temas = (d.informe && d.informe.temas_reunion) || d.temas_base || [];\nconst entendido = (d.informe && d.informe.resumen_entendido) || d.entendido_base || [];\n\n// ── Cliente (sin firma: decisión de Aitor, 18-sep) ──\nconst asunto_cliente = dia ? 'Recibido, ' + nombre + '. Nos vemos el ' + dia : 'Recibido, ' + nombre;\nconst html_cliente = email(\n  'Gracias por contestar. ' + (futura && d.cita_texto ? d.cita_texto : ''),\n  'Gracias, ' + nombre + '.',\n  parrafo('Ya tengo tus respuestas. ' + esc(futura && d.cita_texto ? d.cita_texto : 'Lo vemos cuando nos reunamos.'))\n  + (futura && d.calendario_google ? boton('Añadir a Google Calendar', d.calendario_google) : '')\n  + (temas.length ? etiqueta('Lo que revisaremos juntos', C.violeta) + lista(temas, '#8a2be2') : '')\n  + ((d.preparacion || []).length ? etiqueta('Qué tener a mano ese día') + lista(d.preparacion) : '')\n  + '<p style=\"margin:26px 0 0;font:14px/1.6 ' + FUENTE + ';color:' + C.suave + '\">Si quieres añadir algo antes de vernos, responde a este email.</p>'\n);\n\n// ── Interno (Aitor): aquí sí van las cifras ──\nconst rc = d.resumen_cifras || {};\nconst cifras = (rc.quick_wins || []).map(q => {\n  const partes = [q.id];\n  if (q.horas) partes.push(q.horas.min + '-' + q.horas.max + ' h/mes');\n  if (q.eur) partes.push(q.eur.min + '-' + q.eur.max + ' €/mes');\n  if (q.oportunidades != null) partes.push('~' + q.oportunidades + ' ' + (q.unidad_oportunidad || 'oportunidades/mes'));\n  if (q.sin_cifras) partes.push('sin cifras (falta dato)');\n  return partes.join(' · ');\n});\nconst i = d.interno || {};\nconst hip = (i.hipotesis || []).map(x => x.hipotesis + (x.basada_en ? ' (' + x.basada_en + ')' : ''));\nconst horas_txt = rc.horas_mes_total ? rc.horas_mes_total.min + '-' + rc.horas_mes_total.max + ' h/mes' + (rc.ajustado_por_tope ? ' (ajustado por tope)' : '') : '';\nconst c = d.contacto || {};\nconst html_interno = email(\n  'Previo completado: ' + d.empresa,\n  d.empresa + ': previo completado',\n  parrafo(esc(d.tipo_negocio || d.sector) + ' · ' + esc(nombre) + '<br>' + esc(c.email || 'sin email') + ' · ' + esc(c.telefono || 'sin teléfono') + '<br>' + esc(d.cita_texto || 'Sin fecha de reunión'))\n  + boton('Abrir el panel', (d.urls || {}).admin)\n  + etiqueta('Lo que se quitaría') + parrafo('«' + esc(d.prioridad_tarea || '—') + '»')\n  + etiqueta('Cifras (calculo.ts)') + lista(cifras) + (horas_txt ? parrafo('Total: <b>' + esc(horas_txt) + '</b>') : '')\n  + etiqueta('Hipótesis', C.violeta) + lista(hip, '#8a2be2')\n  + etiqueta('Preguntas para la visita', C.violeta) + lista(i.preguntas_visita || [], '#8a2be2')\n  + ((i.alertas || []).length ? etiqueta('Alertas', '#ff8a8e') + lista(i.alertas, '#e5484d') : '')\n  + etiqueta('Lo que ve el cliente') + lista(entendido) + parrafo('<b>Temas:</b> ' + esc(temas.join(' · ')))\n  + etiqueta('Respuestas del previo') + lista((d.respuestas_legibles || []).map(x => x.fase + ' · ' + x.pregunta + ' → ' + x.respuesta))\n  + '<p style=\"margin:22px 0 0;font:12px ' + MONO + ';color:' + C.suave + '\">Redacción: ' + (d.redaccion === 'ia' ? 'IA' : 'textos base') + '</p>'\n);\n\nconst telegram = '🎼 Previo completado · ' + d.empresa + ' (' + (d.tipo_negocio || d.sector) + ')\\n'\n  + (d.cita_texto ? d.cita_texto + '\\n' : '')\n  + temas.map((t, n) => (n + 1) + ') ' + t).join('\\n')\n  + (horas_txt ? '\\nCifras: ' + horas_txt : '')\n  + '\\n' + ((d.urls || {}).admin || '');\n\nconst airtable = {\n  'Empresa': d.empresa,\n  'Diagnóstico ID': d.diagnostico_id,\n  'Estado': 'Previo completado',\n  'Tipo de negocio': d.tipo_negocio || '',\n  'Sector (preguntas)': d.sector,\n  'Contacto': nombre,\n  'Email': c.email || null,\n  'Teléfono': c.telefono || null,\n  'Fecha reunión': d.fecha_reunion || null,\n  'Hora': d.hora_reunion ? String(d.hora_reunion).slice(0, 5) : '',\n  'Lugar': d.lugar_reunion || '',\n  'Origen': d.origen || '',\n  'Tarea que se quitaría': d.prioridad_tarea || '',\n  'Respuestas del previo': (d.respuestas_legibles || []).map(x => x.fase + ' · ' + x.pregunta + ' → ' + x.respuesta).join('\\n'),\n  'Lo que revisaremos': temas.join('\\n'),\n  'Horas estimadas (interno)': horas_txt,\n  'Hipótesis (interno)': hip.join('\\n'),\n  'Preguntas para la visita (interno)': (i.preguntas_visita || []).join('\\n'),\n  'Alertas (interno)': (i.alertas || []).join('\\n'),\n  'Redacción': d.redaccion === 'ia' ? 'IA' : 'Textos base',\n  'Enlace del previo': (d.urls || {}).previo || null,\n  'Panel': (d.urls || {}).admin || null,\n  'Actualizado': new Date().toISOString(),\n};\nreturn [{ json: { ...d, asunto_cliente, html_cliente, asunto_interno: 'Previo completado · ' + d.empresa, html_interno, telegram, airtable } }];"
       }
     },
     {
-      "id": "5f9de6d8-6c5d-4803-abf0-40d3140444a4",
+      "id": "6b338435-70ad-4dcf-a0be-c4577f085572",
       "name": "Firmar callback",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -181,7 +181,7 @@
       }
     },
     {
-      "id": "592e9e4f-5a49-4f2f-afd6-33166dc573cd",
+      "id": "f4246eb2-4bf5-4efe-9f75-6b9c64c5db41",
       "name": "Callback a la app",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -217,7 +217,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "7078479f-7413-4bb1-a8e4-98c8a93189a8",
+      "id": "e0ad6921-d33d-4dae-be18-67594aa05a37",
       "name": "¿Tiene email?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -235,7 +235,7 @@
           },
           "conditions": [
             {
-              "id": "9e4ec277-350d-4456-b053-1c2105a9106d",
+              "id": "ceb61047-5a74-422b-8d69-70f674b3a9f2",
               "leftValue": "={{ $('Componer mensajes').item.json.contacto.email }}",
               "rightValue": "",
               "operator": {
@@ -251,7 +251,7 @@
       }
     },
     {
-      "id": "110bace3-3a04-4841-a61c-d4d7d04c3a22",
+      "id": "8004ba34-0650-4537-aa04-60927c05885d",
       "name": "Email al cliente",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -279,7 +279,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "4b178a21-7dcc-4b7b-adf9-da40fe85b6b7",
+      "id": "c37220d0-f606-4b05-898c-9ba4d77ab54e",
       "name": "Email interno a Aitor",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -307,7 +307,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "6237e5dc-4bcf-428b-b97d-953d790f4704",
+      "id": "af1961de-29f0-461a-a9ab-88c58296cad3",
       "name": "Telegram a Aitor",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -325,14 +325,14 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "TGFhtcTOzYVke1rM",
-          "name": "Telegram Orkestador"
+          "id": "lFqrk5zgIca5nxYh",
+          "name": "Telegram Hermes (avisos diagnóstico)"
         }
       },
       "onError": "continueRegularOutput"
     },
     {
-      "id": "239605f7-79a3-4bd0-a4f7-d35e39f729ea",
+      "id": "32a9627e-87c5-4786-a7cf-cb15f44c94d1",
       "name": "Guardar en Airtable",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -359,7 +359,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "554c62c9-93ea-4609-ab1b-f2bfdf33e935",
+      "id": "3d6aa452-cb10-47c4-bacf-196fb5a801f9",
       "name": "Componer aviso de visita",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -368,11 +368,11 @@
         520
       ],
       "parameters": {
-        "jsCode": "// visita_cerrada: aviso a Aitor \"listo para JARVIS\" (sin IA). Se completa en la fase 5.\nconst d = $input.first().json;\nreturn [{ json: {\n  ...d,\n  telegram: '✅ Visita cerrada · ' + (d.empresa || '') + '. Lista para exportar a JARVIS.\\n' + ((d.urls || {}).admin || ''),\n  asunto_interno: 'Visita cerrada · ' + (d.empresa || '') + ': listo para JARVIS',\n  html_interno: '<p>Visita cerrada: <b>' + (d.empresa || '') + '</b>. Lista para exportar a JARVIS.</p><p><a href=\"' + ((d.urls || {}).admin || '') + '\">Abrir el panel</a></p>',\n  airtable: { 'Empresa': d.empresa, 'Diagnóstico ID': d.diagnostico_id, 'Estado': 'Visita cerrada', 'Actualizado': new Date().toISOString() },\n} }];"
+        "jsCode": "// visita_cerrada: aviso a Aitor \"listo para JARVIS\" (sin IA). Se completa en la fase 5.\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst C = { fondo: '#050505', caja: '#111113', borde: '#262626', texto: '#e6e6e6', suave: '#a8a8a8', cian: '#00b4d8', cianHi: '#00e5ff', violeta: '#b58cf0' };\nconst FUENTE = \"Inter,'Segoe UI',Roboto,Helvetica,Arial,sans-serif\";\nconst MONO = \"'JetBrains Mono',Consolas,'Courier New',monospace\";\nconst parrafo = t => '<p style=\"margin:0 0 14px;font:16px/1.6 ' + FUENTE + ';color:' + C.texto + '\">' + t + '</p>';\nconst etiqueta = (t, color) => '<p style=\"margin:26px 0 10px;font:600 12px/1.2 ' + MONO + ';letter-spacing:2px;text-transform:uppercase;color:' + (color || C.cian) + '\">' + esc(t) + '</p>';\nconst lista = (xs, color) => xs.length\n  ? '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">' + xs.map(x =>\n      '<tr><td width=\"18\" valign=\"top\" style=\"padding:9px 0 0\"><div style=\"width:7px;height:7px;border-radius:7px;background:' + (color || C.cian) + '\"></div></td>'\n      + '<td style=\"padding:0 0 8px;font:15px/1.55 ' + FUENTE + ';color:' + C.texto + '\">' + esc(x) + '</td></tr>').join('') + '</table>'\n  : parrafo('—');\nconst boton = (texto, url) => '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:6px 0 4px\"><tr><td style=\"border-radius:10px;background:' + C.cian + '\">'\n  + '<a href=\"' + esc(url) + '\" style=\"display:inline-block;padding:12px 22px;font:600 15px ' + FUENTE + ';color:#050505;text-decoration:none;border-radius:10px\">' + esc(texto) + '</a></td></tr></table>';\nconst email = (previa, titulo, cuerpo) => '<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"color-scheme\" content=\"dark\"><title>' + esc(titulo) + '</title></head>'\n  + '<body style=\"margin:0;padding:0;background:' + C.fondo + '\">'\n  + '<div style=\"display:none;max-height:0;overflow:hidden;opacity:0\">' + esc(previa) + '</div>'\n  + '<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"background:' + C.fondo + '\"><tr><td align=\"center\" style=\"padding:28px 12px\">'\n  + '<table role=\"presentation\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:100%;max-width:600px;background:' + C.caja + ';border:1px solid ' + C.borde + ';border-radius:18px\">'\n  // Cabecera: Orkestador + marca\n  + '<tr><td style=\"padding:26px 30px 0\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr>'\n  + '<td valign=\"middle\" style=\"padding-right:14px\"><img src=\"https://diagnostico-orkestaia-orkesta-automation.vercel.app/orkestador/orkestador-email.png\" width=\"52\" height=\"57\" alt=\"\" style=\"display:block;border:0\"></td>'\n  + '<td valign=\"middle\" style=\"font:700 20px/1 ' + FUENTE + ';letter-spacing:1px;color:#ffffff\">ORKESTA <span style=\"font-weight:400;font-size:14px;letter-spacing:0;color:' + C.suave + '\">Automatización &amp; IA</span></td>'\n  + '</tr></table></td></tr>'\n  // Línea de marca cian → violeta\n  + '<tr><td style=\"padding:22px 30px 0\"><div style=\"height:2px;line-height:2px;font-size:0;background:' + C.cian + ';background-image:linear-gradient(90deg,' + C.cianHi + ',' + C.cian + ' 40%,#7b2cbf)\">&nbsp;</div></td></tr>'\n  + '<tr><td style=\"padding:26px 30px 30px\">'\n  + '<h1 style=\"margin:0 0 18px;font:700 24px/1.25 ' + FUENTE + ';color:#ffffff\">' + esc(titulo) + '</h1>'\n  + cuerpo\n  + '</td></tr></table>'\n  + '</td></tr></table></body></html>';\nconst d = $input.first().json;\nreturn [{ json: {\n  ...d,\n  telegram: '✅ Visita cerrada · ' + (d.empresa || '') + '. Lista para exportar a JARVIS.\\n' + ((d.urls || {}).admin || ''),\n  asunto_interno: 'Visita cerrada · ' + (d.empresa || '') + ': listo para JARVIS',\n  html_interno: email('Visita cerrada: ' + (d.empresa || ''), (d.empresa || '') + ': visita cerrada',\n    parrafo('Lista para exportar a JARVIS.') + boton('Abrir el panel', (d.urls || {}).admin)),\n  airtable: { 'Empresa': d.empresa, 'Diagnóstico ID': d.diagnostico_id, 'Estado': 'Visita cerrada', 'Actualizado': new Date().toISOString() },\n} }];"
       }
     },
     {
-      "id": "08e5ccf4-d1ae-412f-9a06-afa9a131f24c",
+      "id": "bdbb2c43-e7c7-407f-a21a-34ff0de91368",
       "name": "Telegram visita cerrada",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -390,14 +390,14 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "TGFhtcTOzYVke1rM",
-          "name": "Telegram Orkestador"
+          "id": "lFqrk5zgIca5nxYh",
+          "name": "Telegram Hermes (avisos diagnóstico)"
         }
       },
       "onError": "continueRegularOutput"
     },
     {
-      "id": "9da33be3-a525-4753-b564-c1b86d857df2",
+      "id": "11abb498-b033-4a61-97d4-2933b9bd6340",
       "name": "Email visita cerrada",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -425,7 +425,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "53dd79be-6f1e-4efb-adf9-bc898233c68d",
+      "id": "e026274b-46d5-4880-bb79-52c9bff8819e",
       "name": "Airtable visita cerrada",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -452,7 +452,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "20889b49-0e10-4148-8360-ad6323aef8dc",
+      "id": "b08f1368-8eb0-4551-ac09-1a56ba62841c",
       "name": "Cada día a las 10:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -472,7 +472,7 @@
       }
     },
     {
-      "id": "7590aaee-2ba5-4035-afa9-de7bec575b93",
+      "id": "5a5519a5-a2bc-482e-bed6-900484dfc3dd",
       "name": "Firmar petición",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -485,7 +485,7 @@
       }
     },
     {
-      "id": "71cbff79-1c01-472a-80a4-e8b40ce7d9ed",
+      "id": "8e24f38d-2102-47b8-93ef-acd1947e449d",
       "name": "Previos sin terminar",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -517,7 +517,7 @@
       }
     },
     {
-      "id": "d7f3bff0-6870-4287-a230-80e0681d9890",
+      "id": "10e1deb1-d0ca-4231-8c32-d72ff5da3a44",
       "name": "Uno por diagnóstico",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -526,11 +526,11 @@
         900
       ],
       "parameters": {
-        "jsCode": "// Un elemento por diagnóstico a recordar (la app ya los ha marcado como avisados).\nconst r = $input.first().json;\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nreturn (r.pendientes || []).map(p => ({ json: {\n  ...p,\n  asunto: 'Te recuerdo las preguntas del diagnóstico, ' + (p.contacto.nombre || ''),\n  html: '<div style=\"font-family:Inter,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1e1e1e;max-width:560px\">'\n    + esc(p.mensaje).split('\\n').join('<br>').replace(esc(p.enlace), '<a href=\"' + esc(p.enlace) + '\">' + esc(p.enlace) + '</a>')\n    + '<p>Aitor Colino<br><span style=\"color:#00b4d8\">ORKESTA</span> Automatización &amp; IA</p></div>',\n  telegram: '⏰ ' + p.empresa + ' no ha terminado el previo (' + p.respondidas + '/' + p.total + ').\\n'\n    + (p.contacto.email ? 'Le he enviado un recordatorio por email.\\n' : 'No tiene email: mándale el recordatorio tú.\\n')\n    + (p.whatsapp ? 'WhatsApp con el mensaje escrito: ' + p.whatsapp : 'Sin teléfono.'),\n  airtable: {\n    'Empresa': p.empresa,\n    'Diagnóstico ID': p.diagnostico_id,\n    'Estado': 'Recordatorio enviado',\n    'Contacto': p.contacto.nombre || '',\n    'Email': p.contacto.email || null,\n    'Teléfono': p.contacto.telefono || null,\n    'Enlace del previo': p.enlace,\n    'Actualizado': new Date().toISOString(),\n  },\n} }));"
+        "jsCode": "// Un elemento por diagnóstico a recordar (la app ya los ha marcado como avisados).\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst C = { fondo: '#050505', caja: '#111113', borde: '#262626', texto: '#e6e6e6', suave: '#a8a8a8', cian: '#00b4d8', cianHi: '#00e5ff', violeta: '#b58cf0' };\nconst FUENTE = \"Inter,'Segoe UI',Roboto,Helvetica,Arial,sans-serif\";\nconst MONO = \"'JetBrains Mono',Consolas,'Courier New',monospace\";\nconst parrafo = t => '<p style=\"margin:0 0 14px;font:16px/1.6 ' + FUENTE + ';color:' + C.texto + '\">' + t + '</p>';\nconst etiqueta = (t, color) => '<p style=\"margin:26px 0 10px;font:600 12px/1.2 ' + MONO + ';letter-spacing:2px;text-transform:uppercase;color:' + (color || C.cian) + '\">' + esc(t) + '</p>';\nconst lista = (xs, color) => xs.length\n  ? '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">' + xs.map(x =>\n      '<tr><td width=\"18\" valign=\"top\" style=\"padding:9px 0 0\"><div style=\"width:7px;height:7px;border-radius:7px;background:' + (color || C.cian) + '\"></div></td>'\n      + '<td style=\"padding:0 0 8px;font:15px/1.55 ' + FUENTE + ';color:' + C.texto + '\">' + esc(x) + '</td></tr>').join('') + '</table>'\n  : parrafo('—');\nconst boton = (texto, url) => '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:6px 0 4px\"><tr><td style=\"border-radius:10px;background:' + C.cian + '\">'\n  + '<a href=\"' + esc(url) + '\" style=\"display:inline-block;padding:12px 22px;font:600 15px ' + FUENTE + ';color:#050505;text-decoration:none;border-radius:10px\">' + esc(texto) + '</a></td></tr></table>';\nconst email = (previa, titulo, cuerpo) => '<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"color-scheme\" content=\"dark\"><title>' + esc(titulo) + '</title></head>'\n  + '<body style=\"margin:0;padding:0;background:' + C.fondo + '\">'\n  + '<div style=\"display:none;max-height:0;overflow:hidden;opacity:0\">' + esc(previa) + '</div>'\n  + '<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"background:' + C.fondo + '\"><tr><td align=\"center\" style=\"padding:28px 12px\">'\n  + '<table role=\"presentation\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:100%;max-width:600px;background:' + C.caja + ';border:1px solid ' + C.borde + ';border-radius:18px\">'\n  // Cabecera: Orkestador + marca\n  + '<tr><td style=\"padding:26px 30px 0\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr>'\n  + '<td valign=\"middle\" style=\"padding-right:14px\"><img src=\"https://diagnostico-orkestaia-orkesta-automation.vercel.app/orkestador/orkestador-email.png\" width=\"52\" height=\"57\" alt=\"\" style=\"display:block;border:0\"></td>'\n  + '<td valign=\"middle\" style=\"font:700 20px/1 ' + FUENTE + ';letter-spacing:1px;color:#ffffff\">ORKESTA <span style=\"font-weight:400;font-size:14px;letter-spacing:0;color:' + C.suave + '\">Automatización &amp; IA</span></td>'\n  + '</tr></table></td></tr>'\n  // Línea de marca cian → violeta\n  + '<tr><td style=\"padding:22px 30px 0\"><div style=\"height:2px;line-height:2px;font-size:0;background:' + C.cian + ';background-image:linear-gradient(90deg,' + C.cianHi + ',' + C.cian + ' 40%,#7b2cbf)\">&nbsp;</div></td></tr>'\n  + '<tr><td style=\"padding:26px 30px 30px\">'\n  + '<h1 style=\"margin:0 0 18px;font:700 24px/1.25 ' + FUENTE + ';color:#ffffff\">' + esc(titulo) + '</h1>'\n  + cuerpo\n  + '</td></tr></table>'\n  + '</td></tr></table></body></html>';\nconst r = $input.first().json;\nreturn (r.pendientes || []).map(p => {\n  const nombre = (p.contacto.nombre || '').trim();\n  // El texto del recordatorio lo redacta la app (mensajeRecordatorio); aquí solo se maqueta.\n  const lineas = String(p.mensaje).split('\\n').filter(x => x.trim() && x.trim() !== p.enlace);\n  return { json: {\n    ...p,\n    asunto: 'Te recuerdo las preguntas del diagnóstico, ' + nombre,\n    html: email('Son 5 minutos y el enlace guarda lo que ya hayas contestado.', 'Hola, ' + nombre + '.',\n      lineas.map(l => parrafo(esc(l.replace(/^Hola [^,]*, /, '')))).join('') + boton('Seguir con las preguntas', p.enlace)),\n    telegram: '⏰ ' + p.empresa + ' no ha terminado el previo (' + p.respondidas + '/' + p.total + ').\\n'\n      + (p.contacto.email ? 'Le he enviado un recordatorio por email.\\n' : 'No tiene email: mándale el recordatorio tú.\\n')\n      + (p.whatsapp ? 'WhatsApp con el mensaje escrito: ' + p.whatsapp : 'Sin teléfono.'),\n    airtable: {\n      'Empresa': p.empresa,\n      'Diagnóstico ID': p.diagnostico_id,\n      'Estado': 'Recordatorio enviado',\n      'Contacto': nombre,\n      'Email': p.contacto.email || null,\n      'Teléfono': p.contacto.telefono || null,\n      'Enlace del previo': p.enlace,\n      'Actualizado': new Date().toISOString(),\n    },\n  } };\n});"
       }
     },
     {
-      "id": "13360363-571f-4058-a3b6-400f2f371048",
+      "id": "7d5ad971-41e5-4f34-820a-dfdb3747f216",
       "name": "¿Tiene email? (recordatorio)",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -548,7 +548,7 @@
           },
           "conditions": [
             {
-              "id": "43ef741f-ff34-496f-9f8e-bf43df8681d5",
+              "id": "4f4faaed-2e2f-4f44-a246-de8937a98f1f",
               "leftValue": "={{ $json.contacto.email }}",
               "rightValue": "",
               "operator": {
@@ -564,7 +564,7 @@
       }
     },
     {
-      "id": "f425b0b5-9bc9-4055-a98a-a1c29d62a65b",
+      "id": "ea9b8ae9-d687-42b8-b53d-a19b5a344fef",
       "name": "Recordatorio al cliente",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -592,7 +592,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "de2cfacd-57fe-4538-9d44-b46c2957c10f",
+      "id": "66b78b2e-637f-4a5a-b3f7-91898c1658af",
       "name": "Telegram recordatorio",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -610,14 +610,14 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "TGFhtcTOzYVke1rM",
-          "name": "Telegram Orkestador"
+          "id": "lFqrk5zgIca5nxYh",
+          "name": "Telegram Hermes (avisos diagnóstico)"
         }
       },
       "onError": "continueRegularOutput"
     },
     {
-      "id": "cc4ad448-bc20-49b5-b5c4-3febdfa1d79f",
+      "id": "6a609c09-d295-4934-833d-623e44272dda",
       "name": "Airtable recordatorio",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
