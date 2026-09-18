@@ -47,7 +47,7 @@ export const ETIQUETA_ORIGEN: Record<Origen, string> = {
 
 /** Listado del panel (Clerk). */
 export const COLUMNAS_LISTADO =
-  "id, token, estado, sector, subsector, empresa, contacto_nombre, contacto_email, contacto_telefono, fecha_reunion, origen, crm_contacto_id, created_at, updated_at, previo_completado_at, visita_cerrada_at";
+  "id, token, estado, sector, subsector, empresa, contacto_nombre, contacto_email, contacto_telefono, fecha_reunion, hora_reunion, lugar_reunion, tipo_negocio, origen, crm_contacto_id, created_at, updated_at, previo_completado_at, visita_cerrada_at";
 
 export interface FilaListado {
   id: string;
@@ -60,6 +60,9 @@ export interface FilaListado {
   contacto_email: string | null;
   contacto_telefono: string | null;
   fecha_reunion: string | null;
+  hora_reunion: string | null;
+  lugar_reunion: string | null;
+  tipo_negocio: string | null;
   origen: Origen | null;
   crm_contacto_id: string | null;
   created_at: string;
@@ -73,4 +76,4 @@ export interface FilaListado {
  * `informe` lleva únicamente los textos visibles que devuelve el motor (lo entendido, temas).
  */
 export const COLUMNAS_PREVIO =
-  "id, estado, sector, subsector, empresa, contacto_nombre, fecha_reunion, respuestas_previo, informe, previo_completado_at";
+  "id, estado, sector, subsector, empresa, contacto_nombre, fecha_reunion, hora_reunion, lugar_reunion, respuestas_previo, informe, previo_completado_at";

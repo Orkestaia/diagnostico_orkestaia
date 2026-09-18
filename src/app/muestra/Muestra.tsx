@@ -27,7 +27,7 @@ export function Muestra() {
     <EscenarioOrkestador>
       <Orkestador
         intensidad="fondo"
-        className="fixed -right-24 bottom-0 h-[80vh] w-[60vh] md:right-0"
+        className="fixed -right-24 bottom-0 h-[80vh] md:right-0"
       />
       <main className="relative mx-auto max-w-5xl space-y-16 px-4 py-10">
         <section className="space-y-8">

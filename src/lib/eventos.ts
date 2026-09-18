@@ -1,11 +1,14 @@
 import "server-only";
+import { preparacionDe } from "@/config/consultor/preparacion";
 import { movimientosPrevio } from "@/config/previo";
 import { quickWinsDeSector, SECTORES } from "@/config/sectores";
 import { VALIDAR_COMUNES } from "@/config/sectores/comunes";
 import type { Respuestas, SectorId } from "@/config/tipos";
 import { calcularQuickWins } from "./calculo";
 import { indicePreguntas } from "./preguntas";
+import { lineaCita } from "./calendario";
 import { pasosPrevio } from "./previo";
+import { loQueHeEntendido } from "./resumenPrevio";
 
 /**
  * Payload de `diagnostico.previo_completado` (spec del motor §4, modo `pre_reunion`).
@@ -24,6 +27,9 @@ export interface FilaEvento {
   contacto_email: string | null;
   contacto_telefono: string | null;
   fecha_reunion: string | null;
+  hora_reunion: string | null;
+  lugar_reunion: string | null;
+  tipo_negocio: string | null;
   respuestas_previo: Respuestas;
 }
 
@@ -90,12 +96,21 @@ export function payloadPrevioCompletado(d: FilaEvento, base: string) {
     empresa: d.empresa,
     contacto: { nombre: d.contacto_nombre, email: d.contacto_email, telefono: d.contacto_telefono },
     fecha_reunion: d.fecha_reunion,
+    hora_reunion: d.hora_reunion,
+    lugar_reunion: d.lugar_reunion,
+    tipo_negocio: d.tipo_negocio,
+    // Ya redactado para los emails: "Nos vemos el lunes 21 de septiembre a las 10:00 en …"
+    cita_texto: lineaCita(d.fecha_reunion, d.hora_reunion, d.lugar_reunion),
     respuestas_legibles,
+    // Textos de la pantalla final (plantillas fijas): respaldo si la IA falla, spec del motor §7.
+    entendido_base: loQueHeEntendido(r, d.sector),
+    temas_base: elegidos.map((x) => x.etiquetaTarea),
+    preparacion: preparacionDe(d.sector),
     prioridad_tarea: typeof r["prioridad.tarea"] === "string" ? r["prioridad.tarea"] : null,
     quick_wins,
     no_automatizar_base: sector.noAutomatizar,
     validar_base: VALIDAR_COMUNES,
     resumen_cifras,
-    urls: { mapa: `${base}/m/${d.token}`, admin: `${base}/admin` },
+    urls: { previo: `${base}/d/${d.token}`, mapa: `${base}/m/${d.token}`, admin: `${base}/admin` },
   };
 }

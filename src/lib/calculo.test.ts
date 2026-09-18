@@ -361,3 +361,17 @@ describe("Visita: horas de hoy y periodos (batería §2)", () => {
     expect(personasEquipo(undefined, {}, "otro")).toBeNull();
   });
 });
+
+describe("Catálogo de tipos de negocio", async () => {
+  const { TIPOS_NEGOCIO } = await import("@/config/catalogoSectores");
+  it("todo tipo apunta a un sector y subsector que existen en el banco", () => {
+    for (const t of TIPOS_NEGOCIO) {
+      const s = SECTORES[t.sector];
+      expect(s, t.etiqueta).toBeDefined();
+      if (t.subsector) expect(s.subsectores, t.etiqueta).toContain(t.subsector);
+    }
+  });
+  it("sin etiquetas repetidas", () => {
+    expect(new Set(TIPOS_NEGOCIO.map((t) => t.etiqueta)).size).toBe(TIPOS_NEGOCIO.length);
+  });
+});

@@ -8,6 +8,8 @@ import { movimientosPrevio } from "@/config/previo";
 import type { Pregunta, Respuestas, SectorId, ValorRespuesta } from "@/config/tipos";
 import { sugerenciasTarea } from "@/lib/calculo";
 import { MAX_TEXTO_PREVIO, pasosPrevio, primeraPendiente } from "@/lib/previo";
+import { PREPARACION_CIERRE, PREPARACION_INTRO, preparacionDe } from "@/config/consultor/preparacion";
+import { enlaceGoogle, horaCorta, ics, lineaCita, type Cita } from "@/lib/calendario";
 import { bienvenida, tituloFinal, type ResumenFinal } from "@/lib/resumenPrevio";
 import { useAutoguardado, type EstadoGuardado } from "./useAutoguardado";
 
@@ -17,6 +19,8 @@ interface Datos {
   empresa: string | null;
   contacto_nombre: string | null;
   fecha_reunion: string | null;
+  hora_reunion: string | null;
+  lugar_reunion: string | null;
   respuestas_previo: Respuestas;
 }
 
@@ -114,13 +118,26 @@ export function Previo({
     }
   }
 
+  // Protagonista en la bienvenida y en la pantalla final; de fondo mientras responde.
+  const protagonista = fase === "bienvenida" || fase === "final";
+
   return (
     <EscenarioOrkestador>
-      <Orkestador
-        intensidad="fondo"
-        className="fixed -right-28 bottom-0 h-[70vh] w-[52vh] md:right-[4%] md:h-[82vh] md:w-[62vh]"
-      />
-      <div className="relative mx-auto flex min-h-dvh max-w-2xl flex-col px-4 pb-10 pt-6">
+      {protagonista ? (
+        <Orkestador
+          intensidad="protagonista"
+          prioridad
+          className="mx-auto mt-4 h-[30vh] md:fixed md:right-[4%] md:top-1/2 md:mt-0 md:h-[78vh] md:-translate-y-1/2"
+        />
+      ) : (
+        <Orkestador intensidad="fondo" className="fixed -right-24 bottom-0 h-[62vh] md:right-[4%] md:h-[80vh]" />
+      )}
+      <div
+        className={
+          "relative flex min-h-dvh flex-col px-4 pb-10 pt-6 " +
+          (protagonista ? "mx-auto max-w-2xl md:ml-[6%] md:mr-auto md:max-w-[46%]" : "mx-auto max-w-2xl")
+        }
+      >
         <header className="mb-8">
           <Marca className="text-small" />
         </header>
@@ -140,6 +157,7 @@ export function Previo({
                 {yaEmpezado ? "Seguir donde lo dejé" : "Empezar"}
               </button>
             </div>
+            <LineaPrivacidad />
           </section>
         ) : null}
 
@@ -204,7 +222,7 @@ export function Previo({
         ) : null}
 
         {fase === "final" && resumen ? (
-          <PantallaFinal nombre={nombre} fechaReunion={datos.fecha_reunion} resumen={resumen} />
+          <PantallaFinal datos={datos} nombre={nombre} resumen={resumen} />
         ) : null}
 
         {avisoFijo ? <p className="mt-10 border-t border-ork-border pt-4 text-small text-ork-text-faint">{avisoFijo}</p> : null}
@@ -215,6 +233,8 @@ export function Previo({
 
 const BOTON_PRIMARIO =
   "inline-flex min-h-12 items-center justify-center rounded-xl bg-ork-cyan px-6 py-3 font-medium text-ork-bg transition-colors hover:bg-ork-cyan-hi disabled:opacity-40";
+const BOTON_SECUNDARIO =
+  "inline-flex min-h-12 items-center justify-center rounded-xl border border-ork-border-hi px-6 py-3 text-ork-text transition-colors hover:border-ork-cyan";
 const BOTON_DISCRETO =
   "inline-flex min-h-11 items-center rounded-lg px-3 text-ork-text-muted transition-colors hover:text-ork-text";
 
@@ -382,19 +402,65 @@ const OPCION_ELEGIDA = " border-ork-cyan-hi bg-ork-surface-2 ork-estacion--actua
 const CAMPO =
   "w-full rounded-xl border border-ork-border-hi bg-ork-bg px-4 py-3 text-ork-text placeholder:text-ork-text-faint focus:border-ork-cyan focus:outline-none";
 
-/** Pantalla final (spec §3): gracias + lo entendido + temas sin cifras. Sin quick wins ni navegación. */
-function PantallaFinal({
-  nombre,
-  fechaReunion,
-  resumen,
-}: {
-  nombre: string;
-  fechaReunion: string | null;
-  resumen: ResumenFinal;
-}) {
+/** Spec §10 + decisión de Aitor (18-sep): línea de privacidad en la bienvenida. */
+function LineaPrivacidad() {
+  const politica = process.env.NEXT_PUBLIC_POLITICA_PRIVACIDAD_URL;
+  return (
+    <p className="text-small text-ork-text-faint">
+      Tus respuestas solo las ve el equipo de Orkesta y solo se usan para preparar tu diagnóstico.
+      {politica ? (
+        <>
+          {" "}
+          <a href={politica} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-ork-text">
+            Política de privacidad
+          </a>
+        </>
+      ) : null}
+    </p>
+  );
+}
+
+/** Descarga un .ics generado en el navegador. */
+function descargarIcs(cita: Cita) {
+  const uid = `${cita.fecha}-${cita.empresa}`.replace(/[^A-Za-z0-9-]+/g, "-");
+  const blob = new Blob([ics(cita, uid)], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "diagnostico-orkesta.ics";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
+ * Pantalla final (spec §3): gracias + cita + lo entendido + temas sin cifras + qué tener a mano.
+ * Sin quick wins ni navegación.
+ */
+function PantallaFinal({ datos, nombre, resumen }: { datos: Datos; nombre: string; resumen: ResumenFinal }) {
+  const linea = lineaCita(datos.fecha_reunion, datos.hora_reunion, datos.lugar_reunion);
+  const cita: Cita | null =
+    datos.fecha_reunion && datos.hora_reunion && horaCorta(datos.hora_reunion)
+      ? { fecha: datos.fecha_reunion, hora: datos.hora_reunion, lugar: datos.lugar_reunion, empresa: datos.empresa ?? "" }
+      : null;
+  const preparar = preparacionDe(datos.sector);
+
   return (
     <section className="flex flex-1 flex-col gap-10">
-      <FraseOrkestador texto={tituloFinal(nombre, fechaReunion)} className="font-display text-h2 text-ork-text" />
+      <div>
+        <FraseOrkestador texto={tituloFinal(nombre, datos.fecha_reunion)} className="font-display text-h2 text-ork-text" />
+        {linea ? <p className="mt-4 text-body-lg text-ork-text">{linea}</p> : null}
+        {cita ? (
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button type="button" onClick={() => descargarIcs(cita)} className={BOTON_PRIMARIO}>
+              Añadir a mi calendario
+            </button>
+            <a href={enlaceGoogle(cita)} target="_blank" rel="noopener noreferrer" className={BOTON_SECUNDARIO}>
+              Google Calendar
+            </a>
+          </div>
+        ) : null}
+      </div>
+
       {resumen.entendido.length ? (
         <div>
           <h2 className="font-mono text-[0.75rem] uppercase tracking-[0.14em] text-ork-cyan">Lo que he entendido</h2>
@@ -408,11 +474,10 @@ function PantallaFinal({
           </ul>
         </div>
       ) : null}
+
       {resumen.temas.length ? (
         <div>
-          <h2 className="font-mono text-[0.75rem] uppercase tracking-[0.14em] text-[#b58cf0]">
-            Lo que revisaremos juntos
-          </h2>
+          <h2 className="font-mono text-[0.75rem] uppercase tracking-[0.14em] text-[#b58cf0]">Lo que revisaremos juntos</h2>
           <ul className="mt-4 space-y-3">
             {resumen.temas.map((t) => (
               <li key={t} className="flex gap-3 text-ork-text">
@@ -423,6 +488,20 @@ function PantallaFinal({
           </ul>
         </div>
       ) : null}
+
+      <div className="rounded-2xl border border-ork-border bg-ork-surface-1/80 p-5">
+        <h2 className="font-mono text-[0.75rem] uppercase tracking-[0.14em] text-ork-text">Qué tener a mano</h2>
+        <p className="mt-3">{PREPARACION_INTRO}</p>
+        <ul className="mt-3 space-y-2">
+          {preparar.map((x) => (
+            <li key={x} className="flex gap-3 text-ork-text">
+              <span aria-hidden="true" className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full border border-ork-cyan" />
+              {x}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 text-small">{PREPARACION_CIERRE}</p>
+      </div>
     </section>
   );
 }

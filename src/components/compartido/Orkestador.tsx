@@ -2,24 +2,25 @@
 
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
 import { motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
-import { ORKESTADOR_PATH, ORKESTADOR_VIEWBOX, PUNTA_BATUTA } from "./orkestador-path";
+import { BATUTAS, ORKESTADOR_IMAGEN, PUNTA_BATUTA } from "./orkestador-path";
 
 /**
- * El Orkestador (spec §2), en los tres pasos visibles.
+ * El Orkestador (spec §2), en los tres pasos visibles. Imagen de Higgsfield animada en código:
  *
- * - De fondo: silueta con degradado cyan → violeta, opacidad 8-12 % y halo suave.
- * - Respira: escala 1 → 1,015 en 6 s. Parallax de 8 px como máximo, solo con ratón.
- * - "Da la entrada": una estela de luz sale de la punta de la batuta hacia la siguiente
- *   estación de la partitura (~1,2 s).
- * - Con prefers-reduced-motion todo queda estático.
+ * - Respira (escala 1 → 1,015 en 6 s) y se balancea como si dirigiera.
+ * - Las puntas de las batutas laten, alternándose, y un barrido de luz recorre figura y circuitos.
+ * - "Da la entrada": las batutas destellan y una estela sale de la punta de la batuta derecha
+ *   hasta la estación siguiente (~1,2 s).
+ * - Parallax de 8 px como máximo, solo con ratón.
+ * - prefers-reduced-motion: todo quieto (la imagen se ve, sin movimiento).
  */
 
 export type Intensidad = "fondo" | "tenue" | "protagonista";
 
 const OPACIDAD: Record<Intensidad, number> = {
-  fondo: 0.1, // 8-12 %
-  tenue: 0.05, // visita: que no distraiga
-  protagonista: 0.9, // apertura del mapa
+  fondo: 0.2, // detrás de las preguntas: presente, sin competir con el texto
+  tenue: 0.08, // visita: que no distraiga
+  protagonista: 1, // bienvenida, pantalla final y apertura del mapa
 };
 
 const PARALLAX_MAX = 8;
@@ -28,14 +29,17 @@ const DURACION_ENTRADA_MS = 1200;
 // ── Contexto: el Orkestador registra su batuta y cualquiera puede pedirle la entrada ──
 
 interface ContextoEntrada {
-  registrarBatuta: (el: SVGSVGElement | null) => void;
+  registrarBatuta: (el: HTMLElement | null) => void;
   /** Lanza la estela desde la batuta hasta `destino` (normalmente una estación). */
   darEntrada: (destino: Element | null) => void;
+  /** Cambia en cada entrada: el Orkestador lo usa para el destello de las batutas. */
+  destello: number;
 }
 
 const Contexto = createContext<ContextoEntrada>({
   registrarBatuta: () => {},
   darEntrada: () => {},
+  destello: 0,
 });
 
 export const useEntrada = () => useContext(Contexto);
@@ -46,27 +50,24 @@ interface Estela {
 }
 
 export function EscenarioOrkestador({ children }: { children: React.ReactNode }) {
-  const batuta = useRef<SVGSVGElement | null>(null);
+  const batuta = useRef<HTMLElement | null>(null);
   const [estelas, setEstelas] = useState<Estela[]>([]);
+  const [destello, setDestello] = useState(0);
   const reducido = useReducedMotion();
   const gradId = useId();
 
-  const registrarBatuta = useCallback((el: SVGSVGElement | null) => {
+  const registrarBatuta = useCallback((el: HTMLElement | null) => {
     batuta.current = el;
   }, []);
 
   const darEntrada = useCallback(
     (destino: Element | null) => {
-      const svg = batuta.current;
-      if (reducido || !svg || !destino) return;
-      const caja = svg.getBoundingClientRect();
-      if (caja.width === 0) return;
-      // La silueta se dibuja con preserveAspectRatio="xMidYMid meet": se calcula la escala real.
-      const escala = Math.min(caja.width / ORKESTADOR_VIEWBOX.ancho, caja.height / ORKESTADOR_VIEWBOX.alto);
-      const offX = (caja.width - ORKESTADOR_VIEWBOX.ancho * escala) / 2;
-      const offY = (caja.height - ORKESTADOR_VIEWBOX.alto * escala) / 2;
-      const x1 = caja.left + offX + PUNTA_BATUTA.x * escala;
-      const y1 = caja.top + offY + PUNTA_BATUTA.y * escala;
+      setDestello((n) => n + 1);
+      const caja = batuta.current?.getBoundingClientRect();
+      if (reducido || !caja || !destino || caja.width === 0) return;
+      // El contenedor tiene la proporción exacta de la imagen: la punta es un % de su caja.
+      const x1 = caja.left + (PUNTA_BATUTA.x / ORKESTADOR_IMAGEN.ancho) * caja.width;
+      const y1 = caja.top + (PUNTA_BATUTA.y / ORKESTADOR_IMAGEN.alto) * caja.height;
       const dest = destino.getBoundingClientRect();
       const x2 = dest.left + dest.width / 2;
       const y2 = dest.top + dest.height / 2;
@@ -81,7 +82,7 @@ export function EscenarioOrkestador({ children }: { children: React.ReactNode })
   );
 
   return (
-    <Contexto.Provider value={{ registrarBatuta, darEntrada }}>
+    <Contexto.Provider value={{ registrarBatuta, darEntrada, destello }}>
       {children}
       <svg aria-hidden="true" className="pointer-events-none fixed inset-0 z-50 h-full w-full">
         <defs>
@@ -106,18 +107,24 @@ export function EscenarioOrkestador({ children }: { children: React.ReactNode })
   );
 }
 
+const pct = (v: number, total: number) => `${(v / total) * 100}%`;
+
 export function Orkestador({
   intensidad = "fondo",
   className = "",
+  prioridad = false,
 }: {
   intensidad?: Intensidad;
+  /** Tamaño y posición: el componente mantiene la proporción de la imagen (dar alto O ancho). */
   className?: string;
+  /** true en pantallas donde es protagonista y se ve al cargar. */
+  prioridad?: boolean;
 }) {
-  const { registrarBatuta } = useEntrada();
+  const { registrarBatuta, destello } = useEntrada();
   const reducido = useReducedMotion();
-  const gradId = useId();
   const x = useSpring(useMotionValue(0), { stiffness: 40, damping: 20 });
   const y = useSpring(useMotionValue(0), { stiffness: 40, damping: 20 });
+  const [destellando, setDestellando] = useState(false);
 
   useEffect(() => {
     if (reducido) return;
@@ -132,29 +139,47 @@ export function Orkestador({
     return () => window.removeEventListener("pointermove", mover);
   }, [reducido, x, y]);
 
+  useEffect(() => {
+    if (destello === 0) return;
+    setDestellando(true);
+    const t = setTimeout(() => setDestellando(false), 900);
+    return () => clearTimeout(t);
+  }, [destello]);
+
+  const { ancho, alto, src } = ORKESTADOR_IMAGEN;
+
   return (
     <motion.div
       aria-hidden="true"
       className={`pointer-events-none ${className}`}
-      style={{ x, y, opacity: OPACIDAD[intensidad] }}
+      style={{ x, y, opacity: OPACIDAD[intensidad], aspectRatio: `${ancho} / ${alto}` }}
     >
-      <div className="ork-orkestador relative h-full w-full">
-        {/* Halo suave detrás de la silueta */}
-        <div className="ork-orkestador__halo absolute inset-[8%] rounded-full" />
-        <svg
-          ref={registrarBatuta}
-          viewBox={`0 0 ${ORKESTADOR_VIEWBOX.ancho} ${ORKESTADOR_VIEWBOX.alto}`}
-          preserveAspectRatio="xMidYMid meet"
-          className="relative h-full w-full"
-        >
-          <defs>
-            <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#00B4D8" />
-              <stop offset="100%" stopColor="#8A2BE2" />
-            </linearGradient>
-          </defs>
-          <path fillRule="evenodd" d={ORKESTADOR_PATH} fill={`url(#${gradId})`} />
-        </svg>
+      <div
+        ref={registrarBatuta as React.Ref<HTMLDivElement>}
+        className={"ork-orkestador relative h-full w-full" + (destellando ? " ork-orkestador--entrada" : "")}
+        style={{ ["--ork-img" as string]: `url(${src})` }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- imagen decorativa fija, ya optimizada */}
+        <img
+          src={src}
+          width={ancho}
+          height={alto}
+          alt=""
+          decoding="async"
+          fetchPriority={prioridad ? "high" : "low"}
+          className="h-full w-full select-none"
+          draggable={false}
+        />
+        {/* Barrido de luz: la propia imagen hace de máscara */}
+        <div className="ork-orkestador__barrido absolute inset-0" />
+        {/* Puntas de las batutas */}
+        {(["izquierda", "derecha"] as const).map((lado) => (
+          <span
+            key={lado}
+            className={`ork-batuta ork-batuta--${lado} absolute`}
+            style={{ left: pct(BATUTAS[lado].x, ancho), top: pct(BATUTAS[lado].y, alto) }}
+          />
+        ))}
       </div>
     </motion.div>
   );

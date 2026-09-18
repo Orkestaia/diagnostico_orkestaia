@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SECTORES } from "@/config/sectores";
 import { COLUMNAS_LISTADO, ETIQUETA_ESTADO, ETIQUETA_ORIGEN, type FilaListado } from "@/lib/diagnosticos";
+import { horaCorta } from "@/lib/calendario";
 import { fechaLarga } from "@/lib/invitacion";
 import { supabaseAdmin } from "@/lib/supabase";
 import { urlBase } from "@/lib/url";
@@ -56,8 +57,8 @@ export default async function Listado() {
                 </p>
               </div>
               <div className="text-small">
-                <p className="text-ork-text">{SECTORES[f.sector]?.nombre ?? f.sector}</p>
-                <p className="truncate">{f.subsector ?? (f.origen ? ETIQUETA_ORIGEN[f.origen] : "")}</p>
+                <p className="text-ork-text">{f.tipo_negocio ?? f.subsector ?? SECTORES[f.sector]?.nombre ?? f.sector}</p>
+                <p className="truncate">{f.origen ? ETIQUETA_ORIGEN[f.origen] : ""}</p>
               </div>
               <div className="text-small">
                 <span
@@ -69,7 +70,9 @@ export default async function Listado() {
                   {ETIQUETA_ESTADO[f.estado] ?? f.estado}
                 </span>
                 <p className="mt-1">
-                  {f.fecha_reunion ? `Reunión: ${fechaLarga(f.fecha_reunion)}` : "Sin fecha de reunión"}
+                  {f.fecha_reunion
+                    ? `Reunión: ${fechaLarga(f.fecha_reunion)}${horaCorta(f.hora_reunion) ? ` · ${horaCorta(f.hora_reunion)}` : ""}`
+                    : "Sin fecha de reunión"}
                 </p>
               </div>
               <div className="md:col-span-3">
@@ -81,6 +84,7 @@ export default async function Listado() {
                   nombre={f.contacto_nombre ?? ""}
                   telefono={f.contacto_telefono}
                   fechaReunion={f.fecha_reunion}
+                  horaReunion={f.hora_reunion}
                 />
               </div>
             </li>

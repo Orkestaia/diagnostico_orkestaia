@@ -23,17 +23,18 @@ const VACIO = {
   contacto_email: "",
   contacto_telefono: "",
   web: "",
-  sector: "",
-  subsector: "",
+  tipo_negocio: "",
   fecha_reunion: "",
+  hora_reunion: "",
+  lugar_reunion: "",
   origen: "manual",
 };
 
 export function FormularioInvitacion({
-  sectores,
+  catalogo,
   origenes,
 }: {
-  sectores: { id: string; nombre: string; subsectores: string[] }[];
+  catalogo: { grupo: string; tipos: { etiqueta: string; preguntas: string }[] }[];
   origenes: { id: string; nombre: string }[];
 }) {
   const [f, setF] = useState(VACIO);
@@ -42,9 +43,9 @@ export function FormularioInvitacion({
   const [error, setError] = useState<string | null>(null);
   const [resultado, setResultado] = useState<DatosInvitacion | null>(null);
 
-  const sector = sectores.find((s) => s.id === f.sector);
+  const tipo = catalogo.flatMap((g) => g.tipos).find((t) => t.etiqueta === f.tipo_negocio);
   const poner = (k: keyof typeof VACIO) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setF((x) => ({ ...x, [k]: e.target.value, ...(k === "sector" ? { subsector: "" } : {}) }));
+    setF((x) => ({ ...x, [k]: e.target.value }));
 
   function elegirCrm(c: ContactoCrm) {
     setCrm(c);
@@ -140,43 +141,61 @@ export function FormularioInvitacion({
 
       <fieldset className="grid gap-5 sm:grid-cols-2">
         <legend className="mb-4 font-display text-body-lg text-ork-text">Diagnóstico</legend>
-        <div>
-          <Etiqueta htmlFor="sector">Sector</Etiqueta>
-          <select id="sector" required value={f.sector} onChange={poner("sector")} className={claseCampo}>
+        <div className="sm:col-span-2">
+          <Etiqueta htmlFor="tipo">Tipo de negocio</Etiqueta>
+          <select id="tipo" required value={f.tipo_negocio} onChange={poner("tipo_negocio")} className={claseCampo}>
             <option value="" disabled>
-              Elige un sector
+              Elige el tipo de negocio
             </option>
-            {sectores.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.nombre}
-              </option>
+            {catalogo.map((g) => (
+              <optgroup key={g.grupo} label={g.grupo}>
+                {g.tipos.map((t) => (
+                  <option key={t.etiqueta} value={t.etiqueta}>
+                    {t.etiqueta}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
-        </div>
-        <div>
-          <Etiqueta htmlFor="subsector" opcional>
-            Subsector
-          </Etiqueta>
-          <select
-            id="subsector"
-            value={f.subsector}
-            onChange={poner("subsector")}
-            disabled={!sector || sector.subsectores.length === 0}
-            className={claseCampo}
-          >
-            <option value="">{sector && sector.subsectores.length === 0 ? "No aplica" : "Sin concretar"}</option>
-            {sector?.subsectores.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          {tipo ? (
+            <p className="mt-1.5 text-small text-ork-text-faint">Preguntas del previo: {tipo.preguntas}</p>
+          ) : null}
         </div>
         <div>
           <Etiqueta htmlFor="fecha" opcional>
             Fecha de la reunión
           </Etiqueta>
           <input id="fecha" type="date" value={f.fecha_reunion} onChange={poner("fecha_reunion")} className={claseCampo + " [color-scheme:dark]"} />
+        </div>
+        <div>
+          <Etiqueta htmlFor="hora" opcional>
+            Hora
+          </Etiqueta>
+          <input
+            id="hora"
+            type="time"
+            step={900}
+            value={f.hora_reunion}
+            onChange={poner("hora_reunion")}
+            disabled={!f.fecha_reunion}
+            className={claseCampo + " [color-scheme:dark]"}
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <Etiqueta htmlFor="lugar" opcional>
+            Lugar
+          </Etiqueta>
+          <input
+            id="lugar"
+            maxLength={120}
+            value={f.lugar_reunion}
+            onChange={poner("lugar_reunion")}
+            placeholder="vuestra oficina · Calle Mayor 12, Irun"
+            className={claseCampo}
+          />
+          <p className="mt-1.5 text-small text-ork-text-faint">
+            Se lee tras «Nos vemos el lunes 21 a las 10:00 en…».
+          </p>
         </div>
         <div>
           <Etiqueta htmlFor="origen">Origen</Etiqueta>

@@ -23,14 +23,21 @@ export function fechaLarga(fechaISO: string): string {
   return `${DIAS[f.getUTCDay()]} ${d} de ${MESES[m - 1]}`;
 }
 
+/** "lunes 21" o, con hora, "lunes 21 a las 10:00". */
+export function diaConHora(fechaISO: string, hora?: string | null): string {
+  const h = hora?.match(/^(\d{1,2}):(\d{2})/);
+  return `${diaReunion(fechaISO)}${h ? ` a las ${h[1].padStart(2, "0")}:${h[2]}` : ""}`;
+}
+
 export function mensajeInvitacion(p: {
   nombre: string;
   empresa: string;
   enlace: string;
   fechaReunion: string | null;
+  horaReunion?: string | null;
 }): string {
   if (p.fechaReunion) {
-    const dia = diaReunion(p.fechaReunion);
+    const dia = diaConHora(p.fechaReunion, p.horaReunion);
     return [
       `Hola ${p.nombre}, soy Aitor, de Orkesta. Para aprovechar al máximo el diagnóstico del ${dia} en ${p.empresa}, te dejo unas preguntas rápidas: son 5 minutos y se hacen desde el móvil. Así ese día empezamos directamente por lo importante.`,
       "",
@@ -45,6 +52,24 @@ export function mensajeInvitacion(p: {
     p.enlace,
     "",
     "Si te quedas a medias, el enlace guarda lo que lleves.",
+  ].join("\n");
+}
+
+/**
+ * Recordatorio si el previo no se ha terminado en 48 h (propuesto por BUILDS, 18-sep).
+ * Mismo tono que la invitación; sale por WhatsApp (Aitor) y por email (n8n).
+ */
+export function mensajeRecordatorio(p: {
+  nombre: string;
+  enlace: string;
+  fechaReunion: string | null;
+  horaReunion?: string | null;
+}): string {
+  const cuando = p.fechaReunion ? ` del ${diaConHora(p.fechaReunion, p.horaReunion)}` : "";
+  return [
+    `Hola ${p.nombre}, soy Aitor, de Orkesta. Te recuerdo las preguntas rápidas antes del diagnóstico${cuando}: son 5 minutos y el enlace guarda lo que ya hayas contestado.`,
+    "",
+    p.enlace,
   ].join("\n");
 }
 

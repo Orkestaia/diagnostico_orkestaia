@@ -1,0 +1,874 @@
+{
+  "name": "Orkesta - Motor de Diagnóstico - v1",
+  "nodes": [
+    {
+      "id": "70d3f5ae-d09c-4854-a8b4-d0e4eeef8427",
+      "name": "Webhook app",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "diagnostico-motor",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "0385283d-5933-4116-82a5-adf86230b23b"
+    },
+    {
+      "id": "398b4d63-1b46-4650-b9c0-aff4713bda08",
+      "name": "Verificar firma",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Verifica la firma HMAC de la app (spec del motor §3). Sin firma válida, el flujo se para\n// en silencio: no se avisa a nadie si alguien prueba el endpoint.\nconst crypto = require('crypto');\nconst SECRETO = '{{DIAGNOSTICO_HMAC_SECRET}}';\nconst item = $input.first().json;\nconst h = item.headers || {};\nconst ts = String(h['x-orkesta-timestamp'] || '');\nconst firma = String(h['x-orkesta-signature'] || '');\n// La app firma JSON.stringify(payload); volver a serializar el cuerpo parseado da la misma cadena.\nconst cuerpo = JSON.stringify(item.body);\nconst ahora = Math.floor(Date.now() / 1000);\nif (!/^\\d+$/.test(ts) || Math.abs(ahora - Number(ts)) > 300) return [];\nconst esperada = crypto.createHmac('sha256', SECRETO).update(ts + '.' + cuerpo).digest('hex');\nif (esperada.length !== firma.length) return [];\nif (!crypto.timingSafeEqual(Buffer.from(esperada), Buffer.from(firma))) return [];\nreturn [{ json: item.body }];"
+      }
+    },
+    {
+      "id": "dcaba9ea-cb27-4e2d-9b7f-656bf37c53b2",
+      "name": "Según el evento",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "4e180a46-ad16-42da-b74e-c4f7ede50ada",
+                    "leftValue": "={{ $json.evento }}",
+                    "rightValue": "diagnostico.previo_completado",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "previo_completado"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "47579f22-4480-498e-bfb0-fa93408640ad",
+                    "leftValue": "={{ $json.evento }}",
+                    "rightValue": "diagnostico.visita_cerrada",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "visita_cerrada"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "d8580983-583f-492e-af8a-e66d6e9a5459",
+      "name": "Contexto para la IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        160
+      ],
+      "parameters": {
+        "jsCode": "// Contexto para el modelo: SIN cifras calculadas (spec del motor §3 y §8.1).\nconst d = $input.first().json;\nconst ctx = {\n  modo: 'pre_reunion',\n  sector: d.sector,\n  tipo_negocio: d.tipo_negocio,\n  empresa: d.empresa,\n  nombre: (d.contacto || {}).nombre,\n  prioridad_tarea: d.prioridad_tarea,\n  respuestas: d.respuestas_legibles,\n  quick_wins: (d.quick_wins || []).map(q => ({ id: q.id, peso: q.peso, tipo: q.tipo, categoria: q.categoria, titulo_base: q.titulo_base })),\n  temas_base: d.temas_base,\n};\nconst system = [\n  'Eres el redactor de Orkesta. Escribes para el dueño de un negocio, en español de España, de tú, directo y cercano. Negocio primero; la tecnología no se nombra.',\n  'NUNCA escribas números de horas, euros, porcentajes, minutos ni plazos.',\n  'Usa solo lo que dicen las respuestas. No añadas procesos, herramientas ni problemas que el lead no haya mencionado.',\n  'Frases prohibidas: \"automatizamos todo\", \"100 %\", \"garantizado\", \"no tendrás que hacer nada\", \"la IA lo hará por ti\", \"sin límites\". Sin nombres de herramientas ni tecnicismos (API, webhook, n8n, ChatGPT, CRM...).',\n  'Salud: nada clínico. Legal: nada sobre casos concretos. Si las respuestas mencionan violencia, añádelo a interno.alertas.',\n  'temas_reunion: parte de temas_base y adáptalos con las palabras del lead. Son TAREAS que hoy le quitan tiempo, dichas como las diría él (\"Perseguir los papeles de cada propietario\"), NUNCA soluciones: prohibido empezar por Optimizar, Mejorar, Automatizar, Reducir, Implementar o Digitalizar. Mantén el orden de temas_base.',\n  'Las hipótesis se formulan como hipótesis (\"Parece que...\"), cada una ligada a una respuesta concreta, nunca como diagnóstico cerrado.',\n  'Devuelve SOLO un objeto JSON con esta forma exacta:',\n  '{\"frase_orkestador\":\"<=160 caracteres\",\"resumen_entendido\":[\"3 a 5 frases de <=160, visibles para el lead\"],\"temas_reunion\":[\"3 temas de <=80, visibles para el lead, sin cifras, desde el punto de vista del lead\"],\"interno\":{\"hipotesis\":[{\"hipotesis\":\"<=200, empieza por Parece que\",\"basada_en\":\"texto de la pregunta\"}],\"preguntas_visita\":[\"5 preguntas de <=160 para la visita\"],\"alertas\":[\"0 a 3 alertas de <=160\"]}}',\n].join('\\n');\nreturn [{ json: { ...d, _prompt: { system, user: JSON.stringify(ctx) } } }];"
+      }
+    },
+    {
+      "id": "06c50583-b809-4556-bc21-415fe88c35fc",
+      "name": "Redacción IA (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4.1-mini', temperature: 0.3, max_tokens: 1500, response_format: { type: 'json_object' }, messages: [ { role: 'system', content: $json._prompt.system }, { role: 'user', content: $json._prompt.user } ] }) }}",
+        "options": {
+          "timeout": 45000
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "5kigaZr9JOgJyCrQ",
+          "name": "OpenAi account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "9e96d396-42f2-4624-9f4b-ac110708ce2c",
+      "name": "Validar redacción",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        160
+      ],
+      "parameters": {
+        "jsCode": "// Valida la redacción (spec del motor §7, fase 4). Si no pasa, textos base: el cliente ya vio\n// las plantillas en pantalla, así que en modo base no se envía `informe` a la app.\nconst d = $('Contexto para la IA').first().json;\nconst r = $input.first().json;\nlet out = null;\ntry { out = JSON.parse(r.choices[0].message.content); } catch (e) { out = null; }\n\nconst conUnidad = /\\d+([.,]\\d+)?\\s*(h\\b|horas?|€|eur(os)?|%|min(utos)?\\b|semanas?|d[ií]as?)/i;\nconst prohibidas = ['automatizamos todo', '100 %', '100%', 'garantizado', 'no tendrás que hacer nada', 'la ia lo hará por ti', 'sin límites'];\nconst tecnicas = /\\b(api|webhook|n8n|chatgpt|crm|openai|zapier|make)\\b/i;\nconst bien = (t, max) => typeof t === 'string' && t.trim().length > 0 && t.length <= max && !conUnidad.test(t) && !tecnicas.test(t) && !prohibidas.some(p => t.toLowerCase().includes(p));\nconst lista = (v, min, max, lim) => Array.isArray(v) && v.length >= min && v.length <= max && v.every(x => bien(x, lim));\n// Los temas son tareas del lead, no soluciones (decisión de Aitor, 18-sep).\nconst esSolucion = t => /^(optimizar|mejorar|automatizar|reducir|implementar|digitalizar|c[oó]mo)\b/i.test(String(t).trim());\n\nlet valida = !!out\n  && bien(out.frase_orkestador, 160)\n  && lista(out.resumen_entendido, 3, 5, 160)\n  && lista(out.temas_reunion, 1, 3, 80)\n  && !out.temas_reunion.some(esSolucion)\n  && out.interno && Array.isArray(out.interno.hipotesis)\n  && out.interno.hipotesis.every(x => x && typeof x.hipotesis === 'string' && x.hipotesis.length <= 200)\n  && Array.isArray(out.interno.preguntas_visita)\n  && out.interno.preguntas_visita.every(x => typeof x === 'string' && x.length <= 160);\n\nlet informe, interno, redaccion;\nif (valida) {\n  redaccion = 'ia';\n  informe = { frase_orkestador: out.frase_orkestador, resumen_entendido: out.resumen_entendido, temas_reunion: out.temas_reunion };\n  interno = { hipotesis: out.interno.hipotesis, preguntas_visita: out.interno.preguntas_visita, alertas: (out.interno.alertas || []).slice(0, 3) };\n} else {\n  redaccion = 'base';\n  informe = null;\n  interno = { hipotesis: [], preguntas_visita: [], alertas: ['Redacción IA no disponible: se han usado los textos base.'] };\n}\nreturn [{ json: { ...d, _prompt: undefined, informe, interno, redaccion } }];"
+      }
+    },
+    {
+      "id": "7ee437ce-546e-4a2a-8fdf-907d9ceb2e5d",
+      "name": "Componer mensajes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        160
+      ],
+      "parameters": {
+        "jsCode": "// Emails, Telegram y fila de Airtable. Plantillas fijas (spec del motor §6): el modelo no\n// escribe los emails, solo los textos que ya se validaron.\nconst d = $input.first().json;\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];\nconst nombre = ((d.contacto || {}).nombre || '').trim();\nconst hoy = new Date().toISOString().slice(0, 10);\nconst futura = d.fecha_reunion && d.fecha_reunion >= hoy;\nlet dia = null;\nif (futura) {\n  const [a, m, dd] = d.fecha_reunion.split('-').map(Number);\n  dia = DIAS[new Date(Date.UTC(a, m - 1, dd)).getUTCDay()] + ' ' + dd;\n  if (d.hora_reunion) dia += ' a las ' + String(d.hora_reunion).slice(0, 5);\n}\nconst temas = (d.informe && d.informe.temas_reunion) || d.temas_base || [];\nconst entendido = (d.informe && d.informe.resumen_entendido) || d.entendido_base || [];\nconst lista = xs => xs.length ? '<ul>' + xs.map(x => '<li style=\"margin:4px 0\">' + esc(x) + '</li>').join('') + '</ul>' : '<p>—</p>';\nconst estilo = 'font-family:Inter,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1e1e1e;max-width:560px';\n\n// ── Cliente ──\nconst asunto_cliente = dia ? 'Recibido, ' + nombre + '. Nos vemos el ' + dia : 'Recibido, ' + nombre;\nconst html_cliente = '<div style=\"' + estilo + '\">'\n  + '<p>Hola ' + esc(nombre) + ',</p>'\n  + '<p>Gracias por contestar las preguntas. ' + esc(futura && d.cita_texto ? d.cita_texto : 'Lo vemos cuando nos reunamos.') + '</p>'\n  + (temas.length ? '<p>Esto es lo que revisaremos juntos:</p>' + lista(temas) : '')\n  + ((d.preparacion || []).length ? '<p>Para ese día, si puedes, ten a mano:</p>' + lista(d.preparacion) : '')\n  + '<p>Si quieres añadir algo, responde a este email.</p>'\n  + '<p>Aitor Colino<br><span style=\"color:#00b4d8\">ORKESTA</span> Automatización &amp; IA</p></div>';\n\n// ── Interno (Aitor): aquí sí van las cifras ──\nconst rc = d.resumen_cifras || {};\nconst cifras = (rc.quick_wins || []).map(q => {\n  const partes = [q.id];\n  if (q.horas) partes.push(q.horas.min + '-' + q.horas.max + ' h/mes');\n  if (q.eur) partes.push(q.eur.min + '-' + q.eur.max + ' €/mes');\n  if (q.oportunidades != null) partes.push('~' + q.oportunidades + ' ' + (q.unidad_oportunidad || 'oportunidades/mes'));\n  if (q.sin_cifras) partes.push('sin cifras (falta dato)');\n  return partes.join(' · ');\n});\nconst i = d.interno || {};\nconst hip = (i.hipotesis || []).map(x => x.hipotesis + (x.basada_en ? ' (' + x.basada_en + ')' : ''));\nconst horas_txt = rc.horas_mes_total ? rc.horas_mes_total.min + '-' + rc.horas_mes_total.max + ' h/mes' + (rc.ajustado_por_tope ? ' (ajustado por tope)' : '') : '';\nconst html_interno = '<div style=\"' + estilo + ';max-width:720px\">'\n  + '<h2 style=\"margin:0\">' + esc(d.empresa) + '</h2>'\n  + '<p>' + esc(d.tipo_negocio || d.sector) + ' · ' + esc(nombre) + ' · ' + esc((d.contacto || {}).email || 'sin email') + ' · ' + esc((d.contacto || {}).telefono || 'sin teléfono') + '<br>'\n  + esc(d.cita_texto || 'Sin fecha de reunión') + '</p>'\n  + '<p><a href=\"' + esc((d.urls || {}).admin) + '\">Abrir el panel</a></p>'\n  + '<h3>Lo que se quitaría</h3><p>' + esc(d.prioridad_tarea || '—') + '</p>'\n  + '<h3>Cifras (calculo.ts)</h3>' + lista(cifras) + (horas_txt ? '<p>Total: ' + esc(horas_txt) + '</p>' : '')\n  + '<h3>Hipótesis</h3>' + lista(hip)\n  + '<h3>Preguntas para la visita</h3>' + lista(i.preguntas_visita || [])\n  + ((i.alertas || []).length ? '<h3>Alertas</h3>' + lista(i.alertas) : '')\n  + '<h3>Lo que ve el cliente</h3>' + lista(entendido) + '<p><b>Temas:</b></p>' + lista(temas)\n  + '<h3>Respuestas del previo</h3>' + lista((d.respuestas_legibles || []).map(x => x.fase + ' · ' + x.pregunta + ' → ' + x.respuesta))\n  + '<p style=\"color:#8a8a8a\">Redacción: ' + (d.redaccion === 'ia' ? 'IA' : 'textos base') + '</p></div>';\n\nconst telegram = '🎼 Previo completado · ' + d.empresa + ' (' + (d.tipo_negocio || d.sector) + ')\\n'\n  + (d.cita_texto ? d.cita_texto + '\\n' : '')\n  + temas.map((t, n) => (n + 1) + ') ' + t).join('\\n')\n  + (horas_txt ? '\\nCifras: ' + horas_txt : '')\n  + '\\n' + ((d.urls || {}).admin || '');\n\nconst airtable = {\n  'Empresa': d.empresa,\n  'Diagnóstico ID': d.diagnostico_id,\n  'Estado': 'Previo completado',\n  'Tipo de negocio': d.tipo_negocio || '',\n  'Sector (preguntas)': d.sector,\n  'Contacto': nombre,\n  'Email': (d.contacto || {}).email || null,\n  'Teléfono': (d.contacto || {}).telefono || null,\n  'Fecha reunión': d.fecha_reunion || null,\n  'Hora': d.hora_reunion ? String(d.hora_reunion).slice(0, 5) : '',\n  'Lugar': d.lugar_reunion || '',\n  'Origen': d.origen || '',\n  'Tarea que se quitaría': d.prioridad_tarea || '',\n  'Respuestas del previo': (d.respuestas_legibles || []).map(x => x.fase + ' · ' + x.pregunta + ' → ' + x.respuesta).join('\\n'),\n  'Lo que revisaremos': temas.join('\\n'),\n  'Horas estimadas (interno)': horas_txt,\n  'Hipótesis (interno)': hip.join('\\n'),\n  'Preguntas para la visita (interno)': (i.preguntas_visita || []).join('\\n'),\n  'Alertas (interno)': (i.alertas || []).join('\\n'),\n  'Redacción': d.redaccion === 'ia' ? 'IA' : 'Textos base',\n  'Enlace del previo': (d.urls || {}).previo || null,\n  'Panel': (d.urls || {}).admin || null,\n  'Actualizado': new Date().toISOString(),\n};\nreturn [{ json: { ...d, asunto_cliente, html_cliente, asunto_interno: 'Previo completado · ' + d.empresa, html_interno, telegram, airtable } }];"
+      }
+    },
+    {
+      "id": "5f9de6d8-6c5d-4803-abf0-40d3140444a4",
+      "name": "Firmar callback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        160
+      ],
+      "parameters": {
+        "jsCode": "// Callback firmado a la app (spec del motor §7, fase 5).\nconst crypto = require('crypto');\nconst SECRETO = '{{DIAGNOSTICO_HMAC_SECRET}}';\nconst d = $input.first().json;\nconst body = JSON.stringify({\n  diagnostico_id: d.diagnostico_id,\n  estado: 'previo_completado',\n  redaccion: d.redaccion,\n  informe: d.informe || undefined,\n  interno: d.interno,\n  modelo: 'gpt-4.1-mini',\n  execution_id: String($execution.id),\n  generado_at: new Date().toISOString(),\n});\nconst ts = String(Math.floor(Date.now() / 1000));\nconst firma = crypto.createHmac('sha256', SECRETO).update(ts + '.' + body).digest('hex');\nreturn [{ json: { ...d, _callback: { body, ts, firma } } }];"
+      }
+    },
+    {
+      "id": "592e9e4f-5a49-4f2f-afd6-33166dc573cd",
+      "name": "Callback a la app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1780,
+        160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://diagnostico-orkestaia-orkesta-automation.vercel.app/api/motor/callback",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-orkesta-timestamp",
+              "value": "={{ $json._callback.ts }}"
+            },
+            {
+              "name": "x-orkesta-signature",
+              "value": "={{ $json._callback.firma }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json._callback.body }}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "7078479f-7413-4bb1-a8e4-98c8a93189a8",
+      "name": "¿Tiene email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2000,
+        40
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9e4ec277-350d-4456-b053-1c2105a9106d",
+              "leftValue": "={{ $('Componer mensajes').item.json.contacto.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "110bace3-3a04-4841-a61c-d4d7d04c3a22",
+      "name": "Email al cliente",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2220,
+        0
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Componer mensajes').item.json.contacto.email }}",
+        "subject": "={{ $('Componer mensajes').item.json.asunto_cliente }}",
+        "emailType": "html",
+        "message": "={{ $('Componer mensajes').item.json.html_cliente }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Aitor Colino · Orkesta",
+          "replyTo": "aitor@orkestaia.com"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dUucGjc2pUzK5evE",
+          "name": "Orkesta Gmail"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "4b178a21-7dcc-4b7b-adf9-da40fe85b6b7",
+      "name": "Email interno a Aitor",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2000,
+        180
+      ],
+      "parameters": {
+        "sendTo": "aitor@orkestaia.com",
+        "subject": "={{ $('Componer mensajes').item.json.asunto_interno }}",
+        "emailType": "html",
+        "message": "={{ $('Componer mensajes').item.json.html_interno }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Aitor Colino · Orkesta",
+          "replyTo": "aitor@orkestaia.com"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dUucGjc2pUzK5evE",
+          "name": "Orkesta Gmail"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "6237e5dc-4bcf-428b-b97d-953d790f4704",
+      "name": "Telegram a Aitor",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        320
+      ],
+      "parameters": {
+        "chatId": "6674289801",
+        "text": "={{ $('Componer mensajes').item.json.telegram }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "TGFhtcTOzYVke1rM",
+          "name": "Telegram Orkestador"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "239605f7-79a3-4bd0-a4f7-d35e39f729ea",
+      "name": "Guardar en Airtable",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        460
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://api.airtable.com/v0/appHxPMuotho4R1sV/tbl6AQQt7Nbmgy2Vi",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ performUpsert: { fieldsToMergeOn: ['Diagnóstico ID'] }, typecast: true, records: [{ fields: $('Componer mensajes').item.json.airtable }] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "CesDCLoKpSIu1Yfx",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "554c62c9-93ea-4609-ab1b-f2bfdf33e935",
+      "name": "Componer aviso de visita",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        520
+      ],
+      "parameters": {
+        "jsCode": "// visita_cerrada: aviso a Aitor \"listo para JARVIS\" (sin IA). Se completa en la fase 5.\nconst d = $input.first().json;\nreturn [{ json: {\n  ...d,\n  telegram: '✅ Visita cerrada · ' + (d.empresa || '') + '. Lista para exportar a JARVIS.\\n' + ((d.urls || {}).admin || ''),\n  asunto_interno: 'Visita cerrada · ' + (d.empresa || '') + ': listo para JARVIS',\n  html_interno: '<p>Visita cerrada: <b>' + (d.empresa || '') + '</b>. Lista para exportar a JARVIS.</p><p><a href=\"' + ((d.urls || {}).admin || '') + '\">Abrir el panel</a></p>',\n  airtable: { 'Empresa': d.empresa, 'Diagnóstico ID': d.diagnostico_id, 'Estado': 'Visita cerrada', 'Actualizado': new Date().toISOString() },\n} }];"
+      }
+    },
+    {
+      "id": "08e5ccf4-d1ae-412f-9a06-afa9a131f24c",
+      "name": "Telegram visita cerrada",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        900,
+        460
+      ],
+      "parameters": {
+        "chatId": "6674289801",
+        "text": "={{ $json.telegram }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "TGFhtcTOzYVke1rM",
+          "name": "Telegram Orkestador"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "9da33be3-a525-4753-b564-c1b86d857df2",
+      "name": "Email visita cerrada",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        900,
+        600
+      ],
+      "parameters": {
+        "sendTo": "aitor@orkestaia.com",
+        "subject": "={{ $json.asunto_interno }}",
+        "emailType": "html",
+        "message": "={{ $json.html_interno }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Aitor Colino · Orkesta",
+          "replyTo": "aitor@orkestaia.com"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dUucGjc2pUzK5evE",
+          "name": "Orkesta Gmail"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "53dd79be-6f1e-4efb-adf9-bc898233c68d",
+      "name": "Airtable visita cerrada",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        740
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://api.airtable.com/v0/appHxPMuotho4R1sV/tbl6AQQt7Nbmgy2Vi",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ performUpsert: { fieldsToMergeOn: ['Diagnóstico ID'] }, typecast: true, records: [{ fields: $json.airtable }] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "CesDCLoKpSIu1Yfx",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "20889b49-0e10-4148-8360-ad6323aef8dc",
+      "name": "Cada día a las 10:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        900
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "7590aaee-2ba5-4035-afa9-de7bec575b93",
+      "name": "Firmar petición",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        900
+      ],
+      "parameters": {
+        "jsCode": "// Petición firmada (cuerpo vacío) a la app para los previos sin terminar.\nconst crypto = require('crypto');\nconst SECRETO = '{{DIAGNOSTICO_HMAC_SECRET}}';\nconst ts = String(Math.floor(Date.now() / 1000));\nconst firma = crypto.createHmac('sha256', SECRETO).update(ts + '.').digest('hex');\nreturn [{ json: { ts, firma } }];"
+      }
+    },
+    {
+      "id": "71cbff79-1c01-472a-80a4-e8b40ce7d9ed",
+      "name": "Previos sin terminar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        900
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://diagnostico-orkestaia-orkesta-automation.vercel.app/api/motor/pendientes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-orkesta-timestamp",
+              "value": "={{ $json.ts }}"
+            },
+            {
+              "name": "x-orkesta-signature",
+              "value": "={{ $json.firma }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "",
+        "options": {}
+      }
+    },
+    {
+      "id": "d7f3bff0-6870-4287-a230-80e0681d9890",
+      "name": "Uno por diagnóstico",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        900
+      ],
+      "parameters": {
+        "jsCode": "// Un elemento por diagnóstico a recordar (la app ya los ha marcado como avisados).\nconst r = $input.first().json;\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nreturn (r.pendientes || []).map(p => ({ json: {\n  ...p,\n  asunto: 'Te recuerdo las preguntas del diagnóstico, ' + (p.contacto.nombre || ''),\n  html: '<div style=\"font-family:Inter,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1e1e1e;max-width:560px\">'\n    + esc(p.mensaje).split('\\n').join('<br>').replace(esc(p.enlace), '<a href=\"' + esc(p.enlace) + '\">' + esc(p.enlace) + '</a>')\n    + '<p>Aitor Colino<br><span style=\"color:#00b4d8\">ORKESTA</span> Automatización &amp; IA</p></div>',\n  telegram: '⏰ ' + p.empresa + ' no ha terminado el previo (' + p.respondidas + '/' + p.total + ').\\n'\n    + (p.contacto.email ? 'Le he enviado un recordatorio por email.\\n' : 'No tiene email: mándale el recordatorio tú.\\n')\n    + (p.whatsapp ? 'WhatsApp con el mensaje escrito: ' + p.whatsapp : 'Sin teléfono.'),\n  airtable: {\n    'Empresa': p.empresa,\n    'Diagnóstico ID': p.diagnostico_id,\n    'Estado': 'Recordatorio enviado',\n    'Contacto': p.contacto.nombre || '',\n    'Email': p.contacto.email || null,\n    'Teléfono': p.contacto.telefono || null,\n    'Enlace del previo': p.enlace,\n    'Actualizado': new Date().toISOString(),\n  },\n} }));"
+      }
+    },
+    {
+      "id": "13360363-571f-4058-a3b6-400f2f371048",
+      "name": "¿Tiene email? (recordatorio)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        820
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "43ef741f-ff34-496f-9f8e-bf43df8681d5",
+              "leftValue": "={{ $json.contacto.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f425b0b5-9bc9-4055-a98a-a1c29d62a65b",
+      "name": "Recordatorio al cliente",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1100,
+        800
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.contacto.email }}",
+        "subject": "={{ $json.asunto }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Aitor Colino · Orkesta",
+          "replyTo": "aitor@orkestaia.com"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dUucGjc2pUzK5evE",
+          "name": "Orkesta Gmail"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "de2cfacd-57fe-4538-9d44-b46c2957c10f",
+      "name": "Telegram recordatorio",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        960
+      ],
+      "parameters": {
+        "chatId": "6674289801",
+        "text": "={{ $json.telegram }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "TGFhtcTOzYVke1rM",
+          "name": "Telegram Orkestador"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "cc4ad448-bc20-49b5-b5c4-3febdfa1d79f",
+      "name": "Airtable recordatorio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        1100
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://api.airtable.com/v0/appHxPMuotho4R1sV/tbl6AQQt7Nbmgy2Vi",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ performUpsert: { fieldsToMergeOn: ['Diagnóstico ID'] }, typecast: true, records: [{ fields: $json.airtable }] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "CesDCLoKpSIu1Yfx",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook app": {
+      "main": [
+        [
+          {
+            "node": "Verificar firma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar firma": {
+      "main": [
+        [
+          {
+            "node": "Según el evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Según el evento": {
+      "main": [
+        [
+          {
+            "node": "Contexto para la IA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Componer aviso de visita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contexto para la IA": {
+      "main": [
+        [
+          {
+            "node": "Redacción IA (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redacción IA (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Validar redacción",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar redacción": {
+      "main": [
+        [
+          {
+            "node": "Componer mensajes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Componer mensajes": {
+      "main": [
+        [
+          {
+            "node": "Firmar callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firmar callback": {
+      "main": [
+        [
+          {
+            "node": "Callback a la app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback a la app": {
+      "main": [
+        [
+          {
+            "node": "¿Tiene email?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email interno a Aitor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram a Aitor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Guardar en Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Tiene email?": {
+      "main": [
+        [
+          {
+            "node": "Email al cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Componer aviso de visita": {
+      "main": [
+        [
+          {
+            "node": "Telegram visita cerrada",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email visita cerrada",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Airtable visita cerrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cada día a las 10:00": {
+      "main": [
+        [
+          {
+            "node": "Firmar petición",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firmar petición": {
+      "main": [
+        [
+          {
+            "node": "Previos sin terminar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Previos sin terminar": {
+      "main": [
+        [
+          {
+            "node": "Uno por diagnóstico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Uno por diagnóstico": {
+      "main": [
+        [
+          {
+            "node": "¿Tiene email? (recordatorio)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram recordatorio",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Airtable recordatorio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Tiene email? (recordatorio)": {
+      "main": [
+        [
+          {
+            "node": "Recordatorio al cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true
+  }
+}

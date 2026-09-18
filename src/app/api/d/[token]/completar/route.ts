@@ -33,7 +33,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ token:
     .eq("id", d.id)
     .in("estado", ESTADOS_PREVIO_EDITABLE as unknown as string[])
     .select(
-      "id, token, origen, config_version, sector, subsector, empresa, contacto_nombre, contacto_email, contacto_telefono, fecha_reunion, respuestas_previo",
+      "id, token, origen, config_version, sector, subsector, empresa, contacto_nombre, contacto_email, contacto_telefono, fecha_reunion, hora_reunion, lugar_reunion, tipo_negocio, respuestas_previo",
     )
     .maybeSingle();
   if (error) {

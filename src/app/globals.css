@@ -110,7 +110,7 @@ h6 {
   color: var(--color-ork-text);
 }
 
-
+/* ------------------------------------------------------------------ */
 /* Mapa del sistema (FlowDiagram) — brief §5                           */
 /* Las líneas se dibujan, los nodos entran escalonados a 80 ms y un    */
 /* punto de luz recorre el circuito en bucle lento.                    */
@@ -177,29 +177,108 @@ h6 {
 /* Orkestador y partitura — spec §2 (propio del diagnóstico)           */
 /* ------------------------------------------------------------------ */
 
-/* Respiración: escala 1 → 1,015 en 6 s */
+/* Respiración (1 → 1,015 en 6 s) y un balanceo leve, como quien dirige */
 .ork-orkestador {
-  animation: ork-respira 6s ease-in-out infinite alternate;
-  transform-origin: 50% 60%;
+  animation:
+    ork-respira 6s ease-in-out infinite alternate,
+    ork-dirige 9s ease-in-out infinite;
+  transform-origin: 50% 85%;
 }
 
 @keyframes ork-respira {
   from {
-    transform: scale(1);
+    scale: 1;
   }
   to {
-    transform: scale(1.015);
+    scale: 1.015;
   }
 }
 
-.ork-orkestador__halo {
-  background: radial-gradient(
-    closest-side,
-    color-mix(in srgb, var(--color-ork-cyan) 55%, transparent),
-    color-mix(in srgb, var(--color-ork-violet) 25%, transparent) 60%,
-    transparent
+@keyframes ork-dirige {
+  0%,
+  100% {
+    rotate: 0deg;
+  }
+  30% {
+    rotate: -1.2deg;
+  }
+  70% {
+    rotate: 1deg;
+  }
+}
+
+/* Barrido de luz sobre figura y circuitos: la propia imagen hace de máscara */
+.ork-orkestador__barrido {
+  -webkit-mask: var(--ork-img) center / 100% 100% no-repeat;
+  mask: var(--ork-img) center / 100% 100% no-repeat;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    color-mix(in srgb, var(--color-ork-cyan-hi) 55%, transparent) 48%,
+    color-mix(in srgb, #ffffff 40%, transparent) 50%,
+    color-mix(in srgb, var(--color-ork-violet) 45%, transparent) 53%,
+    transparent 65%
   );
-  filter: blur(40px);
+  background-size: 300% 100%;
+  mix-blend-mode: screen;
+  animation: ork-barrido 7s ease-in-out infinite;
+}
+
+@keyframes ork-barrido {
+  0%,
+  15% {
+    background-position: 110% 0;
+  }
+  55%,
+  100% {
+    background-position: -10% 0;
+  }
+}
+
+/* Puntas de las batutas: laten alternándose, y destellan al dar la entrada */
+.ork-batuta {
+  width: 3.2%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, #ffffff 0%, var(--color-ork-cyan-hi) 35%, transparent 70%);
+  box-shadow: 0 0 18px 6px color-mix(in srgb, var(--color-ork-cyan-hi) 55%, transparent);
+  animation: ork-late 2.4s ease-in-out infinite;
+}
+
+.ork-batuta--derecha {
+  animation-delay: 1.2s;
+}
+
+@keyframes ork-late {
+  0%,
+  100% {
+    opacity: 0.35;
+    scale: 0.8;
+  }
+  50% {
+    opacity: 1;
+    scale: 1.25;
+  }
+}
+
+.ork-orkestador--entrada .ork-batuta {
+  animation: ork-destello 900ms var(--ease-ork);
+}
+
+@keyframes ork-destello {
+  0% {
+    opacity: 1;
+    scale: 1;
+  }
+  35% {
+    opacity: 1;
+    scale: 2.6;
+  }
+  100% {
+    opacity: 0.5;
+    scale: 1;
+  }
 }
 
 /* "Da la entrada": la estela se dibuja desde la batuta y se apaga */
@@ -258,9 +337,13 @@ h6 {
     display: none;
   }
 
-  /* El Orkestador, quieto; sin estela */
-  .ork-orkestador {
+  /* El Orkestador, quieto; sin estela ni barrido */
+  .ork-orkestador,
+  .ork-batuta {
     animation: none;
+  }
+  .ork-orkestador__barrido {
+    display: none;
   }
   .ork-entrada {
     display: none;

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { SECTORES } from "@/config/sectores";
-import { CONFIG_VERSION, type SectorId } from "@/config/tipos";
+import { tipoNegocio } from "@/config/catalogoSectores";
+import { CONFIG_VERSION } from "@/config/tipos";
 import { exigirAdmin } from "@/lib/acceso";
 import { ORIGENES } from "@/lib/diagnosticos";
 import { enlaceWhatsApp, mensajeInvitacion } from "@/lib/invitacion";
@@ -18,18 +18,16 @@ const esquema = z
     contacto_email: opcional(z.string().trim().email().max(160)),
     contacto_telefono: opcional(z.string().trim().max(30)),
     web: opcional(z.string().trim().max(200)),
-    sector: z.string(),
-    subsector: opcional(z.string().trim().max(80)),
+    tipo_negocio: z.string(),
     fecha_reunion: opcional(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+    hora_reunion: opcional(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)),
+    lugar_reunion: opcional(z.string().trim().max(120)),
     origen: z.enum(ORIGENES).default("manual"),
     crm_contacto_id: opcional(z.string().uuid()),
   })
   .superRefine((d, ctx) => {
-    const s = SECTORES[d.sector as SectorId];
-    // Salud está transcrito pero no se ofrece hasta el sprint 2.
-    if (!s || !s.activoEnInvitaciones) ctx.addIssue({ code: "custom", path: ["sector"], message: "Sector no disponible" });
-    else if (d.subsector && !s.subsectores.includes(d.subsector))
-      ctx.addIssue({ code: "custom", path: ["subsector"], message: "Subsector no válido" });
+    if (!tipoNegocio(d.tipo_negocio)) ctx.addIssue({ code: "custom", path: ["tipo_negocio"], message: "Tipo de negocio no válido" });
+    if (d.hora_reunion && !d.fecha_reunion) ctx.addIssue({ code: "custom", path: ["fecha_reunion"], message: "Falta la fecha" });
   });
 
 /** Crea un diagnóstico → enlace del previo + mensaje de WhatsApp listo para copiar (spec §9). */
@@ -42,6 +40,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Datos no válidos", detalle: cuerpo.error.issues }, { status: 400 });
   }
   const d = cuerpo.data;
+  const tipo = tipoNegocio(d.tipo_negocio)!;
   const token = nuevoToken();
 
   const { data, error } = await supabaseAdmin()
@@ -50,14 +49,17 @@ export async function POST(req: Request) {
       token,
       tipo: "diagnostico",
       origen: d.origen,
-      sector: d.sector,
-      subsector: d.subsector ?? null,
+      sector: tipo.sector,
+      subsector: tipo.subsector ?? null,
+      tipo_negocio: tipo.etiqueta,
       empresa: d.empresa,
       contacto_nombre: d.contacto_nombre,
       contacto_email: d.contacto_email ?? null,
       contacto_telefono: d.contacto_telefono ?? null,
       web: d.web ?? null,
       fecha_reunion: d.fecha_reunion ?? null,
+      hora_reunion: d.hora_reunion ?? null,
+      lugar_reunion: d.lugar_reunion ?? null,
       crm_contacto_id: d.crm_contacto_id ?? null,
       config_version: CONFIG_VERSION,
     })
@@ -75,6 +77,7 @@ export async function POST(req: Request) {
     empresa: d.empresa,
     enlace,
     fechaReunion: d.fecha_reunion ?? null,
+    horaReunion: d.hora_reunion ?? null,
   });
   return Response.json(
     { id: data.id, enlace, mensaje, whatsapp: enlaceWhatsApp(d.contacto_telefono, mensaje) },

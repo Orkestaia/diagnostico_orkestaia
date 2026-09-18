@@ -1,4 +1,5 @@
-import { SECTORES_EN_INVITACIONES } from "@/config/sectores";
+import { CATALOGO_SECTORES } from "@/config/catalogoSectores";
+import { SECTORES } from "@/config/sectores";
 import { ETIQUETA_ORIGEN, ORIGENES } from "@/lib/diagnosticos";
 import { FormularioInvitacion } from "./FormularioInvitacion";
 
@@ -11,7 +12,10 @@ export default function NuevaInvitacion() {
         puestos al cliente.
       </p>
       <FormularioInvitacion
-        sectores={SECTORES_EN_INVITACIONES.map((s) => ({ id: s.id, nombre: s.nombre, subsectores: s.subsectores }))}
+        catalogo={CATALOGO_SECTORES.map((g) => ({
+          grupo: g.grupo,
+          tipos: g.tipos.map((t) => ({ etiqueta: t.etiqueta, preguntas: SECTORES[t.sector].nombre })),
+        }))}
         origenes={ORIGENES.map((o) => ({ id: o, nombre: ETIQUETA_ORIGEN[o] }))}
       />
     </main>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diaReunion, enlaceWhatsApp, fechaLarga, mensajeInvitacion, telefonoWhatsApp } from "./invitacion";
+import { diaConHora, diaReunion, enlaceWhatsApp, fechaLarga, mensajeInvitacion, mensajeRecordatorio, telefonoWhatsApp } from "./invitacion";
 
 describe("Mensaje de invitación (spec §3)", () => {
   it("[día] en formato «lunes 21»", () => {
@@ -32,5 +32,23 @@ describe("Teléfono para wa.me", () => {
   it("enlace con el mensaje codificado", () => {
     expect(enlaceWhatsApp("600111222", "Hola, ¿qué tal?")).toBe("https://wa.me/34600111222?text=Hola%2C%20%C2%BFqu%C3%A9%20tal%3F");
     expect(enlaceWhatsApp("", "x")).toBeNull();
+  });
+});
+
+describe("Hora y recordatorio", () => {
+  it("día con hora", () => {
+    expect(diaConHora("2026-09-21", "10:00:00")).toBe("lunes 21 a las 10:00");
+    expect(diaConHora("2026-09-21", "9:30")).toBe("lunes 21 a las 09:30");
+    expect(diaConHora("2026-09-21", null)).toBe("lunes 21");
+  });
+  it("la invitación lleva la hora si la hay", () => {
+    const m = mensajeInvitacion({ nombre: "Pedro", empresa: "X", enlace: "E", fechaReunion: "2026-09-21", horaReunion: "10:00" });
+    expect(m).toContain("el diagnóstico del lunes 21 a las 10:00 en X");
+    expect(m).toContain("Nos vemos el lunes 21 a las 10:00.");
+  });
+  it("recordatorio", () => {
+    expect(mensajeRecordatorio({ nombre: "Pedro", enlace: "E", fechaReunion: "2026-09-21", horaReunion: "10:00" })).toBe(
+      "Hola Pedro, soy Aitor, de Orkesta. Te recuerdo las preguntas rápidas antes del diagnóstico del lunes 21 a las 10:00: son 5 minutos y el enlace guarda lo que ya hayas contestado.\n\nE",
+    );
   });
 });

@@ -13,6 +13,8 @@ export interface DatosPrevio {
   empresa: string | null;
   contacto_nombre: string | null;
   fecha_reunion: string | null;
+  hora_reunion: string | null;
+  lugar_reunion: string | null;
   respuestas_previo: Respuestas;
   informe: { resumen_entendido?: string[]; temas_reunion?: string[] } | null;
   previo_completado_at: string | null;

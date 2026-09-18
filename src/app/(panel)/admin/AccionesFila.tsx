@@ -14,6 +14,7 @@ export function AccionesFila(p: {
   nombre: string;
   telefono: string | null;
   fechaReunion: string | null;
+  horaReunion: string | null;
 }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState<"enviar" | "revocar" | null>(null);
@@ -22,7 +23,7 @@ export function AccionesFila(p: {
   const [cargando, setCargando] = useState(false);
 
   const enlace = `${p.base}/d/${p.token}`;
-  const mensaje = mensajeInvitacion({ nombre: p.nombre, empresa: p.empresa, enlace, fechaReunion: p.fechaReunion });
+  const mensaje = mensajeInvitacion({ nombre: p.nombre, empresa: p.empresa, enlace, fechaReunion: p.fechaReunion, horaReunion: p.horaReunion });
   const datos: DatosInvitacion = nuevo ?? { enlace, mensaje, whatsapp: enlaceWhatsApp(p.telefono, mensaje) };
 
   async function revocar() {

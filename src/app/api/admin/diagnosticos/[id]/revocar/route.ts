@@ -20,7 +20,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     .from("diagnosticos")
     .update({ token })
     .eq("id", id)
-    .select("empresa, contacto_nombre, contacto_telefono, fecha_reunion")
+    .select("empresa, contacto_nombre, contacto_telefono, fecha_reunion, hora_reunion")
     .single();
   if (error || !data) return Response.json({ error: "No encontrado" }, { status: 404 });
 
@@ -30,6 +30,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     empresa: data.empresa ?? "",
     enlace,
     fechaReunion: data.fecha_reunion,
+    horaReunion: data.hora_reunion,
   });
   return Response.json({ enlace, mensaje, whatsapp: enlaceWhatsApp(data.contacto_telefono, mensaje) });
 }

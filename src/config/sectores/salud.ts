@@ -1,6 +1,6 @@
 /**
  * Banco de sectores v1 — §5.4 `salud` (+ §9 y §10). Transcrito sin cambios.
- * Sprint 2: está en la configuración pero no se ofrece en las invitaciones todavía.
+ * Activado el 18-sep (antes del sprint 2) para cubrir dentistas, estética, nutrición, etc.
  */
 import type { Sector } from "../tipos";
 import { hay, producto } from "./comunes";
@@ -186,5 +186,5 @@ export const salud: Sector = {
     "que ningún dato clínico pase por el sistema de avisos",
   ],
   previoIII: ["dia.citas_semana", "dia.ausencias", "dia.confirmacion"],
-  activoEnInvitaciones: false,
+  activoEnInvitaciones: true,
 };
