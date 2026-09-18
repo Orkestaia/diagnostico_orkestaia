@@ -25,8 +25,8 @@ const jetbrainsMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Diagnóstico Orkesta",
-  description: "Diagnóstico de procesos de Orkesta Automatización & IA.",
+  title: "Diagnóstico · ORKESTA Automatización & IA",
+  description: "Diagnóstico de procesos de ORKESTA Automatización & IA.",
   // Nada de esta app se indexa: enlaces personales y panel privado (spec §10).
   robots: { index: false, follow: false },
 };
