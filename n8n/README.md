@@ -22,5 +22,5 @@ Airtable Personal Access Token account (base `Diagnóstico_orkesta`, tabla `Diag
 ## Cambiar la URL de la app
 
 Los nodos «Callback a la app» y «Previos sin terminar» apuntan a
-`https://diagnostico-orkestaia-orkesta-automation.vercel.app`. Cuando exista el subdominio,
+`https://diagnostico-orkestaia.vercel.app` (dominio público; el alias `…-orkesta-automation` tiene la protección de Vercel y da 401). Cuando exista el subdominio,
 cambiarlos a `https://diagnostico.orkestaia.com`.

@@ -1,6 +1,6 @@
 import { enlaceWhatsApp, mensajeRecordatorio } from "@/lib/invitacion";
 import { verificarFirma } from "@/lib/motor";
-import { pasosPrevio } from "@/lib/previo";
+import { estaCompleta, pasosPrevio } from "@/lib/previo";
 import { supabaseAdmin } from "@/lib/supabase";
 import { urlBase } from "@/lib/url";
 import type { Respuestas, SectorId } from "@/config/tipos";
@@ -50,13 +50,14 @@ export async function POST(req: Request) {
     const nombre = d.contacto_nombre ?? "";
     const mensaje = mensajeRecordatorio({ nombre, enlace, fechaReunion: d.fecha_reunion, horaReunion: d.hora_reunion });
     const r = (d.respuestas_previo ?? {}) as Respuestas;
+    const pasos = pasosPrevio(d.sector as SectorId, r);
     return {
       diagnostico_id: d.id,
       empresa: d.empresa,
       contacto: { nombre, email: d.contacto_email, telefono: d.contacto_telefono },
       fecha_reunion: d.fecha_reunion,
-      respondidas: Object.keys(r).length,
-      total: pasosPrevio(d.sector as SectorId, r).length,
+      respondidas: pasos.filter((p) => estaCompleta(p.pregunta, r)).length,
+      total: pasos.length,
       enlace,
       mensaje,
       whatsapp: enlaceWhatsApp(d.contacto_telefono, mensaje),
