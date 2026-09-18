@@ -173,6 +173,66 @@ h6 {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Orkestador y partitura — spec §2 (propio del diagnóstico)           */
+/* ------------------------------------------------------------------ */
+
+/* Respiración: escala 1 → 1,015 en 6 s */
+.ork-orkestador {
+  animation: ork-respira 6s ease-in-out infinite alternate;
+  transform-origin: 50% 60%;
+}
+
+@keyframes ork-respira {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.015);
+  }
+}
+
+.ork-orkestador__halo {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--color-ork-cyan) 55%, transparent),
+    color-mix(in srgb, var(--color-ork-violet) 25%, transparent) 60%,
+    transparent
+  );
+  filter: blur(40px);
+}
+
+/* "Da la entrada": la estela se dibuja desde la batuta y se apaga */
+.ork-entrada {
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 6px var(--color-ork-cyan-hi));
+  animation: ork-entrada var(--duracion, 1200ms) var(--ease-ork) forwards;
+}
+
+@keyframes ork-entrada {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 1;
+  }
+  70% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+.ork-estacion--actual {
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--color-ork-cyan) 18%, transparent),
+    0 0 18px color-mix(in srgb, var(--color-ork-cyan-hi) 45%, transparent);
+}
+
 /* Cifras: siempre con dígitos de ancho fijo — spec §2 */
 .cifra {
   font-variant-numeric: tabular-nums;
@@ -195,6 +255,14 @@ h6 {
     opacity: 1;
   }
   .ork-diagrama__luz {
+    display: none;
+  }
+
+  /* El Orkestador, quieto; sin estela */
+  .ork-orkestador {
+    animation: none;
+  }
+  .ork-entrada {
     display: none;
   }
 }
