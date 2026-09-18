@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verificar-config": "vitest run scripts/verificar-config.test.ts",
     "format": "prettier --write ."
   },
   "dependencies": {
