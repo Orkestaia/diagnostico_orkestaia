@@ -14,7 +14,7 @@ import sys
 from PIL import Image, ImageFilter
 import numpy as np
 
-LADO = 820  # px del lado mayor: suficiente para 80 vh en escritorio
+LADO = 720  # px del lado mayor: nítido a 78 vh en portátil y ligero en móvil
 
 src = Image.open(sys.argv[1]).convert("RGB")
 a = np.asarray(src).astype(np.float32)
@@ -42,7 +42,7 @@ im = im.crop((x0, y0, x1, y1))
 ancho, alto = im.size
 escala = LADO / max(ancho, alto)
 im = im.resize((round(ancho * escala), round(alto * escala)), Image.LANCZOS)
-im.save("public/orkestador/orkestador.webp", "WEBP", quality=80, method=6)
+im.save("public/orkestador/orkestador.webp", "WEBP", quality=74, method=6)
 
 # Puntas de las batutas: el píxel cian más brillante y más alto a cada lado del tercio superior
 arr = np.asarray(im).astype(np.int32)

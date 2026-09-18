@@ -6,14 +6,14 @@
  */
 export const ORKESTADOR_IMAGEN = {
   src: "/orkestador/orkestador.webp",
-  ancho: 743,
-  alto: 820,
+  ancho: 652,
+  alto: 720,
 };
 
 /** Puntas de las batutas en píxeles de la imagen (las imprime el script). */
 export const BATUTAS = {
-  izquierda: { x: 296, y: 68 },
-  derecha: { x: 430, y: 72 },
+  izquierda: { x: 259, y: 60 },
+  derecha: { x: 377, y: 63 },
 };
 
 /** De la punta de la batuta derecha sale la estela "da la entrada" (spec §2). */

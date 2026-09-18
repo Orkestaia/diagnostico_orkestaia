@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
+import { preload } from "react-dom";
 import { motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
 import { BATUTAS, ORKESTADOR_IMAGEN, PUNTA_BATUTA } from "./orkestador-path";
 
@@ -125,6 +126,14 @@ export function Orkestador({
   const x = useSpring(useMotionValue(0), { stiffness: 40, damping: 20 });
   const y = useSpring(useMotionValue(0), { stiffness: 40, damping: 20 });
   const [destellando, setDestellando] = useState(false);
+  // Aparece cuando la imagen ya está: nunca se ven las batutas flotando solas.
+  const [cargada, setCargada] = useState(false);
+  const img = useRef<HTMLImageElement>(null);
+  if (prioridad) preload(ORKESTADOR_IMAGEN.src, { as: "image", fetchPriority: "high" });
+
+  useEffect(() => {
+    if (img.current?.complete && img.current.naturalWidth > 0) setCargada(true);
+  }, []);
 
   useEffect(() => {
     if (reducido) return;
@@ -152,7 +161,13 @@ export function Orkestador({
     <motion.div
       aria-hidden="true"
       className={`pointer-events-none ${className}`}
-      style={{ x, y, opacity: OPACIDAD[intensidad], aspectRatio: `${ancho} / ${alto}` }}
+      style={{
+        x,
+        y,
+        opacity: cargada ? OPACIDAD[intensidad] : 0,
+        transition: "opacity 700ms cubic-bezier(0.22, 1, 0.36, 1)",
+        aspectRatio: `${ancho} / ${alto}`,
+      }}
     >
       <div
         ref={registrarBatuta as React.Ref<HTMLDivElement>}
@@ -161,6 +176,8 @@ export function Orkestador({
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- imagen decorativa fija, ya optimizada */}
         <img
+          ref={img}
+          onLoad={() => setCargada(true)}
           src={src}
           width={ancho}
           height={alto}

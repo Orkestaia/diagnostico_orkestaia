@@ -123,13 +123,7 @@ export function Previo({
 
   return (
     <EscenarioOrkestador>
-      {protagonista ? (
-        <Orkestador
-          intensidad="protagonista"
-          prioridad
-          className="mx-auto mt-4 h-[30vh] md:fixed md:right-[4%] md:top-1/2 md:mt-0 md:h-[78vh] md:-translate-y-1/2"
-        />
-      ) : (
+      {protagonista ? null : (
         <Orkestador intensidad="fondo" className="fixed -right-24 bottom-0 h-[62vh] md:right-[4%] md:h-[80vh]" />
       )}
       <div
@@ -141,6 +135,14 @@ export function Previo({
         <header className="mb-8">
           <Marca className="text-small" />
         </header>
+        {protagonista ? (
+          // Móvil: debajo de la marca, tamaño contenido. Escritorio: fijo a la derecha.
+          <Orkestador
+            intensidad="protagonista"
+            prioridad
+            className="mx-auto mb-6 h-[26vh] max-h-[240px] md:fixed md:right-[4%] md:top-1/2 md:mb-0 md:h-[78vh] md:max-h-none md:-translate-y-1/2"
+          />
+        ) : null}
 
         {fase === "bienvenida" ? (
           <section className="flex flex-1 flex-col justify-center gap-8">
