@@ -1,0 +1,200 @@
+@import "tailwindcss";
+
+/*
+ * Tokens copiados del portfolio (orkesta-web/app/globals.css), que sigue ORKESTA-DESIGN.md.
+ * Si se cambia un token o una animación de FlowDiagram aquí o allí, llevarlo al otro repo.
+ * Ese archivo manda sobre cualquier skill de diseño instalada.
+ * Ningún color se hardcodea en componentes: todo sale de aquí.
+ */
+
+@theme inline {
+  /* Tipografía — §3. Fuentes autoalojadas vía next/font/local (app/layout.tsx) */
+  --font-display: var(--font-space-grotesk), var(--font-inter), system-ui, sans-serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SFMono-Regular", monospace;
+}
+
+@theme {
+  /* Color — §2 */
+  --color-ork-bg: #050505;
+  --color-ork-surface-1: #121212;
+  --color-ork-surface-2: #1e1e1e;
+  --color-ork-border: #262626;
+  --color-ork-border-hi: #3a3a3a;
+
+  --color-ork-cyan: #00b4d8;
+  --color-ork-cyan-hi: #00e5ff;
+  --color-ork-violet: #8a2be2;
+  --color-ork-violet-deep: #7b2cbf;
+
+  --color-ork-text: #ffffff;
+  --color-ork-text-muted: #b0b0b0;
+  --color-ork-text-faint: #8a8a8a;
+
+  /* Escala tipográfica — §3 */
+  --text-display: clamp(2.75rem, 7vw, 5.5rem);
+  --text-display--line-height: 0.95;
+  --text-display--letter-spacing: -0.03em;
+  --text-h1: clamp(2.25rem, 5vw, 3.5rem);
+  --text-h1--line-height: 1.05;
+  --text-h1--letter-spacing: -0.02em;
+  --text-h2: clamp(1.75rem, 3.5vw, 2.5rem);
+  --text-h2--line-height: 1.15;
+  --text-h2--letter-spacing: -0.02em;
+  /*
+   * Los tamaños de lectura son fluidos, no fijos (decisión de Aitor, 2026-08-21:
+   * "se ve la letra muy pequeña en pc, casi no se leen"). El valor mínimo del
+   * clamp es el de ORKESTA-DESIGN.md §3 y se mantiene tal cual por debajo de
+   * ~700 px; a partir de ahí crece con el viewport hasta el tope. En 1440 px un
+   * párrafo pasa de 16 px a 19,6 px, que es donde el deck se lee de pie.
+   */
+  --text-h3: clamp(1.375rem, 1.2rem + 0.6vw, 1.875rem);
+  --text-h3--line-height: 1.3;
+  --text-body-lg: clamp(1.125rem, 1rem + 0.5vw, 1.5rem);
+  --text-body-lg--line-height: 1.6;
+  --text-body: clamp(1rem, 0.92rem + 0.34vw, 1.25rem);
+  --text-body--line-height: 1.7;
+  --text-small: clamp(0.9375rem, 0.875rem + 0.25vw, 1.125rem);
+  --text-small--line-height: 1.6;
+  --text-mono-label: clamp(0.8125rem, 0.75rem + 0.2vw, 1rem);
+  --text-mono-label--line-height: 1.2;
+  --text-mono-label--letter-spacing: 0.12em;
+
+  /* Movimiento — §6 */
+  --ease-ork: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+  /* Degradado de marca — §2. Nunca como fondo de sección completa. */
+  --ork-gradient: linear-gradient(135deg, #00e5ff 0%, #00b4d8 40%, #7b2cbf 100%);
+  --ork-gradient-soft: linear-gradient(
+    135deg,
+    color-mix(in srgb, #00e5ff 40%, transparent) 0%,
+    color-mix(in srgb, #00b4d8 40%, transparent) 40%,
+    color-mix(in srgb, #7b2cbf 40%, transparent) 100%
+  );
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-ork-bg);
+  color: var(--color-ork-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--color-ork-text);
+}
+
+/* Foco visible en todo elemento interactivo — §9. Nunca outline:none sin sustituto. */
+:focus-visible {
+  outline: 2px solid var(--color-ork-cyan-hi);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-ork-cyan) 30%, transparent);
+  color: var(--color-ork-text);
+}
+
+
+/* Mapa del sistema (FlowDiagram) — brief §5                           */
+/* Las líneas se dibujan, los nodos entran escalonados a 80 ms y un    */
+/* punto de luz recorre el circuito en bucle lento.                    */
+/* ------------------------------------------------------------------ */
+
+.ork-diagrama__linea {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: diagrama-trazo 700ms var(--ease-ork) forwards;
+  animation-delay: calc(var(--i) * 80ms);
+  pathlength: 1;
+}
+
+@keyframes diagrama-trazo {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.ork-diagrama__nodo {
+  opacity: 0;
+  animation: diagrama-nodo 520ms var(--ease-ork) forwards;
+  animation-delay: calc(220ms + var(--i) * 80ms);
+}
+
+@keyframes diagrama-nodo {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Punto de luz: un trazo corto que recorre la línea en bucle */
+.ork-diagrama__luz {
+  stroke-dasharray: 0.06 0.94;
+  stroke-dashoffset: 1;
+  stroke-linecap: round;
+  stroke-width: 2.5;
+  opacity: 0.9;
+  animation: diagrama-luz 5s linear infinite;
+  animation-delay: calc(1s + var(--i) * 260ms);
+  pathlength: 1;
+}
+
+@keyframes diagrama-luz {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.9;
+  }
+  60%,
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+/* Cifras: siempre con dígitos de ancho fijo — spec §2 */
+.cifra {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 120ms !important;
+  }
+
+  /* El diagrama se muestra completo, sin dibujarse ni pulsar */
+  .ork-diagrama__linea,
+  .ork-diagrama__nodo {
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  .ork-diagrama__luz {
+    display: none;
+  }
+}
