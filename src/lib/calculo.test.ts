@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { quickWinsDeSector, SECTORES } from "@/config/sectores";
 import { PLANTILLAS_COMUNES, PLANTILLAS_SECTOR } from "@/config/consultor/plantillas";
-import type { TarjetaProceso } from "@/config/consultor/tarjeta";
+import { tarjetaNueva, type TarjetaProceso } from "@/config/consultor/tarjeta";
 import type { Respuestas } from "@/config/tipos";
 import {
   calcularQuickWins,
@@ -22,33 +22,8 @@ import { leerEntradas } from "./preguntas";
 const qw = (r: ReturnType<typeof calcularQuickWins>, id: string) =>
   r.elegidos.find((x) => x.id === id);
 
-function tarjeta(p: Partial<TarjetaProceso>): TarjetaProceso {
-  return {
-    id: p.id ?? "t1",
-    nombre: "Proceso",
-    area: null,
-    plantilla: null,
-    disparador: "",
-    pasos: [],
-    quien: null,
-    quienPersonas: null,
-    volumen: null,
-    volumenUnidad: "",
-    volumenPeriodo: "mes",
-    minutosPorVez: null,
-    herramientas: [],
-    atasco: "",
-    errores: null,
-    erroresEjemplo: "",
-    cita: "",
-    visto: false,
-    prioridadCliente: null,
-    rapida: false,
-    origenDatos: "visita",
-    hoyRegistro: null,
-    ...p,
-  };
-}
+const tarjeta = (p: Partial<TarjetaProceso>): TarjetaProceso =>
+  tarjetaNueva({ nombre: "Proceso", ...p, id: p.id ?? "t1" });
 
 describe("Caso de regresión obligatorio — Studio Colino (banco §2.5)", () => {
   // Arquitectura, equipo 6-15, 5 expedientes al mes, documentación "15-60 min".

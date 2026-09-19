@@ -9,7 +9,8 @@
  * El servidor rechaza cualquier campo privado que llegue por la parte visible (y al revés).
  */
 import { CAMPOS_VISITA, DIAS_HABILES_ENTREGA } from "@/config/consultor/bloques";
-import { EXTRAS_BLOQUE_A, plantillasDeSector } from "@/config/consultor/plantillas";
+import { plantillasDeSector } from "@/config/consultor/plantillas";
+import { camposDeSector } from "@/config/consultor/sector";
 import {
   AREAS,
   ERRORES,
@@ -62,7 +63,10 @@ export interface ParcheVisita {
 
 // ── Privado o visible ──
 
-/** Clave de un extra del bloque A (batería §3): `extra:<texto>`. */
+/**
+ * Clave de un extra del bloque A de la batería v1 (`extra:<texto>`). En la v2 los extras son
+ * preguntas con id propio (§5): esto solo sirve para leer diagnósticos antiguos.
+ */
 export const claveExtra = (texto: string) => `extra:${texto}`;
 
 /** Notas libres de Aitor durante la visita (🔒). No son de la batería. */
@@ -71,8 +75,8 @@ export const ID_NOTAS = "x.notas";
 export function idsCampos(sector: SectorId): { visibles: Set<string>; privados: Set<string> } {
   const visibles = new Set<string>();
   const privados = new Set<string>();
-  for (const c of CAMPOS_VISITA) (c.privado ? privados : visibles).add(c.id);
-  for (const e of EXTRAS_BLOQUE_A[sector]) (e.privado ? privados : visibles).add(claveExtra(e.texto));
+  for (const c of camposDeSector(CAMPOS_VISITA, sector))
+    (c.privado ? privados : visibles).add(c.id);
   privados.add(ID_NOTAS);
   return { visibles, privados };
 }
@@ -93,7 +97,8 @@ function sanearValor(v: unknown, prof = 0): unknown {
   if (Array.isArray(v)) return v.slice(0, 50).map((x) => sanearValor(x, prof + 1));
   if (typeof v === "object") {
     const o: Record<string, unknown> = {};
-    for (const [k, x] of Object.entries(v as Record<string, unknown>).slice(0, 30)) o[k.slice(0, 60)] = sanearValor(x, prof + 1);
+    for (const [k, x] of Object.entries(v as Record<string, unknown>).slice(0, 30))
+      o[k.slice(0, 60)] = sanearValor(x, prof + 1);
     return o;
   }
   return null;
@@ -107,31 +112,49 @@ export function sanearTarjeta(t: Partial<TarjetaProceso>): TarjetaProceso | null
   return tarjetaNueva({
     id: t.id,
     nombre: texto(t.nombre, LIMITES_TARJETA.nombre),
-    area: (AREAS as readonly string[]).includes(t.area as string) ? (t.area as TarjetaProceso["area"]) : null,
+    area: (AREAS as readonly string[]).includes(t.area as string)
+      ? (t.area as TarjetaProceso["area"])
+      : null,
     plantilla: typeof t.plantilla === "string" ? t.plantilla.slice(0, 120) : null,
     disparador: texto(t.disparador),
     pasos: pasos
       .filter((p) => p && typeof p.id === "string")
       .slice(0, LIMITES_TARJETA.pasosMax)
-      .map((p) => ({ id: String(p.id).slice(0, 40), texto: texto(p.texto, LIMITES_TARJETA.paso), quien: p.quien === "sistema" ? "sistema" : "persona" })),
+      .map((p) => ({
+        id: String(p.id).slice(0, 40),
+        texto: texto(p.texto, LIMITES_TARJETA.paso),
+        quien: p.quien === "sistema" ? "sistema" : "persona",
+      })),
     quien: QUIEN.some((q) => q.etiqueta === t.quien) ? (t.quien as string) : null,
     quienPersonas: numero(t.quienPersonas, 0, 10000),
     volumen: numero(t.volumen),
     volumenUnidad: texto(t.volumenUnidad, 40),
-    volumenPeriodo: periodos.includes(t.volumenPeriodo as string) ? (t.volumenPeriodo as Periodo) : "mes",
+    volumenPeriodo: periodos.includes(t.volumenPeriodo as string)
+      ? (t.volumenPeriodo as Periodo)
+      : "mes",
     minutosPorVez: numero(t.minutosPorVez, 0, 100000),
-    herramientas: Array.isArray(t.herramientas) ? t.herramientas.slice(0, 20).map((h) => texto(h, 80)) : [],
+    herramientas: Array.isArray(t.herramientas)
+      ? t.herramientas.slice(0, 20).map((h) => texto(h, 80))
+      : [],
     atasco: texto(t.atasco),
-    errores: (ERRORES as readonly string[]).includes(t.errores as string) ? (t.errores as TarjetaProceso["errores"]) : null,
+    errores: (ERRORES as readonly string[]).includes(t.errores as string)
+      ? (t.errores as TarjetaProceso["errores"])
+      : null,
     erroresEjemplo: texto(t.erroresEjemplo),
     cita: texto(t.cita, LIMITES_TARJETA.cita),
     visto: t.visto === true,
-    prioridadCliente: [1, 2, 3].includes(t.prioridadCliente as number) ? (t.prioridadCliente as 1 | 2 | 3) : null,
+    prioridadCliente: [1, 2, 3].includes(t.prioridadCliente as number)
+      ? (t.prioridadCliente as 1 | 2 | 3)
+      : null,
     rapida: t.rapida === true,
     origenDatos: t.origenDatos === "previo" ? "previo" : "visita",
     hoyRegistro:
       reg && typeof reg.horasMes === "number" && typeof reg.fecha === "string"
-        ? { horasMes: reg.horasMes, fecha: reg.fecha.slice(0, 30), origen: reg.origen === "previo" ? "previo" : "visita" }
+        ? {
+            horasMes: reg.horasMes,
+            fecha: reg.fecha.slice(0, 30),
+            origen: reg.origen === "previo" ? "previo" : "visita",
+          }
         : null,
   });
 }
@@ -149,12 +172,16 @@ export function sanearPrivadoTarjeta(p: Partial<TarjetaPrivada>): Partial<Tarjet
  * Valida un parche. Los campos visibles no pueden traer ids privados ni al revés: así ningún
  * dato 🔒 puede acabar en una columna que se enseñe al cliente, aunque la pantalla se equivoque.
  */
-export function validarParche(sector: SectorId, p: ParcheVisita): { ok: ParcheVisita; rechazados: string[] } {
+export function validarParche(
+  sector: SectorId,
+  p: ParcheVisita,
+): { ok: ParcheVisita; rechazados: string[] } {
   const { visibles, privados } = idsCampos(sector);
   const ok: ParcheVisita = {};
   const rechazados: string[] = [];
 
-  if (typeof p.inicio_at === "string" && !Number.isNaN(Date.parse(p.inicio_at))) ok.inicio_at = p.inicio_at;
+  if (typeof p.inicio_at === "string" && !Number.isNaN(Date.parse(p.inicio_at)))
+    ok.inicio_at = p.inicio_at;
 
   if (p.campos && typeof p.campos === "object") {
     ok.campos = {};
@@ -174,12 +201,16 @@ export function validarParche(sector: SectorId, p: ParcheVisita): { ok: ParcheVi
     ok.correcciones_previo = sanearValor(p.correcciones_previo) as Respuestas;
   }
   if (Array.isArray(p.procesos)) {
-    ok.procesos = p.procesos.slice(0, 20).map(sanearTarjeta).filter((t): t is TarjetaProceso => t !== null);
+    ok.procesos = p.procesos
+      .slice(0, 20)
+      .map(sanearTarjeta)
+      .filter((t): t is TarjetaProceso => t !== null);
   }
   if (p.privado_procesos && typeof p.privado_procesos === "object") {
     ok.privado_procesos = {};
     for (const [id, v] of Object.entries(p.privado_procesos).slice(0, 20)) {
-      if (/^[\w-]{1,40}$/.test(id) && v && typeof v === "object") ok.privado_procesos[id] = sanearPrivadoTarjeta(v);
+      if (/^[\w-]{1,40}$/.test(id) && v && typeof v === "object")
+        ok.privado_procesos[id] = sanearPrivadoTarjeta(v);
     }
   }
   return { ok, rechazados };
@@ -188,13 +219,20 @@ export function validarParche(sector: SectorId, p: ParcheVisita): { ok: ParcheVi
 /** Une dos parches (el más nuevo gana, campo a campo). Lo usa la cola sin conexión. */
 export function unirParches(a: ParcheVisita, b: ParcheVisita): ParcheVisita {
   const privado_procesos = { ...(a.privado_procesos ?? {}) };
-  for (const [id, v] of Object.entries(b.privado_procesos ?? {})) privado_procesos[id] = { ...(privado_procesos[id] ?? {}), ...v };
+  for (const [id, v] of Object.entries(b.privado_procesos ?? {}))
+    privado_procesos[id] = { ...(privado_procesos[id] ?? {}), ...v };
   return {
     inicio_at: a.inicio_at ?? b.inicio_at,
     campos: a.campos || b.campos ? { ...a.campos, ...b.campos } : undefined,
-    correcciones_previo: a.correcciones_previo || b.correcciones_previo ? { ...a.correcciones_previo, ...b.correcciones_previo } : undefined,
+    correcciones_previo:
+      a.correcciones_previo || b.correcciones_previo
+        ? { ...a.correcciones_previo, ...b.correcciones_previo }
+        : undefined,
     procesos: b.procesos ?? a.procesos,
-    privado_campos: a.privado_campos || b.privado_campos ? { ...a.privado_campos, ...b.privado_campos } : undefined,
+    privado_campos:
+      a.privado_campos || b.privado_campos
+        ? { ...a.privado_campos, ...b.privado_campos }
+        : undefined,
     privado_procesos: Object.keys(privado_procesos).length ? privado_procesos : undefined,
   };
 }
@@ -264,12 +302,19 @@ export function sumarDiasHabiles(desdeISO: string, n = DIAS_HABILES_ENTREGA): st
  * Registro fijo de las horas de hoy de cada tarjeta (JARVIS, 19-sep). Se escribe una vez, al
  * cerrar la visita; si una tarjeta ya lo tenía, no se toca.
  */
-export function conRegistroHoy(tarjetas: TarjetaProceso[], sector: SectorId, fechaISO: string): TarjetaProceso[] {
+export function conRegistroHoy(
+  tarjetas: TarjetaProceso[],
+  sector: SectorId,
+  fechaISO: string,
+): TarjetaProceso[] {
   return tarjetas.map((t) => {
     if (t.hoyRegistro) return t;
     const h = hoyHorasMes(t, sector);
     if (h === null) return t;
-    return { ...t, hoyRegistro: { horasMes: Math.round(h * 100) / 100, fecha: fechaISO, origen: t.origenDatos } };
+    return {
+      ...t,
+      hoyRegistro: { horasMes: Math.round(h * 100) / 100, fecha: fechaISO, origen: t.origenDatos },
+    };
   });
 }
 

@@ -12,21 +12,22 @@ import {
   type BloqueId,
   type CampoVisita,
 } from "@/config/consultor/bloques";
-import { EXTRAS_BLOQUE_A } from "@/config/consultor/plantillas";
+import { camposDeSector } from "@/config/consultor/sector";
 import type { TarjetaProceso } from "@/config/consultor/tarjeta";
 import type { Respuestas, SectorId, TipoPregunta, ValorRespuesta } from "@/config/tipos";
 import { redondearHoras } from "@/lib/calculo";
-import {
-  claveExtra,
-  ID_NOTAS,
-  sumarDiasHabiles,
-  type ParcheVisita,
-  type RespuestasVisita,
-} from "@/lib/visita";
+import { ID_NOTAS, sumarDiasHabiles, type ParcheVisita, type RespuestasVisita } from "@/lib/visita";
 import { BOTON, BOTON_PRIMARIO, CAMPO, Chips, Etiqueta, Numero, Seccion, Texto } from "./campos";
 import { BotonCandado, SoloPrivado, usePrivada, VistaPrivada } from "./privada";
-import { BotonGrabar, EstadoTranscripcion, Grabacion, useGrabacion } from "./grabacion";
-import { BloqueProcesos, horasHoy } from "./Tarjetas";
+import { BloqueEncuesta } from "./encuesta";
+import {
+  BotonGrabar,
+  EstadoTranscripcion,
+  Grabacion,
+  sectorSensible,
+  useGrabacion,
+} from "./grabacion";
+import { BloqueProcesos, horasHoy, TableroNumeros } from "./Tarjetas";
 import { useGuardado, type EstadoGuardado } from "./useGuardado";
 
 export interface Contado {
@@ -45,6 +46,7 @@ export interface DatosVisita {
   sector: SectorId;
   empresa: string;
   contacto: string | null;
+  tipoNegocio: string | null;
   fechaReunion: string | null;
   visitaCerradaAt: string | null;
   respuestasVisita: RespuestasVisita;
@@ -193,7 +195,7 @@ function Pantalla({
           <div className="flex items-center gap-3">
             <Temporizador inicio={inicio} onCierre={() => ir("E")} />
             <IndicadorGuardado estado={estado} />
-            <BotonGrabar />
+            <BotonGrabar sensible={sectorSensible(datos.sector, datos.tipoNegocio)} />
             <button
               type="button"
               aria-expanded={notas}
@@ -251,25 +253,20 @@ function Pantalla({
           <Preparacion />
         </SoloPrivado>
 
-        {bloque === "A" ? (
-          <>
-            <LoQueNosContaste
-              datos={datos}
-              correcciones={correcciones}
-              ponerCorreccion={ponerCorreccion}
-            />
-            <Seccion titulo="Contexto">
-              <CamposBloque
-                bloque="A"
-                sector={datos.sector}
-                campos={campos}
-                ponerCampo={ponerCampo}
-                procesos={procesos}
-                ponerProcesos={ponerProcesos}
-              />
-            </Seccion>
-          </>
+        {actual.aviso ? (
+          <p className="rounded-xl border border-ork-border-hi bg-ork-surface-1/70 px-4 py-3 text-ork-text">
+            {actual.aviso}
+          </p>
         ) : null}
+
+        {bloque === "A" ? (
+          <LoQueNosContaste
+            datos={datos}
+            correcciones={correcciones}
+            ponerCorreccion={ponerCorreccion}
+          />
+        ) : null}
+
         {bloque === "B" ? (
           <BloqueProcesos
             sector={datos.sector}
@@ -277,9 +274,11 @@ function Pantalla({
             sugeridas={datos.sugeridas}
             onCambio={ponerProcesos}
           />
-        ) : null}
-        {bloque === "C" || bloque === "D" ? (
+        ) : (
           <Seccion titulo={actual.nombre}>
+            {bloque === "C" ? (
+              <TableroNumeros sector={datos.sector} tarjetas={procesos} onCambio={ponerProcesos} />
+            ) : null}
             <CamposBloque
               bloque={bloque}
               sector={datos.sector}
@@ -287,29 +286,20 @@ function Pantalla({
               ponerCampo={ponerCampo}
               procesos={procesos}
               ponerProcesos={ponerProcesos}
+              entrega={entrega}
             />
           </Seccion>
-        ) : null}
-        {bloque === "E" ? (
-          <>
-            <Seccion titulo="Cierre">
-              <CamposBloque
-                bloque="E"
-                sector={datos.sector}
-                campos={campos}
-                ponerCampo={ponerCampo}
-                procesos={procesos}
-                ponerProcesos={ponerProcesos}
-                entrega={entrega}
-              />
-            </Seccion>
-            <CerrarVisita
-              id={datos.id}
-              vaciar={vaciar}
-              onCerrada={onCerrada}
-              irACostes={() => ir("C")}
-            />
-          </>
+        )}
+
+        {bloque === "F" ? <BloqueEncuesta id={datos.id} campos={campos} /> : null}
+
+        {bloque === "H" ? (
+          <CerrarVisita
+            id={datos.id}
+            vaciar={vaciar}
+            onCerrada={onCerrada}
+            irACostes={() => ir("C")}
+          />
         ) : null}
 
         <div className="flex justify-between gap-3 pt-2">
@@ -586,51 +576,43 @@ function CamposBloque({
   entrega?: string;
 }) {
   const privada = usePrivada();
-  const extras = bloque === "A" ? EXTRAS_BLOQUE_A[sector] : [];
+  const delBloque = camposDeSector(CAMPOS_VISITA, sector).filter((c) => c.bloque === bloque);
+  const pinta = (c: CampoVisita) =>
+    c.privado ? (
+      <SoloPrivado key={c.id}>
+        <Campo
+          c={c}
+          valor={privada.campo(c.id)}
+          poner={(v) => privada.ponerCampo(c.id, v)}
+          procesos={procesos}
+          ponerProcesos={ponerProcesos}
+        />
+      </SoloPrivado>
+    ) : (
+      <Campo
+        key={c.id}
+        c={c}
+        valor={c.id === "e.entrega" ? (campos[c.id] ?? entrega) : campos[c.id]}
+        poner={(v) => ponerCampo(c.id, v)}
+        procesos={procesos}
+        ponerProcesos={ponerProcesos}
+      />
+    );
+
+  // Núcleo destacado; profundizar plegado debajo (batería v2 §0): el bloque se puede cerrar
+  // con preguntas P sin contestar.
+  const profundizar = delBloque.filter((c) => c.nivel === "P");
   return (
     <>
-      {CAMPOS_VISITA.filter((c) => c.bloque === bloque).map((c) =>
-        c.privado ? (
-          <SoloPrivado key={c.id}>
-            <Campo
-              c={c}
-              valor={privada.campo(c.id)}
-              poner={(v) => privada.ponerCampo(c.id, v)}
-              procesos={procesos}
-              ponerProcesos={ponerProcesos}
-            />
-          </SoloPrivado>
-        ) : (
-          <Campo
-            key={c.id}
-            c={c}
-            valor={c.id === "e.entrega" ? (campos[c.id] ?? entrega) : campos[c.id]}
-            poner={(v) => ponerCampo(c.id, v)}
-            procesos={procesos}
-            ponerProcesos={ponerProcesos}
-          />
-        ),
-      )}
-      {extras.map((e) =>
-        e.privado ? (
-          <SoloPrivado key={e.texto}>
-            <Texto
-              etiqueta={e.texto}
-              valor={String(privada.campo(claveExtra(e.texto)) ?? "")}
-              filas={2}
-              onGuardar={(v) => privada.ponerCampo(claveExtra(e.texto), v)}
-            />
-          </SoloPrivado>
-        ) : (
-          <Texto
-            key={e.texto}
-            etiqueta={e.texto}
-            valor={String(campos[claveExtra(e.texto)] ?? "")}
-            filas={2}
-            onGuardar={(v) => ponerCampo(claveExtra(e.texto), v)}
-          />
-        ),
-      )}
+      {delBloque.filter((c) => c.nivel === "N").map(pinta)}
+      {profundizar.length ? (
+        <details className="rounded-xl border border-ork-border bg-ork-bg/40 p-4">
+          <summary className="cursor-pointer text-small text-ork-text-muted hover:text-ork-text">
+            Profundizar ({profundizar.length}) · si el tema da de sí
+          </summary>
+          <div className="mt-4 space-y-5">{profundizar.map(pinta)}</div>
+        </details>
+      ) : null}
     </>
   );
 }
@@ -684,6 +666,56 @@ function Campo({
           onCambio={poner}
         />
       );
+    case "escala":
+      return <Escala c={c} valor={valor} poner={poner} />;
+    case "lista_datos":
+      return (
+        <ListaFilas
+          etiqueta="Mapa de datos"
+          ayuda={c.texto}
+          filas={
+            ((valor as Fila[]) ?? []).length
+              ? (valor as Fila[])
+              : FILAS_DATOS.map((tipo) => ({
+                  tipo,
+                  donde: "",
+                  formato: null,
+                  mantiene: "",
+                  confianza: null,
+                }))
+          }
+          nueva={{ tipo: "", donde: "", formato: null, mantiene: "", confianza: null }}
+          columnas={[
+            { id: "tipo", nombre: "Tipo de dato", tipo: "texto" },
+            { id: "donde", nombre: "Dónde está", tipo: "texto" },
+            { id: "formato", nombre: "Formato", tipo: "opciones", opciones: [...FORMATOS_DATOS] },
+            { id: "mantiene", nombre: "Quién lo mantiene", tipo: "texto" },
+            { id: "confianza", nombre: "Confianza 1-5", tipo: "numero" },
+          ]}
+          poner={poner}
+        />
+      );
+    case "fecha_texto": {
+      const v = (valor ?? {}) as { fecha?: string; texto?: string };
+      return (
+        <div className="space-y-3">
+          <Etiqueta htmlFor={c.id}>{etiqueta}</Etiqueta>
+          <input
+            id={c.id}
+            type="date"
+            value={v.fecha ?? ""}
+            onChange={(e) => poner({ ...v, fecha: e.target.value })}
+            className={CAMPO + " max-w-56"}
+          />
+          <Texto
+            etiqueta="¿Quién debería estar?"
+            valor={v.texto ?? ""}
+            filas={1}
+            onGuardar={(t) => poner({ ...v, texto: t })}
+          />
+        </div>
+      );
+    }
     case "fecha":
       return (
         <div>
@@ -806,6 +838,61 @@ function Campo({
       );
     }
   }
+}
+
+/** §8 `lista_datos`: filas sugeridas y formatos. */
+const FILAS_DATOS = [
+  "Clientes",
+  "Pedidos o expedientes",
+  "Facturación",
+  "Stock",
+  "Documentos",
+] as const;
+const FORMATOS_DATOS = ["Programa", "Excel", "Papel", "Email", "Varias"] as const;
+
+/** §8 `escala`: 1-5, con nota libre cuando la batería lo pide. */
+function Escala({
+  c,
+  valor,
+  poner,
+}: {
+  c: CampoVisita;
+  valor: unknown;
+  poner: (v: unknown) => void;
+}) {
+  const v = (valor ?? {}) as { valor?: number; nota?: string };
+  return (
+    <div className="space-y-3">
+      <p className="text-small text-ork-text">{c.texto + (c.opcional ? " (opcional)" : "")}</p>
+      <div role="radiogroup" aria-label={c.texto} className="flex gap-2">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={v.valor === n}
+            onClick={() => poner({ ...v, valor: v.valor === n ? undefined : n })}
+            className={
+              "cifra h-11 w-11 rounded-full border text-body-lg transition-colors " +
+              (v.valor === n
+                ? "border-ork-cyan-hi bg-ork-cyan/15 text-ork-text"
+                : "border-ork-border-hi text-ork-text-muted hover:text-ork-text")
+            }
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+      {c.nota ? (
+        <Texto
+          etiqueta="Nota"
+          valor={v.nota ?? ""}
+          filas={2}
+          onGuardar={(t) => poner({ ...v, nota: t })}
+        />
+      ) : null}
+    </div>
+  );
 }
 
 interface Columna {

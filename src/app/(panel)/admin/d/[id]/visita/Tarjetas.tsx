@@ -3,15 +3,20 @@
 import { useMemo, useState } from "react";
 import { FlowDiagram } from "@/components/diagrama/FlowDiagram";
 import { plantillasDeSector, PCT_DEFECTO_OTRO } from "@/config/consultor/plantillas";
+import { SEGUIMIENTO_PASOS } from "@/config/consultor/bloques";
 import {
   AREAS,
   ERRORES,
+  IMPACTO_CLIENTE,
+  RIESGOS_CUMPLIMIENTO,
+  TIPOS_INICIATIVA,
   LIMITES_TARJETA,
   PERIODOS,
   QUIEN,
   TARJETAS_VISITA,
   tarjetaNueva,
   type Paso,
+  type TarjetaPrivada,
   type TarjetaProceso,
 } from "@/config/consultor/tarjeta";
 import type { SectorId } from "@/config/tipos";
@@ -279,6 +284,34 @@ function EditorTarjeta({
             filas={2}
             onGuardar={(v) => privada.ponerTarjeta(t.id, { nota: v })}
           />
+          <Chips
+            etiqueta="Tipo de iniciativa (§7; la definitiva la pone JARVIS)"
+            opciones={[...TIPOS_INICIATIVA]}
+            valor={privada.tarjeta(t.id).tipoIniciativa}
+            onCambio={(v) =>
+              privada.ponerTarjeta(t.id, {
+                tipoIniciativa: (v as TarjetaPrivada["tipoIniciativa"]) ?? null,
+              })
+            }
+          />
+          {privada.tarjeta(t.id).tipoIniciativa === "No rentable" ? (
+            <Texto
+              etiqueta="Motivo del descarte (obligatorio)"
+              valor={privada.tarjeta(t.id).motivoDescarte ?? ""}
+              filas={2}
+              onGuardar={(v) => privada.ponerTarjeta(t.id, { motivoDescarte: v })}
+            />
+          ) : null}
+          <Chips
+            etiqueta="Riesgo de cumplimiento"
+            opciones={[...RIESGOS_CUMPLIMIENTO]}
+            valor={privada.tarjeta(t.id).riesgoCumplimiento}
+            onCambio={(v) =>
+              privada.ponerTarjeta(t.id, {
+                riesgoCumplimiento: (v as TarjetaPrivada["riesgoCumplimiento"]) ?? null,
+              })
+            }
+          />
         </div>
       </SoloPrivado>
 
@@ -389,6 +422,83 @@ function EditorTarjeta({
             max={LIMITES_TARJETA.cita}
             onGuardar={(v) => poner({ cita: v })}
           />
+          <details className="rounded-xl border border-ork-border bg-ork-bg/40 p-4">
+            <summary className="cursor-pointer text-small text-ork-text-muted hover:text-ork-text">
+              Profundizar · para las 2-3 tarjetas que más horas consumen
+            </summary>
+            <div className="mt-4 space-y-5">
+              <Numero
+                etiqueta="¿Cuántas personas o áreas lo tocan de principio a fin?"
+                valor={t.traspasos}
+                onGuardar={(v) => poner({ traspasos: v })}
+              />
+              <Texto
+                etiqueta="¿Qué pasa cuando esa persona falta o se va de vacaciones?"
+                valor={t.dependenciaPersona?.texto ?? ""}
+                filas={2}
+                onGuardar={(v) =>
+                  poner({ dependenciaPersona: { ...t.dependenciaPersona, texto: v } })
+                }
+              />
+              <Chips
+                etiqueta="¿Depende de una sola persona?"
+                opciones={["Sí", "No"]}
+                valor={t.dependenciaPersona?.aqui}
+                onCambio={(v) =>
+                  poner({
+                    dependenciaPersona: {
+                      ...t.dependenciaPersona,
+                      aqui: (v as string) ?? undefined,
+                    },
+                  })
+                }
+              />
+              <Texto
+                etiqueta="¿Qué casos se salen de lo normal y cómo se resuelven?"
+                valor={t.excepciones}
+                filas={2}
+                onGuardar={(v) => poner({ excepciones: v })}
+              />
+              <Texto
+                etiqueta="¿En qué punto se pierde información o hay que volver a preguntar?"
+                valor={t.perdidaInfo}
+                filas={2}
+                onGuardar={(v) => poner({ perdidaInfo: v })}
+              />
+              <Texto
+                etiqueta="¿Qué datos necesita y de dónde salen?"
+                valor={t.datosEntrada}
+                filas={2}
+                onGuardar={(v) => poner({ datosEntrada: v })}
+              />
+              <Texto
+                etiqueta="¿Qué produce y quién lo usa después?"
+                valor={t.salida}
+                filas={2}
+                onGuardar={(v) => poner({ salida: v })}
+              />
+              <Chips
+                etiqueta="¿Hay que rehacerlo o corregirlo?"
+                opciones={[...ERRORES]}
+                valor={t.retrabajo}
+                onCambio={(v) => poner({ retrabajo: (v as TarjetaProceso["retrabajo"]) ?? null })}
+              />
+              <Chips
+                etiqueta="¿Lo nota el cliente?"
+                opciones={[...IMPACTO_CLIENTE]}
+                valor={t.impactoCliente}
+                onCambio={(v) =>
+                  poner({ impactoCliente: (v as TarjetaProceso["impactoCliente"]) ?? null })
+                }
+              />
+              <Texto
+                etiqueta="¿En qué momentos del mes o del año se dispara?"
+                valor={t.picos}
+                filas={1}
+                onGuardar={(v) => poner({ picos: v })}
+              />
+            </div>
+          </details>
           <label className="flex items-center gap-3 text-ork-text">
             <input
               type="checkbox"
@@ -535,6 +645,7 @@ function EditorPasos({
       >
         + Paso
       </button>
+      <p className="mt-2 text-small text-ork-text-faint">{SEGUIMIENTO_PASOS.join(" · ")}</p>
       {nodos.length >= 2 ? (
         <div className="mt-5 rounded-xl border border-ork-border bg-ork-bg/60 p-4">
           <p className="mb-2 font-mono text-[0.72rem] uppercase tracking-[0.14em] text-ork-text-faint">
@@ -547,6 +658,71 @@ function EditorPasos({
           />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Bloque C (§4): tablero para repasar volumen y minutos de todas las tarjetas de una vez, sin
+ * abrirlas. Las horas de hoy se recalculan a la vista del cliente.
+ */
+export function TableroNumeros({
+  sector,
+  tarjetas,
+  onCambio,
+}: {
+  sector: SectorId;
+  tarjetas: TarjetaProceso[];
+  onCambio: (t: TarjetaProceso[]) => void;
+}) {
+  const cambiar = (id: string, c: Partial<TarjetaProceso>) =>
+    onCambio(
+      tarjetas.map((t) => (t.id === id ? { ...t, ...c, origenDatos: "visita" as const } : t)),
+    );
+  if (!tarjetas.length) return <p className="text-small">Todavía no hay tarjetas (bloque B).</p>;
+  const total = tarjetas.reduce((s, t) => s + (horasHoy(t, sector) ?? 0), 0);
+  return (
+    <div>
+      <p className="mb-3 text-small text-ork-text">Repasamos las cifras de cada proceso.</p>
+      <ul className="space-y-3">
+        {tarjetas.map((t) => (
+          <li
+            key={t.id}
+            className="grid items-end gap-3 rounded-xl border border-ork-border p-3 sm:grid-cols-[1fr_auto_auto_auto]"
+          >
+            <span className="text-ork-text">{t.nombre || "Proceso sin nombre"}</span>
+            <Numero
+              etiqueta="Volumen"
+              valor={t.volumen}
+              onGuardar={(v) => cambiar(t.id, { volumen: v })}
+            />
+            <Chips
+              etiqueta="Cada"
+              opciones={PERIODOS.map((p) => p.etiqueta)}
+              valor={PERIODOS.find((p) => p.id === t.volumenPeriodo)?.etiqueta}
+              onCambio={(v) =>
+                cambiar(t.id, {
+                  volumenPeriodo: PERIODOS.find((p) => p.etiqueta === v)?.id ?? "mes",
+                })
+              }
+            />
+            <div className="text-right">
+              <Numero
+                etiqueta="Minutos"
+                valor={t.minutosPorVez}
+                sufijo="min"
+                onGuardar={(v) => cambiar(t.id, { minutosPorVez: v })}
+              />
+              <p className="cifra mt-1 text-ork-cyan-hi">
+                {formatoHoras(horasHoy(t, sector)) ?? "—"}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-ork-text">
+        En total, unas <span className="cifra text-ork-cyan-hi">{formatoHoras(total)}</span>.
+      </p>
     </div>
   );
 }

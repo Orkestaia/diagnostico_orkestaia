@@ -12,7 +12,9 @@ import { describe, expect, it } from "vitest";
 import { FRASES, PREGUNTAS_I, PREGUNTAS_II, PREGUNTAS_IV, PREGUNTAS_V, QUICK_WINS_COMUNES } from "@/config/sectores/comunes";
 import { SECTORES } from "@/config/sectores";
 import { PLANTILLAS_COMUNES, PLANTILLAS_SECTOR } from "@/config/consultor/plantillas";
-import { BLOQUES } from "@/config/consultor/bloques";
+import { BLOQUES, CAMPOS_VISITA } from "@/config/consultor/bloques";
+import { PREGUNTAS_ENCUESTA } from "@/config/consultor/encuesta";
+import { PREGUNTAS_SECTOR } from "@/config/consultor/sector";
 import type { Pregunta, QuickWin, SectorId } from "@/config/tipos";
 
 const DIR =
@@ -20,7 +22,9 @@ const DIR =
   join(__dirname, "../../../../ORKESTA - JARVIS/01_ORKESTA_CORE/sales-system/diagnostico-app");
 const BANCO = join(DIR, "diagnostico-app_banco-sectores_v1_2026-09-18.md");
 const BATERIA = join(DIR, "diagnostico-app_bateria-consultor_v1_2026-09-18.md");
+const BATERIA_V2 = join(DIR, "diagnostico-app_bateria-consultor_v2_2026-09-19.md");
 const hayDocs = existsSync(BANCO) && existsSync(BATERIA);
+const hayV2 = hayDocs && existsSync(BATERIA_V2);
 
 const celdas = (fila: string) =>
   fila
@@ -168,15 +172,92 @@ describe.skipIf(!hayDocs)("Configuración = banco de sectores v1", () => {
   });
 });
 
-describe.skipIf(!hayDocs)("Configuración = batería del consultor v1", () => {
-  const bateria = hayDocs ? readFileSync(BATERIA, "utf8") : "";
+describe.skipIf(!hayV2)("Configuración = batería del consultor v2", () => {
+  const v2 = hayV2 ? readFileSync(BATERIA_V2, "utf8") : "";
 
-  it("bloques y frases", () => {
-    const t = filas(seccion(bateria, /^## 1\. Cómo se usa/)).filter((f) => /^[A-E] · /.test(f[0]));
+  it("§1 bloques, tiempos y frases", () => {
+    const t = filas(seccion(v2, /^## 1\. Bloques y tiempos/)).filter((f) => /^[A-H] · /.test(f[0]));
     expect(t.map((f) => f[0])).toEqual(BLOQUES.map((b) => `${b.id} · ${b.nombre}`));
-    expect(t.map((f) => f[1])).toEqual(BLOQUES.map((b) => `${b.minutos} min`));
-    expect(t.map((f) => sinComillas(f[2]))).toEqual(BLOQUES.map((b) => b.frase));
+    expect(t.map((f) => Number(f[1]))).toEqual(BLOQUES.map((b) => b.minutos));
+    expect(t.map((f) => f[2])).toEqual(BLOQUES.map((b) => b.area));
+    expect(t.map((f) => sinComillas(f[3]))).toEqual(BLOQUES.map((b) => b.frase));
   });
+
+  /** Filas de las tablas de §4: `id` · pregunta · tipo · nivel · 🔒 · opcional. */
+  const preguntasDe = (titulo: RegExp) =>
+    filas(seccion(v2, titulo))
+      .filter((f) => f[0].replace("🔒 ", "").startsWith("`") && f.length >= 6)
+      .map((f) => ({
+        id: sinTicks(f[0].replace("🔒 ", "")),
+        texto: sinNegrita(f[1]),
+        nivel: f[3],
+        privado: f[4].includes("🔒") || f[0].includes("🔒"),
+        opcional: f[5].trim() === "sí",
+      }));
+
+  const bloquesV2: [string, RegExp][] = [
+    ["A", /^### A · Contexto/],
+    ["C", /^### C · Números/],
+    ["D", /^### D · Datos/],
+    ["E", /^### E · Herramientas/],
+    ["F", /^### F · Equipo/],
+    ["G", /^### G · Cumplimiento/],
+    ["H", /^### H · Cierre/],
+  ];
+
+  for (const [bloque, titulo] of bloquesV2) {
+    it(`§4 bloque ${bloque}: ids, textos, nivel, 🔒 y opcionales`, () => {
+      const doc = preguntasDe(titulo);
+      const mios = CAMPOS_VISITA.filter((c) => c.bloque === bloque);
+      expect(mios.map((c) => c.id)).toEqual(doc.map((d) => d.id));
+      for (const d of doc) {
+        const c = mios.find((x) => x.id === d.id)!;
+        // El texto del documento puede llevar una aclaración entre paréntesis al final.
+        expect(d.texto.startsWith(c.texto) || c.texto === d.texto, `${d.id} texto`).toBe(true);
+        expect(c.nivel, `${d.id} nivel`).toBe(d.nivel);
+        expect(c.privado, `${d.id} privado`).toBe(d.privado);
+        expect(!!c.opcional, `${d.id} opcional`).toBe(d.opcional);
+      }
+    });
+  }
+
+  it("§5 preguntas por sector: ids y bloques", () => {
+    const md = seccion(v2, /^## 5\. Profundización por sector/);
+    const doc = filas(md)
+      .filter((f) => f[0].startsWith("`"))
+      .map((f) => ({ id: sinTicks(f[0]), bloque: f[1], texto: f[2] }));
+    const mias = Object.values(PREGUNTAS_SECTOR).flat();
+    expect(mias.map((c) => c.id).sort()).toEqual(doc.map((d) => d.id).sort());
+    for (const d of doc) {
+      const c = mias.find((x) => x.id === d.id)!;
+      expect(c.bloque, `${d.id} bloque`).toBe(d.bloque);
+      expect(c.texto, `${d.id} texto`).toBe(d.texto);
+      expect(c.nivel, `${d.id} nivel`).toBe("P");
+    }
+  });
+
+  it("§6 preguntas de la encuesta: ids, textos y puntos", () => {
+    const doc = filas(seccion(v2, /^### Preguntas \(15\)/))
+      .filter((f) => f[0].startsWith("`"))
+      .map((f) => ({ id: sinTicks(f[0]), texto: f[1], opciones: f[2] }));
+    expect(PREGUNTAS_ENCUESTA.map((p) => p.id)).toEqual(doc.map((d) => d.id));
+    for (const d of doc) {
+      const p = PREGUNTAS_ENCUESTA.find((x) => x.id === d.id)!;
+      expect(p.texto, `${d.id} texto`).toBe(d.texto.replace(/ \(varias\)$| \(máx\. 3\)$| \(opcional\)$/, ""));
+      // Puntos: "Nunca [0] · Cada semana [2] …"
+      for (const trozo of d.opciones.split(" · ")) {
+        const m = trozo.match(/^(.*?)\s*\[(.+)\]$/);
+        if (!m) continue;
+        const o = p.opciones?.find((x) => x.etiqueta === m[1]);
+        if (!o) continue;
+        expect(String(o.puntos), `${d.id} · ${m[1]}`).toBe(m[2]);
+      }
+    }
+  });
+});
+
+describe.skipIf(!hayDocs)("Plantillas de procesos = batería v1 §3 (sin cambios en la v2)", () => {
+  const bateria = hayDocs ? readFileSync(BATERIA, "utf8") : "";
 
   const secciones: [string, RegExp][] = [
     ["comunes", /^### Comunes/],

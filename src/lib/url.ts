@@ -15,3 +15,5 @@ export async function urlBase(): Promise<string> {
 }
 
 export const enlacePrevio = (base: string, token: string) => `${base}/d/${token}`;
+/** Encuesta de madurez del equipo (batería v2 §6): un enlace por empresa, anónimo. */
+export const enlaceEncuesta = (base: string, token: string) => `${base}/e/${token}`;

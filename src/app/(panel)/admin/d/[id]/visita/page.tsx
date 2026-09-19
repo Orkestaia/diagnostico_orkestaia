@@ -59,6 +59,7 @@ export default async function PaginaVisita({ params }: { params: Promise<{ id: s
     sector,
     empresa: d.empresa,
     contacto: d.contacto_nombre,
+    tipoNegocio: d.tipo_negocio,
     fechaReunion: d.fecha_reunion,
     visitaCerradaAt: d.visita_cerrada_at,
     respuestasVisita: (d.respuestas_visita ?? {}) as RespuestasVisita,

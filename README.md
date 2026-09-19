@@ -10,7 +10,8 @@ Contexto, reglas y documentos de referencia: ver `CLAUDE.md`.
 1. `npm install`
 2. `cp .env.example .env.local` y rellenar (ver comentarios del archivo).
 3. Base de datos: ejecutar `supabase/diagnostico-v1-ddl.sql` en el editor SQL de Supabase
-   (`ORKESTA_OPS_2026`), y después `diagnostico-v2-ddl.sql` y `diagnostico-v3-ddl.sql` (grabación).
+   (`ORKESTA_OPS_2026`), y después `diagnostico-v2-ddl.sql`, `diagnostico-v3-ddl.sql`
+   (grabación) y `diagnostico-v4-ddl.sql` (encuesta del equipo).
 4. `npm run dev` → http://localhost:3000/admin
 
 ## Visita (modo consultor)
@@ -18,7 +19,7 @@ Contexto, reglas y documentos de referencia: ver `CLAUDE.md`.
 `/admin/d/[id]/visita` (botón «Visita» del panel). Se enseña al cliente en el portátil o la
 tableta.
 
-- Bloques A-E con su frase; temporizador sobre 150 min que avisa para saltar al cierre.
+- Bloques A-H (batería v2) con preguntas de núcleo y de profundizar; temporizador sobre 150 min que avisa para saltar al cierre.
 - Candado: mantener pulsado 1 s → vista privada (campos 🔒, preparación del motor, % y notas de
   cada tarjeta). Vuelve sola a la vista cliente tras 20 s sin escribir o si la ventana pierde el
   foco. Lo privado se pide al servidor al entrar y se borra de la página al salir.
@@ -27,6 +28,12 @@ tableta.
 - Cerrar exige el coste por hora (real u orientativo). Al cerrar se fijan las horas de hoy de
   cada tarjeta (`hoyRegistro`), se calcula `calculo` y se avisa por n8n («listo para JARVIS»).
 
+## Encuesta de madurez en IA (batería v2 §6)
+
+Se crea desde el bloque F de la visita: enlace anónimo `/e/[token]`, abierto 7 días. El cálculo
+del índice, los niveles, las alertas y las reglas de anonimato están en `src/lib/madurez.ts`
+(con tests). Sin 3 respuestas no se enseña nada; un área necesita 3 para salir por separado.
+
 ## Export para JARVIS
 
 ```bash
@@ -34,7 +41,8 @@ curl -H "Authorization: Bearer $DIAGNOSTICO_ADMIN_TOKEN" "https://diagnostico-or
 ```
 
 `formato=md` (por defecto): documento para guardar como `YYYY-MM-DD_diagnostico-app_raw.md` en
-la carpeta del cliente (JARVIS decide cuál). `formato=json`: lo mismo + `calculo` completo.
+la carpeta del cliente (JARVIS decide cuál). `formato=transcripcion`: la transcripción completa
+en su propio archivo (§9). `formato=json`: lo mismo + `calculo` y madurez del equipo.
 Incluye las notas privadas; no incluye email ni teléfono.
 
 ## Tests

@@ -100,3 +100,78 @@ export async function transcribirFragmento(fragmentoId: string, empresa: string)
       .eq("id", f.id);
   }
 }
+
+/**
+ * "Temas de la conversación" (§9): 5 líneas para el `md` principal, que remite al archivo de
+ * transcripción. Se guarda en `diagnosticos.transcripcion_temas` y no se vuelve a pedir.
+ */
+export async function temasDeTranscripcion(
+  diagnosticoId: string,
+  empresa: string,
+): Promise<string[] | null> {
+  const db = supabaseAdmin();
+  const { data: d } = await db
+    .from("diagnosticos")
+    .select("transcripcion_temas")
+    .eq("id", diagnosticoId)
+    .maybeSingle();
+  const guardados = (d?.transcripcion_temas as { lineas?: string[] } | null)?.lineas;
+  if (guardados?.length) return guardados;
+
+  const clave = process.env.OPENAI_API_KEY;
+  if (!clave) return null;
+  const { data: filas } = await db
+    .from("diagnostico_grabaciones")
+    .select("texto")
+    .eq("diagnostico_id", diagnosticoId)
+    .eq("estado", "transcrito")
+    .order("orden");
+  const texto = (filas ?? [])
+    .map((f) => f.texto ?? "")
+    .join("\n")
+    .trim();
+  if (texto.length < 500) return null;
+
+  // Una visita de 3 h no cabe entera: se manda el principio y el final, que es donde se dice
+  // de qué va y a qué se compromete cada uno.
+  const recorte =
+    texto.length > 60000 ? `${texto.slice(0, 40000)}\n[…]\n${texto.slice(-20000)}` : texto;
+  try {
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${clave}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODELO_RESUMEN || "gpt-4.1-mini",
+        temperature: 0.2,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Resumes transcripciones de reuniones de consultoría en español de España. Devuelves exactamente 5 líneas, una por tema, sin numerar, sin cifras que no estén dichas en la transcripción y sin inventar nada. Cada línea, menos de 20 palabras.",
+          },
+          {
+            role: "user",
+            content: `Reunión de diagnóstico con ${empresa}. Transcripción:\n\n${recorte}`,
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(50_000),
+    });
+    if (!r.ok) throw new Error(`OpenAI ${r.status}`);
+    const j = (await r.json()) as { choices?: { message?: { content?: string } }[] };
+    const lineas = (j.choices?.[0]?.message?.content ?? "")
+      .split("\n")
+      .map((l) => l.replace(/^[-*\d.\s]+/, "").trim())
+      .filter(Boolean)
+      .slice(0, 5);
+    if (!lineas.length) return null;
+    await db
+      .from("diagnosticos")
+      .update({ transcripcion_temas: { lineas, generado_at: new Date().toISOString() } })
+      .eq("id", diagnosticoId);
+    return lineas;
+  } catch (e) {
+    console.error("[grabacion] temas", e instanceof Error ? e.message : e);
+    return null;
+  }
+}

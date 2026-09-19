@@ -107,6 +107,14 @@ export function useGrabacion() {
   return c;
 }
 
+/**
+ * §9: en salud y en despachos de abogados la grabación viene DESACTIVADA por defecto (es fácil
+ * que se mencionen datos de pacientes o clientes) y solo se activa si el cliente lo confirma.
+ */
+export function sectorSensible(sector: string, tipoNegocio: string | null): boolean {
+  return sector === "salud" || /abogad|jur[ií]dic|despacho penal/i.test(tipoNegocio ?? "");
+}
+
 export function Grabacion({ id, children }: { id: string; children: React.ReactNode }) {
   const [estado, setEstado] = useState<Estado>("parada");
   const [error, setError] = useState<string | null>(null);
@@ -350,7 +358,7 @@ const reloj = (s: number) =>
   `${Math.floor(s / 3600) ? `${Math.floor(s / 3600)}:` : ""}${String(Math.floor((s % 3600) / 60)).padStart(Math.floor(s / 3600) ? 2 : 1, "0")}:${String(s % 60).padStart(2, "0")}`;
 
 /** Botón de la cabecera. Visible para el cliente: grabar es algo que tiene que ver. */
-export function BotonGrabar() {
+export function BotonGrabar({ sensible = false }: { sensible?: boolean }) {
   const g = useGrabacion();
   const [pidiendoPermiso, setPidiendoPermiso] = useState(false);
   const grabando = g.estado === "grabando";
@@ -365,7 +373,7 @@ export function BotonGrabar() {
           else if (!g.consentimiento) setPidiendoPermiso(true);
           else void g.empezar();
         }}
-        title={grabando ? "Parar la grabación" : "Grabar la reunión"}
+        title={grabando ? "Pausar la grabación" : "Grabar la reunión"}
         className={
           "flex h-10 items-center gap-2 rounded-full border px-3 text-small transition-colors " +
           (grabando
@@ -403,8 +411,15 @@ export function BotonGrabar() {
             <p>
               Solo para transcribirla y que no se nos escape nada de lo que nos cuentes. El audio se
               borra en cuanto está transcrito; el texto se queda con tu diagnóstico y no se comparte
-              con nadie.
+              con nadie. La transcripción la hace un proveedor de fuera de la Unión Europea
+              (OpenAI). Puedes pedirme que la pare en cualquier momento.
             </p>
+            {sensible ? (
+              <p className="rounded-xl border border-[#f5a623]/60 px-4 py-3 text-small">
+                En vuestro caso puede salir información de pacientes o de clientes. Si preferís no
+                grabar, no pasa nada: seguimos igual con mis notas.
+              </p>
+            ) : null}
             <div className="flex flex-wrap justify-end gap-2">
               <button type="button" className={BOTON} onClick={() => setPidiendoPermiso(false)}>
                 No grabar

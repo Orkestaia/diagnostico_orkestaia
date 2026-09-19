@@ -1,6 +1,7 @@
 # Guía de uso · Diagnóstico Orkesta
 
-Versión del 19-sep-2026 (Sprint 1: previo, visita y export).
+Versión del 20-sep-2026. Batería del consultor v2: 8 bloques, preguntas de núcleo y de
+profundizar, grabación, notas y encuesta de madurez en IA del equipo.
 
 - Panel: https://diagnostico-orkestaia.vercel.app/admin
 - Entras con aitor@orkestaia.com (Clerk). Nadie más puede entrar.
@@ -61,15 +62,23 @@ Panel → fila del cliente → **Visita**. La pantalla está pensada para girarl
 
 ### 3.2 Los bloques
 
-| Bloque | Minutos | Qué haces |
+| Bloque | Min | Qué haces |
 |---|---|---|
-| **A · Contexto** | 20 | Repasas **«Lo que nos contaste»** (sus respuestas del previo). Si algo no es así, pulsa **Corregir**: el original no se toca y la corrección queda marcada. Después: historia, equipo por roles, quién decide, objetivo a 12 meses, qué haría que las 3 h merezcan la pena, qué han probado ya |
-| **B · Procesos** | 70 | El corazón de la visita: las tarjetas de proceso (ver 3.4) |
-| **C · Números** | 45 | Picos y temporadas, oportunidades perdidas y, en privado, el **coste por hora** (obligatorio para cerrar) |
-| **D · Herramientas** | 25 | Inventario de herramientas (para qué, quién, si se conecta, coste, quién tiene las claves), dónde vive la información de clientes, datos sensibles, quién lleva la informática |
-| **E · Cierre** | 20 | El cliente elige **sus 3 prioridades** entre las tarjetas. Además: éxito a 6 meses, restricciones, fecha de entrega del mapa (por defecto, dentro de 5 días hábiles) |
+| **A · Contexto y objetivos** | 15 | Repasas **«Lo que nos contaste»** (previo). Si algo no es así, **Corregir**: el original no se toca. Después: historia, equipo, quién decide, objetivo a 12 meses, qué haría que las 3 h merezcan la pena, qué han probado y qué se rompería con el doble de clientes |
+| **B · Procesos** | 50 | Las tarjetas de proceso (ver 3.4) |
+| **C · Números** | 15 | Tablero para repasar volumen y minutos de todas las tarjetas, picos, oportunidades perdidas, horas de administración y, en privado, el **coste por hora** |
+| **D · Datos e información** | 15 | Mapa de datos (dónde está cada cosa, formato, quién la mantiene, cuánto se fían), duplicados, qué Excel es crítico y, en privado, tu valoración de la calidad y de si están listos para IA |
+| **E · Herramientas** | 15 | Inventario, dónde vive la información del cliente, si las herramientas se hablan entre ellas y quién lleva la informática |
+| **F · Equipo e IA** | 15 | Quién usa IA hoy, con qué cuentas, normas, formación, actitud del equipo, quién sería el campeón, las áreas de la empresa y la **encuesta al equipo** (ver 3.6) |
+| **G · Cumplimiento** | 10 | Datos sensibles, protección de datos, proveedores, datos fuera de la UE, ley europea de IA y usos delicados. Sale el aviso: «esto no es una auditoría legal» |
+| **H · Cierre** | 15 | Sus **3 prioridades**, éxito a 6 meses, restricciones, qué le preocupa, fecha de entrega del mapa y cuándo lo presentáis |
 
-Los campos de texto guardan al salir de ellos. El **micrófono** que aparece dentro de un campo sirve para dictar (en Chrome y Edge).
+**Núcleo y profundizar.** Las preguntas de **núcleo** salen siempre a la vista. Las de
+**profundizar** están plegadas bajo «Profundizar (n)»: son un menú para cuando el tema da de sí,
+no una lista que haya que completar. Un bloque se puede cerrar sin tocarlas.
+
+Los campos de texto guardan al salir de ellos. El **micrófono** dentro de un campo sirve para
+dictar (en Chrome y Edge).
 
 ### 3.3 Vista privada (candado)
 
@@ -100,6 +109,12 @@ Dentro de cada tarjeta:
 - **Pasos**: escribe un paso y pulsa Intro para el siguiente. Cada paso es de una **Persona** o del **Sistema** (toca la etiqueta para cambiarlo). Con 2 o más pasos se dibuja el diagrama **«Así es hoy»**.
 - **Frase literal del cliente**: saldrá en su mapa. Apúntala tal cual la dice.
 - **Me lo ha enseñado (visto)**: márcalo cuando te enseñe el proceso real («enséñame, no me cuentes»).
+- **Profundizar** (plegado): traspasos, dependencia de una persona, excepciones, dónde se pierde
+  información, datos de entrada y salida, retrabajo, si lo nota el cliente y picos. Úsalo solo en
+  las 2-3 tarjetas que más horas consumen.
+- En privado, además del % y tu idea: **tipo de iniciativa** (quick win, apuesta estructural,
+  marginal o no rentable) y **riesgo de cumplimiento**. Si marcas «No rentable», el motivo es
+  obligatorio: saldrá en el mapa como «lo que no haríamos y por qué».
 
 Si cambias volumen o minutos de una tarjeta que venía del previo, pasa a contar como «acordado en la visita».
 
@@ -122,18 +137,31 @@ Consejos:
   salvo y te avisa para volver a pulsar Grabar.
 - El primer día, el navegador te pedirá permiso para el micrófono.
 
-### 3.6 Notas
+### 3.6 Encuesta de madurez del equipo (bloque F)
+
+1. Rellena antes **las áreas de la empresa** (pregunta «Áreas de la empresa…»).
+2. Pulsa **Crear el enlace de la encuesta**. Copia el enlace y dáselo a quien lo vaya a repartir.
+3. Está abierta 7 días. Puedes ampliarlo con «Ampliar el plazo otros 7 días».
+4. Es anónima: no pide nombre ni email, y una respuesta por dispositivo.
+5. Los resultados salen en el mismo bloque F: índice y nivel de la empresa, barras por uso,
+   competencia, seguridad y actitud, nivel por área, qué quieren aprender y alertas.
+
+Anonimato, sin excepciones: **no hay resultados con menos de 3 respuestas**, un área solo se
+enseña con 3 o más (las demás se juntan en «Otras áreas») y las respuestas de una persona no se
+ven nunca, tampoco tú.
+
+### 3.7 Notas
 
 Botón **Notas** (arriba) → se abre un panel de notas libres, solo para ti. Para leerlas o
 escribir hay que tener la vista privada activa: con el candado cerrado, el panel te lo recuerda y
 las notas no están en la página. Se guardan solas, también si la vista privada se cierra sola
 mientras escribes, y van al export de JARVIS.
 
-### 3.7 Sin conexión
+### 3.8 Sin conexión
 
 Si se cae el wifi, **sigue trabajando**: todo se guarda en tu dispositivo y se envía al volver. Si recargas la página, lo pendiente se recupera. No cierres el navegador con el punto en naranja o rojo sin haber vuelto a tener conexión (el navegador te avisará).
 
-### 3.8 Cerrar la visita
+### 3.9 Cerrar la visita
 
 Bloque E → **Terminar la visita** → **Cerrar la visita**.
 

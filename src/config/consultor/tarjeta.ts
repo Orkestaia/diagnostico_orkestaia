@@ -27,6 +27,25 @@ export const DIAS_MES_HOSTELERIA = 26;
 export const SEMANAS_MES = 4.3;
 
 export const ERRORES = ["Nunca", "A veces", "A menudo"] as const;
+export const IMPACTO_CLIENTE = [
+  "Ninguno",
+  "Espera",
+  "Error visible",
+  "Pérdida de cliente",
+] as const;
+/** §7 Clasificación de iniciativas. La definitiva la pone JARVIS. */
+export const TIPOS_INICIATIVA = [
+  "Quick win",
+  "Apuesta estructural",
+  "Marginal",
+  "No rentable",
+] as const;
+export const RIESGOS_CUMPLIMIENTO = [
+  "Ninguno",
+  "Datos personales",
+  "Datos sensibles",
+  "Decisión sobre personas",
+] as const;
 
 export const LIMITES_TARJETA = {
   nombre: 60,
@@ -81,6 +100,25 @@ export interface TarjetaProceso {
    * no se recalcula nunca. Es la línea base para medir el resultado real después.
    */
   hoyRegistro: { horasMes: number; fecha: string; origen: "previo" | "visita" } | null;
+
+  // ── Campos de profundización (batería v2 §2, nivel P) ──
+  /** "¿Cuántas personas o áreas lo tocan de principio a fin?" */
+  traspasos: number | null;
+  /** "¿Qué pasa cuando esa persona falta o se va de vacaciones?" */
+  dependenciaPersona: { texto?: string; aqui?: string } | null;
+  /** "¿Qué casos se salen de lo normal y cómo se resuelven?" */
+  excepciones: string;
+  /** "¿En qué punto se pierde información o hay que volver a preguntar?" */
+  perdidaInfo: string;
+  /** "¿Qué datos necesita y de dónde salen?" */
+  datosEntrada: string;
+  /** "¿Qué produce y quién lo usa después?" */
+  salida: string;
+  /** "¿Hay que rehacerlo o corregirlo?" */
+  retrabajo: (typeof ERRORES)[number] | null;
+  impactoCliente: (typeof IMPACTO_CLIENTE)[number] | null;
+  /** "¿En qué momentos del mes o del año se dispara?" */
+  picos: string;
 }
 
 /** Campos 🔒 de cada tarjeta (van en `diagnosticos.privado.procesos[id]`). */
@@ -89,6 +127,11 @@ export interface TarjetaPrivada {
   ideaSolucion: string;
   dependencias: string;
   nota: string;
+  /** §7: se propone aquí y se confirma en JARVIS. */
+  tipoIniciativa: (typeof TIPOS_INICIATIVA)[number] | null;
+  /** Obligatorio si `tipoIniciativa` = "No rentable" (§7). */
+  motivoDescarte: string;
+  riesgoCumplimiento: (typeof RIESGOS_CUMPLIMIENTO)[number] | null;
 }
 
 /** Tarjeta vacía con valores por defecto. */
@@ -115,6 +158,15 @@ export function tarjetaNueva(p: Partial<TarjetaProceso> & { id: string }): Tarje
     rapida: false,
     origenDatos: "visita",
     hoyRegistro: null,
+    traspasos: null,
+    dependenciaPersona: null,
+    excepciones: "",
+    perdidaInfo: "",
+    datosEntrada: "",
+    salida: "",
+    retrabajo: null,
+    impactoCliente: null,
+    picos: "",
     ...p,
   };
 }

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { tarjetaNueva } from "@/config/consultor/tarjeta";
 import { calcularVisita, costesConCorreccion } from "./calculo";
+import { calcularMadurez } from "./madurez";
 import {
   exportJson,
   exportMarkdown,
+  exportTranscripcion,
   nombreArchivo,
   valorLegible,
   type FilaExport,
@@ -85,6 +87,7 @@ const fila: FilaExport = {
   },
   previo_completado_at: "2026-09-20T10:00:00Z",
   visita_cerrada_at: "2026-09-22T11:00:00Z",
+  transcripcion_temas: null,
 };
 
 describe("export para JARVIS", () => {
@@ -165,12 +168,62 @@ describe("export: notas y transcripción", () => {
       "2026-09-23",
     );
     expect(md).toContain("Ojo: el socio no quiere cambios");
-    expect(md).toContain("**[00:00:00]** Buenos días, empezamos.");
-    expect(md).toContain("**[00:05:00]** _(sin voz");
-    expect(md).toContain("**[00:10:00]** _(fragmento de 5 min todavía sin transcribir: error)_");
+    // §9: el raw solo remite al archivo aparte y resume; la transcripción va en su archivo.
+    expect(md).toContain("_diagnostico-app_transcripcion.md`");
+    expect(md).toContain("3 fragmentos (1 sin transcribir)");
+    expect(md).not.toContain("Buenos días, empezamos.");
   });
 
-  it("sin grabación no hay sección de transcripción", () => {
-    expect(exportMarkdown(fila, "2026-09-23")).not.toContain("Transcripción de la reunión");
+  it("sin grabación no hay sección de grabación", () => {
+    expect(exportMarkdown(fila, "2026-09-23")).not.toContain("La reunión, grabada");
+  });
+
+  it("el archivo de transcripción lleva los fragmentos en orden y marca lo pendiente", () => {
+    const t = exportTranscripcion(
+      {
+        ...fila,
+        temas: ["Documentación del cliente", "Cobros"],
+        transcripcion: [
+          { orden: 1_000_600_000, duracion_s: 300, estado: "error", texto: null },
+          {
+            orden: 1_000_000_000,
+            duracion_s: 300,
+            estado: "transcrito",
+            texto: "Buenos días, empezamos.",
+          },
+          { orden: 1_000_300_000, duracion_s: 300, estado: "transcrito", texto: "" },
+        ],
+      },
+      "2026-09-23",
+    );
+    expect(t).toContain("# Transcripción · Despacho Prueba");
+    expect(t).toContain("- Documentación del cliente");
+    expect(t).toContain("**[00:00:00]** Buenos días, empezamos.");
+    expect(t).toContain("**[00:05:00]** _(sin voz");
+    expect(t).toContain("**[00:10:00]** _(fragmento de 5 min todavía sin transcribir: error)_");
+  });
+
+  it("la madurez del equipo sale con sus mínimos de anonimato", () => {
+    const con = (respuestas: number) => ({
+      ...fila,
+      madurez: calcularMadurez(
+        Array.from({ length: respuestas }, () => ({
+          "s.area": "Administración",
+          "s.frecuencia": "Cada semana",
+          "s.nivel": "Sé pedir lo que quiero y corregir",
+          "s.datos": "A veces, con cuidado",
+          "s.normas": "Hay algo informal",
+          "s.sentir": "Curiosidad",
+          "s.hora": "Probablemente sí",
+          "s.aprender": ["Usar la IA con seguridad"],
+        })),
+        { ahora: "2026-09-22T12:00:00Z" },
+      ),
+    });
+    expect(exportMarkdown(con(2), "2026-09-23")).toContain("Sin respuestas suficientes");
+    const md = exportMarkdown(con(4), "2026-09-23");
+    expect(md).toContain("**Índice de la empresa:**");
+    expect(md).toContain("Administración (4)");
+    expect(md).toContain("Usar la IA con seguridad: 4");
   });
 });

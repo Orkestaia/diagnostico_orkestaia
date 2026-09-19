@@ -6,14 +6,15 @@
  * Lleva lo 🔒 (notas privadas, coste por hora, señales): el export es solo para JARVIS, detrás
  * del Bearer `DIAGNOSTICO_ADMIN_TOKEN`. No lleva email ni teléfono del contacto.
  */
-import { CAMPOS_VISITA } from "@/config/consultor/bloques";
-import { EXTRAS_BLOQUE_A } from "@/config/consultor/plantillas";
+import { BLOQUES, CAMPOS_VISITA } from "@/config/consultor/bloques";
+import { camposDeSector } from "@/config/consultor/sector";
 import { PERIODOS, type TarjetaProceso } from "@/config/consultor/tarjeta";
 import type { Respuestas, SectorId } from "@/config/tipos";
 import { hoyHorasMes, redondearHoras, type CalculoTarjeta, type CalculoVisita } from "./calculo";
 import { indicePreguntas } from "./preguntas";
 import { pasosPrevio } from "./previo";
-import { claveExtra, ID_NOTAS, type PrivadoVisita, type RespuestasVisita } from "./visita";
+import type { Madurez } from "./madurez";
+import { ID_NOTAS, type PrivadoVisita, type RespuestasVisita } from "./visita";
 
 /** Fragmento de la grabación de la visita (tabla `diagnostico_grabaciones`). */
 export interface FragmentoTranscripcion {
@@ -50,12 +51,15 @@ export interface FilaExport {
   calculo: (CalculoVisita & { coste_origen?: string; calculado_at?: string }) | null;
   previo_completado_at: string | null;
   visita_cerrada_at: string | null;
-  /** No es columna de `diagnosticos`: la ruta la añade desde `diagnostico_grabaciones`. */
+  transcripcion_temas: { lineas?: string[] } | null;
+  /** No son columnas de `diagnosticos`: las añade la ruta. */
   transcripcion?: FragmentoTranscripcion[];
+  madurez?: Madurez | null;
+  temas?: string[] | null;
 }
 
 export const COLUMNAS_EXPORT =
-  "id, estado, sector, subsector, tipo_negocio, empresa, contacto_nombre, web, origen, fecha_reunion, hora_reunion, lugar_reunion, config_version, respuestas_previo, respuestas_visita, procesos, privado, interno, informe, calculo, previo_completado_at, visita_cerrada_at";
+  "transcripcion_temas, id, estado, sector, subsector, tipo_negocio, empresa, contacto_nombre, web, origen, fecha_reunion, hora_reunion, lugar_reunion, config_version, respuestas_previo, respuestas_visita, procesos, privado, interno, informe, calculo, previo_completado_at, visita_cerrada_at";
 
 /** `YYYY-MM-DD_diagnostico-app_raw.md` con la fecha de la visita (o la de la reunión, o hoy). */
 export function nombreArchivo(
@@ -255,36 +259,37 @@ export function exportMarkdown(f: FilaExport, hoyISO: string): string {
   }
 
   l.push("## 2. Visita", "");
-  const bloques: [string, string][] = [
-    ["A", "Contexto"],
-    ["C", "Números"],
-    ["D", "Herramientas"],
-    ["E", "Cierre"],
-  ];
-  for (const [b, nombre] of bloques) {
-    l.push(`### Bloque ${b} · ${nombre}`, "");
-    const campos = CAMPOS_VISITA.filter((c) => c.bloque === b).map((c) => ({
-      texto: c.texto,
-      privado: c.privado,
-      valor:
-        c.id === "e.prioridades"
-          ? idsANombres(rv.campos?.[c.id], procesos)
-          : (c.privado ? pr.campos : rv.campos)?.[c.id],
-    }));
-    if (b === "A") {
-      for (const e of EXTRAS_BLOQUE_A[f.sector]) {
-        campos.push({
-          texto: e.texto,
-          privado: e.privado,
-          valor: (e.privado ? pr.campos : rv.campos)?.[claveExtra(e.texto)],
-        });
-      }
-    }
-    const con = campos.filter((c) => valorLegible(c.valor) !== "—");
+  const campos = camposDeSector(CAMPOS_VISITA, f.sector);
+  for (const bloque of BLOQUES.filter((b) => b.id !== "B")) {
+    l.push(`### Bloque ${bloque.id} · ${bloque.nombre}`, "");
+    const con = campos
+      .filter((c) => c.bloque === bloque.id)
+      .map((c) => ({
+        texto: c.texto,
+        privado: c.privado,
+        nivel: c.nivel,
+        valor:
+          c.id === "e.prioridades"
+            ? idsANombres(rv.campos?.[c.id], procesos)
+            : (c.privado ? pr.campos : rv.campos)?.[c.id],
+      }))
+      .filter((c) => valorLegible(c.valor) !== "—");
     if (!con.length) l.push("Sin datos.");
-    for (const c of con)
-      l.push(`- **${c.texto}**${c.privado ? " _(privado)_" : ""}: ${valorLegible(c.valor)}`);
+    for (const c of con) {
+      l.push(
+        `- **${c.texto}**${c.privado ? " _(privado)_" : ""}${c.nivel === "P" ? " _(profundizar)_" : ""}: ${valorLegible(c.valor)}`,
+      );
+    }
     l.push("");
+  }
+
+  const iaPersonas = rv.campos?.["cumpl.ia_personas"];
+  if (Array.isArray(iaPersonas) && iaPersonas.some((x) => x !== "Ninguna")) {
+    l.push(
+      "> **Alerta (batería v2 §4-G):** posible uso de IA de alto riesgo según la ley europea: derivar a su asesor.",
+      "> Ninguna iniciativa sobre ese proceso se clasifica como quick win.",
+      "",
+    );
   }
 
   l.push(`## 3. Procesos (${procesos.length})`, "");
@@ -318,7 +323,8 @@ export function exportMarkdown(f: FilaExport, hoyISO: string): string {
     if (c.calculado_at) l.push(`- **Calculado:** ${c.calculado_at} (${c.version})`);
     l.push("");
   }
-  l.push(...transcripcionMd(f.transcripcion ?? []));
+  l.push(...madurezMd(f.madurez ?? null));
+  l.push(...resumenTranscripcionMd(f, hoyISO));
   return l.join("\n");
 }
 
@@ -351,6 +357,90 @@ export function transcripcionMd(fragmentos: FragmentoTranscripcion[]): string[] 
       );
   }
   return l;
+}
+
+/** §6: resultados de la encuesta del equipo, con el anonimato ya aplicado por `calcularMadurez`. */
+export function madurezMd(m: Madurez | null): string[] {
+  if (!m || !m.respuestas) return [];
+  const l = ["## 5. Madurez en IA del equipo (encuesta anónima)", ""];
+  l.push(`- **Respuestas:** ${m.respuestas}`);
+  if (!m.publicable || !m.empresa) {
+    l.push("- Sin respuestas suficientes para enseñar resultados (mínimo 3, §6).", "");
+    return l;
+  }
+  const d = m.empresa.dimensiones;
+  const uno = (x: number | null) =>
+    x === null ? "—" : String(Math.round(x * 10) / 10).replace(".", ",");
+  l.push(
+    `- **Índice de la empresa:** ${Math.round(m.empresa.indice)}/100 · nivel ${m.empresa.nivel} (${m.empresa.nombreNivel})`,
+  );
+  l.push(
+    `- **Dimensiones (0-4):** uso ${uno(d.uso)} · competencia ${uno(d.competencia)} · seguridad ${uno(d.seguridad)} · actitud ${uno(d.actitud)}`,
+  );
+  l.push(`- **Reparto por nivel (1-5):** ${m.empresa.distribucion.join(" · ")}`);
+  if (m.areas.length) {
+    l.push("- **Por área (solo las de 3 o más respuestas):**");
+    for (const a of m.areas)
+      l.push(`  - ${a.nombre} (${a.respuestas}): ${Math.round(a.indice)} · ${a.nombreNivel}`);
+  }
+  if (m.formacion.length) {
+    l.push("- **Formación que piden:**");
+    for (const f of m.formacion) l.push(`  - ${f.etiqueta}: ${f.votos}`);
+  }
+  if (m.alertas.length) {
+    l.push("- **Alertas:**");
+    for (const a of m.alertas) l.push(`  - ${a.texto}`);
+  }
+  if (m.tareas.length) {
+    l.push(
+      "- **Tareas que se quitarían de encima** (literales, para agrupar en temas; NO enseñar tal cual al cliente, §6):",
+    );
+    for (const t of m.tareas) l.push(`  - ${t}`);
+  }
+  l.push("");
+  return l;
+}
+
+/** §9: el raw remite al archivo de transcripción y resume la conversación en 5 líneas. */
+export function resumenTranscripcionMd(f: FilaExport, hoyISO: string): string[] {
+  const fragmentos = f.transcripcion ?? [];
+  if (!fragmentos.length) return [];
+  const temas = f.temas ?? f.transcripcion_temas?.lineas ?? [];
+  const l = ["## 6. La reunión, grabada", ""];
+  const minutos = Math.round(fragmentos.reduce((s, x) => s + (x.duracion_s ?? 0), 0) / 60);
+  const pendientes = fragmentos.filter((x) => x.estado !== "transcrito").length;
+  l.push(
+    `- **Transcripción completa:** \`${nombreArchivo(f, hoyISO, "md").replace("_raw.md", "_transcripcion.md")}\` (mismo directorio)`,
+  );
+  l.push(
+    `- **Duración grabada:** unos ${minutos} min en ${fragmentos.length} fragmentos${pendientes ? ` (${pendientes} sin transcribir)` : ""}`,
+  );
+  if (temas.length) {
+    l.push("", "**Temas de la conversación:**", "");
+    for (const t of temas) l.push(`- ${t}`);
+  }
+  l.push("");
+  return l;
+}
+
+/** Archivo aparte con la transcripción completa (§9). */
+export function exportTranscripcion(f: FilaExport, hoyISO: string): string {
+  const l = [`# Transcripción · ${f.empresa}`, ""];
+  l.push(
+    `> Reunión de diagnóstico${f.fecha_reunion ? ` del ${f.fecha_reunion}` : ""}. Acompaña a \`${nombreArchivo(f, hoyISO)}\`.`,
+  );
+  l.push(
+    "> Documento interno. Transcripción automática: puede tener errores en nombres y cifras.",
+    "",
+  );
+  const temas = f.temas ?? f.transcripcion_temas?.lineas ?? [];
+  if (temas.length) {
+    l.push("**Temas de la conversación:**", "");
+    for (const t of temas) l.push(`- ${t}`);
+    l.push("");
+  }
+  l.push(...transcripcionMd(f.transcripcion ?? []));
+  return l.join("\n");
 }
 
 function idsANombres(v: unknown, procesos: TarjetaProceso[]): unknown {
@@ -387,6 +477,8 @@ export function exportJson(f: FilaExport, hoyISO: string) {
     procesos: f.procesos ?? [],
     privado: f.privado ?? {},
     calculo: f.calculo ?? null,
+    madurez_equipo: f.madurez ?? null,
     transcripcion: f.transcripcion ?? [],
+    transcripcion_temas: f.temas ?? f.transcripcion_temas?.lineas ?? [],
   };
 }

@@ -14,7 +14,9 @@ análisis) → **mapa** para el cliente. Para Aitor y sus leads. Objetivo: que e
 - `diagnostico-app_spec-producto_v2_2026-09-18.md` — la spec principal.
 - `diagnostico-app_banco-sectores_v1_2026-09-18.md` — preguntas, frases del Orkestador, fórmulas,
   quick wins, `etiqueta_tarea`. Se transcribe a `src/config/sectores/` **sin cambiar textos ni valores**.
-- `diagnostico-app_bateria-consultor_v1_2026-09-18.md` — batería de la visita → `src/config/consultor/`.
+- `diagnostico-app_bateria-consultor_v2_2026-09-19.md` — **la batería vigente** (8 bloques,
+  niveles N/P, encuesta de madurez) → `src/config/consultor/`. La v1 solo sigue valiendo para las
+  plantillas de proceso de su §3. `scripts/verificar-config.test.ts` compara ambas con el código.
 - `motor-diagnostico-n8n_spec_v1_2026-09-18.md` — solo eventos y callback.
 
 Si la spec y el código discrepan, manda la spec: preguntar a Aitor antes de "arreglar" la spec.

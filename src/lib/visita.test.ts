@@ -12,11 +12,21 @@ describe("Privado nunca por la parte visible", () => {
     expect(ok.privado_campos).toEqual({ "e.inversion": "> 10.000 €" });
     expect(rechazados.sort()).toEqual(["e.inversion", "privado:a.historia"]);
   });
-  it("los extras 🔒 del bloque A van a privado", () => {
-    const clave = "extra:en despachos de familia o penal: ¿hay casos de violencia? (nada automático con esos clientes)";
-    const r = validarParche("servicios_profesionales", { campos: { [clave]: "no" }, privado_campos: { [clave]: "no" } });
+  it("las preguntas 🔒 del sector (batería v2 §5) van a privado", () => {
+    const clave = "id.proyecto_en_marcha";
+    const r = validarParche("industria_distribucion", { campos: { [clave]: "no" }, privado_campos: { [clave]: "no" } });
     expect(r.ok.campos).toEqual({});
     expect(r.ok.privado_campos).toEqual({ [clave]: "no" });
+  });
+  it("una pregunta de otro sector no entra", () => {
+    const r = validarParche("hosteleria_eventos", { campos: { "sp.reparto": "x", "he.peso_eventos": "eventos 60 %" } });
+    expect(r.ok.campos).toEqual({ "he.peso_eventos": "eventos 60 %" });
+    expect(r.rechazados).toEqual(["sp.reparto"]);
+  });
+  it("las notas privadas de Aitor (x.notas) no pueden ir por lo visible", () => {
+    const r = validarParche("otro", { campos: { "x.notas": "ojo" }, privado_campos: { "x.notas": "ojo" } });
+    expect(r.ok.campos).toEqual({});
+    expect(r.ok.privado_campos).toEqual({ "x.notas": "ojo" });
   });
   it("sanea tarjetas: pct privado ≤ 0,7 y textos recortados", () => {
     const r = validarParche("otro", {
