@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { verificarFirma } from "@/lib/motor";
+import { exigirTokenMotor } from "@/lib/motor";
 import { supabaseAdmin } from "@/lib/supabase";
 
 /**
- * Callback del motor de n8n (spec del motor §7, fase 5). Firmado con HMAC igual que la ida.
+ * Callback del motor de n8n (spec del motor §7, fase 5). Autenticado con la cabecera x-orkesta-token (lib/motor.ts).
  *
  * Modo `pre_reunion` (lo único del sprint 1): guarda `interno` (hipótesis, preguntas y
  * alertas: SOLO Aitor) e `informe` con los textos visibles del previo. No cambia el estado.
@@ -30,14 +30,9 @@ const esquema = z.object({
 });
 
 export async function POST(req: Request) {
+  const denegado = exigirTokenMotor(req);
+  if (denegado) return denegado;
   const crudo = await req.text();
-  const ok = verificarFirma(
-    process.env.DIAGNOSTICO_HMAC_SECRET,
-    req.headers.get("x-orkesta-timestamp"),
-    req.headers.get("x-orkesta-signature"),
-    crudo,
-  );
-  if (!ok) return Response.json({ error: "Firma no válida" }, { status: 401 });
 
   let json: unknown;
   try {

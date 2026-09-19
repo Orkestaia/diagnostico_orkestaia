@@ -2,7 +2,7 @@
   "name": "Orkesta - Motor de Diagnóstico - v1",
   "nodes": [
     {
-      "id": "2a88ecb7-721d-4703-8799-a518e80b46fe",
+      "id": "97abaa12-930e-47f7-b715-45db55633850",
       "name": "Webhook app",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -14,13 +14,20 @@
         "httpMethod": "POST",
         "path": "diagnostico-motor",
         "responseMode": "onReceived",
+        "authentication": "headerAuth",
         "options": {}
       },
-      "webhookId": "d7ede69a-3701-45a7-acbc-d23b80cb8592"
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SU6JD77rWqcyxTYI",
+          "name": "Diagnóstico · token app ↔ motor"
+        }
+      },
+      "webhookId": "d52359da-9c0c-4aaa-b08b-93c9c0a284ff"
     },
     {
-      "id": "467845a8-5637-4433-82fb-3e7038706637",
-      "name": "Verificar firma",
+      "id": "e10d9571-73a0-4738-86dc-cec21ffd16ca",
+      "name": "Datos del evento",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -28,11 +35,11 @@
         300
       ],
       "parameters": {
-        "jsCode": "// Verifica la firma HMAC de la app (spec del motor §3). Sin firma válida, el flujo se para\n// en silencio: no se avisa a nadie si alguien prueba el endpoint.\nconst crypto = require('crypto');\nconst SECRETO = '{{DIAGNOSTICO_HMAC_SECRET}}';\nconst item = $input.first().json;\nconst h = item.headers || {};\nconst ts = String(h['x-orkesta-timestamp'] || '');\nconst firma = String(h['x-orkesta-signature'] || '');\n// La app firma JSON.stringify(payload); volver a serializar el cuerpo parseado da la misma cadena.\nconst cuerpo = JSON.stringify(item.body);\nconst ahora = Math.floor(Date.now() / 1000);\nif (!/^\\d+$/.test(ts) || Math.abs(ahora - Number(ts)) > 300) return [];\nconst esperada = crypto.createHmac('sha256', SECRETO).update(ts + '.' + cuerpo).digest('hex');\nif (esperada.length !== firma.length) return [];\nif (!crypto.timingSafeEqual(Buffer.from(esperada), Buffer.from(firma))) return [];\nreturn [{ json: item.body }];"
+        "jsCode": "// El webhook ya ha comprobado la cabecera x-orkesta-token (credencial Header Auth).\nreturn [{ json: $input.first().json.body }];"
       }
     },
     {
-      "id": "ec7fbb08-5463-489b-9fc8-ae67ed95b726",
+      "id": "ee06f528-17d4-434e-8dbd-b5b4fc136574",
       "name": "Según el evento",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
@@ -53,7 +60,7 @@
                 },
                 "conditions": [
                   {
-                    "id": "39dd8993-dd1f-4fff-b7a0-00e95985b07f",
+                    "id": "dceb248e-8b6e-4d8a-982b-3beebd202090",
                     "leftValue": "={{ $json.evento }}",
                     "rightValue": "diagnostico.previo_completado",
                     "operator": {
@@ -77,7 +84,7 @@
                 },
                 "conditions": [
                   {
-                    "id": "868139ac-635a-4dd4-9002-2dc62b67c0e7",
+                    "id": "ac9e3a52-8830-444b-b0f1-895834c8c41e",
                     "leftValue": "={{ $json.evento }}",
                     "rightValue": "diagnostico.visita_cerrada",
                     "operator": {
@@ -97,7 +104,7 @@
       }
     },
     {
-      "id": "62436984-7305-47ab-aab2-82eb468589bd",
+      "id": "5b60ca8f-c88b-4ab4-877c-2d241e27f62a",
       "name": "Contexto para la IA",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -106,11 +113,11 @@
         160
       ],
       "parameters": {
-        "jsCode": "// Contexto para el modelo: SIN cifras calculadas (spec del motor §3 y §8.1).\nconst d = $input.first().json;\nconst ctx = {\n  modo: 'pre_reunion',\n  sector: d.sector,\n  tipo_negocio: d.tipo_negocio,\n  empresa: d.empresa,\n  nombre: (d.contacto || {}).nombre,\n  prioridad_tarea: d.prioridad_tarea,\n  respuestas: d.respuestas_legibles,\n  quick_wins: (d.quick_wins || []).map(q => ({ id: q.id, peso: q.peso, tipo: q.tipo, categoria: q.categoria, titulo_base: q.titulo_base })),\n  temas_base: d.temas_base,\n};\nconst system = [\n  'Eres el redactor de Orkesta. Escribes para el dueño de un negocio, en español de España, de tú, directo y cercano. Negocio primero; la tecnología no se nombra.',\n  'NUNCA escribas números de horas, euros, porcentajes, minutos ni plazos.',\n  'Usa solo lo que dicen las respuestas. No añadas procesos, herramientas ni problemas que el lead no haya mencionado.',\n  'Frases prohibidas: \"automatizamos todo\", \"100 %\", \"garantizado\", \"no tendrás que hacer nada\", \"la IA lo hará por ti\", \"sin límites\". Sin nombres de herramientas ni tecnicismos (API, webhook, n8n, ChatGPT, CRM...).',\n  'Salud: nada clínico. Legal: nada sobre casos concretos. Si las respuestas mencionan violencia, añádelo a interno.alertas.',\n  'temas_reunion: parte de temas_base y adáptalos con las palabras del lead. Son TAREAS que hoy le quitan tiempo, dichas como las diría él (\"Perseguir los papeles de cada propietario\"), NUNCA soluciones: prohibido empezar por Optimizar, Mejorar, Automatizar, Reducir, Implementar o Digitalizar. Mantén el orden de temas_base.',\n  'Las hipótesis se formulan como hipótesis (\"Parece que...\"), cada una ligada a una respuesta concreta, nunca como diagnóstico cerrado.',\n  'Devuelve SOLO un objeto JSON con esta forma exacta:',\n  '{\"frase_orkestador\":\"<=160 caracteres\",\"resumen_entendido\":[\"3 a 5 frases de <=160, visibles para el lead\"],\"temas_reunion\":[\"3 temas de <=80, visibles para el lead, sin cifras, desde el punto de vista del lead\"],\"interno\":{\"hipotesis\":[{\"hipotesis\":\"<=200, empieza por Parece que\",\"basada_en\":\"texto de la pregunta\"}],\"preguntas_visita\":[\"5 preguntas de <=160 para la visita\"],\"alertas\":[\"0 a 3 alertas de <=160\"]}}',\n].join('\\n');\nreturn [{ json: { ...d, _prompt: { system, user: JSON.stringify(ctx) } } }];"
+        "jsCode": "// Contexto para el modelo: SIN cifras calculadas (spec del motor §3 y §8.1).\nconst d = $input.first().json;\nconst ctx = {\n  modo: 'pre_reunion',\n  sector: d.sector,\n  tipo_negocio: d.tipo_negocio,\n  empresa: d.empresa,\n  nombre: (d.contacto || {}).nombre,\n  prioridad_tarea: d.prioridad_tarea,\n  respuestas: d.respuestas_legibles,\n  quick_wins: (d.quick_wins || []).map(q => ({ id: q.id, peso: q.peso, tipo: q.tipo, categoria: q.categoria, titulo_base: q.titulo_base })),\n  temas_base: d.temas_base,\n};\nconst system = [\n  'Eres el redactor de Orkesta. Escribes para el dueño de un negocio, en español de España, de tú, directo y cercano. Negocio primero; la tecnología no se nombra.',\n  'NUNCA escribas números de horas, euros, porcentajes, minutos ni plazos.',\n  'Usa solo lo que dicen las respuestas. No añadas procesos, herramientas ni problemas que el lead no haya mencionado.',\n  'Frases prohibidas: \"automatizamos todo\", \"100 %\", \"garantizado\", \"no tendrás que hacer nada\", \"la IA lo hará por ti\", \"sin límites\".',\n  'Los programas que nombra el cliente (Presto, Excel, Zoho...) se escriben tal cual, igual que sus palabras y sus datos. Lo prohibido es nombrar tecnología de Orkesta o tecnicismos (API, webhook, n8n, ChatGPT, OpenAI, integraciones).',\n  'Salud: nada clínico. Legal: nada sobre casos concretos. Si las respuestas mencionan violencia, añádelo a interno.alertas.',\n  'temas_reunion: parte de temas_base y adáptalos con las palabras del lead. Son TAREAS que hoy le quitan tiempo, dichas como las diría él (\"Perseguir los papeles de cada propietario\"), NUNCA soluciones: prohibido empezar por Optimizar, Mejorar, Automatizar, Reducir, Implementar o Digitalizar. Mantén el orden de temas_base.',\n  'Las hipótesis se formulan como hipótesis (\"Parece que...\"), cada una ligada a una respuesta concreta, nunca como diagnóstico cerrado.',\n  'Devuelve SOLO un objeto JSON con esta forma exacta:',\n  '{\"frase_orkestador\":\"<=160 caracteres\",\"resumen_entendido\":[\"3 a 5 frases de <=160, visibles para el lead\"],\"temas_reunion\":[\"3 temas de <=80, visibles para el lead, sin cifras, desde el punto de vista del lead\"],\"interno\":{\"hipotesis\":[{\"hipotesis\":\"<=200, empieza por Parece que\",\"basada_en\":\"texto de la pregunta\"}],\"preguntas_visita\":[\"5 preguntas de <=160 para la visita\"],\"alertas\":[\"0 a 3 alertas de <=160\"]}}',\n].join('\\n');\nreturn [{ json: { ...d, _prompt: { system, user: JSON.stringify(ctx) } } }];"
       }
     },
     {
-      "id": "55ed4749-a5c1-4c51-a53d-20079914cca5",
+      "id": "9e2fabb7-5048-4a10-96a5-3b3003b685ca",
       "name": "Redacción IA (OpenAI)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -142,7 +149,7 @@
       "waitBetweenTries": 3000
     },
     {
-      "id": "bd69039c-ab70-4bc4-a62c-d68a4fcfa960",
+      "id": "9b93084e-34f4-477d-bf3c-023d4d024fcb",
       "name": "Validar redacción",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -151,11 +158,11 @@
         160
       ],
       "parameters": {
-        "jsCode": "// Valida la redacción (spec del motor §7, fase 4). Si no pasa, textos base: el cliente ya vio\n// las plantillas en pantalla, así que en modo base no se envía `informe` a la app.\nconst d = $('Contexto para la IA').first().json;\nconst r = $input.first().json;\nlet out = null;\ntry { out = JSON.parse(r.choices[0].message.content); } catch (e) { out = null; }\n\nconst conUnidad = /\\d+([.,]\\d+)?\\s*(h\\b|horas?|€|eur(os)?|%|min(utos)?\\b|semanas?|d[ií]as?)/i;\nconst prohibidas = ['automatizamos todo', '100 %', '100%', 'garantizado', 'no tendrás que hacer nada', 'la ia lo hará por ti', 'sin límites'];\nconst tecnicas = /\\b(api|webhook|n8n|chatgpt|crm|openai|zapier|make)\\b/i;\nconst bien = (t, max) => typeof t === 'string' && t.trim().length > 0 && t.length <= max && !conUnidad.test(t) && !tecnicas.test(t) && !prohibidas.some(p => t.toLowerCase().includes(p));\nconst lista = (v, min, max, lim) => Array.isArray(v) && v.length >= min && v.length <= max && v.every(x => bien(x, lim));\n// Los temas son tareas del lead, no soluciones (decisión de Aitor, 18-sep).\nconst esSolucion = t => /^(optimizar|mejorar|automatizar|reducir|implementar|digitalizar|c[oó]mo)\b/i.test(String(t).trim());\n\nlet valida = !!out\n  && bien(out.frase_orkestador, 160)\n  && lista(out.resumen_entendido, 3, 5, 160)\n  && lista(out.temas_reunion, 1, 3, 80)\n  && !out.temas_reunion.some(esSolucion)\n  && out.interno && Array.isArray(out.interno.hipotesis)\n  && out.interno.hipotesis.every(x => x && typeof x.hipotesis === 'string' && x.hipotesis.length <= 200)\n  && Array.isArray(out.interno.preguntas_visita)\n  && out.interno.preguntas_visita.every(x => typeof x === 'string' && x.length <= 160);\n\nlet informe, interno, redaccion;\nif (valida) {\n  redaccion = 'ia';\n  informe = { frase_orkestador: out.frase_orkestador, resumen_entendido: out.resumen_entendido, temas_reunion: out.temas_reunion };\n  interno = { hipotesis: out.interno.hipotesis, preguntas_visita: out.interno.preguntas_visita, alertas: (out.interno.alertas || []).slice(0, 3) };\n} else {\n  redaccion = 'base';\n  informe = null;\n  interno = { hipotesis: [], preguntas_visita: [], alertas: ['Redacción IA no disponible: se han usado los textos base.'] };\n}\nreturn [{ json: { ...d, _prompt: undefined, informe, interno, redaccion } }];"
+        "jsCode": "// Valida la redacción (spec del motor §7, fase 4). Si no pasa, textos base: el cliente ya vio\n// las plantillas en pantalla, así que en modo base no se envía `informe` a la app.\nconst d = $('Contexto para la IA').first().json;\nconst r = $input.first().json;\nlet out = null;\ntry { out = JSON.parse(r.choices[0].message.content); } catch (e) { out = null; }\n\nconst conUnidad = /\\d+([.,]\\d+)?\\s*(h\\b|horas?|€|eur(os)?|%|min(utos)?\\b|semanas?|d[ií]as?)/i;\nconst prohibidas = ['automatizamos todo', '100 %', '100%', 'garantizado', 'no tendrás que hacer nada', 'la ia lo hará por ti', 'sin límites'];\n// Tecnología de Orkesta y tecnicismos; los programas del cliente sí se nombran (JARVIS, 19-sep).\nconst tecnicas = /\\b(api|webhook|n8n|chatgpt|openai|zapier)\\b/i;\nconst bien = (t, max) => typeof t === 'string' && t.trim().length > 0 && t.length <= max && !conUnidad.test(t) && !tecnicas.test(t) && !prohibidas.some(p => t.toLowerCase().includes(p));\nconst lista = (v, min, max, lim) => Array.isArray(v) && v.length >= min && v.length <= max && v.every(x => bien(x, lim));\n// Los temas son tareas del lead, no soluciones (decisión de Aitor, 18-sep).\nconst esSolucion = t => /^(optimizar|mejorar|automatizar|reducir|implementar|digitalizar|c[oó]mo)\b/i.test(String(t).trim());\n\nlet valida = !!out\n  && bien(out.frase_orkestador, 160)\n  && lista(out.resumen_entendido, 3, 5, 160)\n  && lista(out.temas_reunion, 1, 3, 80)\n  && !out.temas_reunion.some(esSolucion)\n  && out.interno && Array.isArray(out.interno.hipotesis)\n  && out.interno.hipotesis.every(x => x && typeof x.hipotesis === 'string' && x.hipotesis.length <= 200)\n  && Array.isArray(out.interno.preguntas_visita)\n  && out.interno.preguntas_visita.every(x => typeof x === 'string' && x.length <= 160);\n\nlet informe, interno, redaccion;\nif (valida) {\n  redaccion = 'ia';\n  informe = { frase_orkestador: out.frase_orkestador, resumen_entendido: out.resumen_entendido, temas_reunion: out.temas_reunion };\n  interno = { hipotesis: out.interno.hipotesis, preguntas_visita: out.interno.preguntas_visita, alertas: (out.interno.alertas || []).slice(0, 3) };\n} else {\n  redaccion = 'base';\n  informe = null;\n  interno = { hipotesis: [], preguntas_visita: [], alertas: ['Redacción IA no disponible: se han usado los textos base.'] };\n}\nreturn [{ json: { ...d, _prompt: undefined, informe, interno, redaccion } }];"
       }
     },
     {
-      "id": "d234bbbc-a360-462c-be94-a4f2702cf745",
+      "id": "89822e68-3dcd-43c4-b264-8e4fbc2aaac3",
       "name": "Componer mensajes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -168,8 +175,8 @@
       }
     },
     {
-      "id": "0ea21d59-abbd-4078-b016-71ec7bfe357b",
-      "name": "Firmar callback",
+      "id": "d9736b57-fc80-44a9-86e2-3cb0d2250e93",
+      "name": "Preparar callback",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -177,11 +184,11 @@
         160
       ],
       "parameters": {
-        "jsCode": "// Callback firmado a la app (spec del motor §7, fase 5).\nconst crypto = require('crypto');\nconst SECRETO = '{{DIAGNOSTICO_HMAC_SECRET}}';\nconst d = $input.first().json;\nconst body = JSON.stringify({\n  diagnostico_id: d.diagnostico_id,\n  estado: 'previo_completado',\n  redaccion: d.redaccion,\n  informe: d.informe || undefined,\n  interno: d.interno,\n  modelo: 'gpt-4.1-mini',\n  execution_id: String($execution.id),\n  generado_at: new Date().toISOString(),\n});\nconst ts = String(Math.floor(Date.now() / 1000));\nconst firma = crypto.createHmac('sha256', SECRETO).update(ts + '.' + body).digest('hex');\nreturn [{ json: { ...d, _callback: { body, ts, firma } } }];"
+        "jsCode": "// Callback a la app (spec del motor §7, fase 5). La cabecera x-orkesta-token la pone la\n// credencial «Header Auth» del nodo siguiente: aquí no hay ningún secreto.\nconst d = $input.first().json;\nconst body = JSON.stringify({\n  diagnostico_id: d.diagnostico_id,\n  estado: 'previo_completado',\n  redaccion: d.redaccion,\n  informe: d.informe || undefined,\n  interno: d.interno,\n  modelo: 'gpt-4.1-mini',\n  execution_id: String($execution.id),\n  generado_at: new Date().toISOString(),\n});\nreturn [{ json: { ...d, _callback: { body } } }];"
       }
     },
     {
-      "id": "43cd8d0c-45d1-4104-8b84-50b3ab983cf6",
+      "id": "79aca4e9-4769-4c40-b839-68a7f24010f4",
       "name": "Callback a la app",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -192,32 +199,65 @@
       "parameters": {
         "method": "POST",
         "url": "https://diagnostico-orkestaia.vercel.app/api/motor/callback",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "x-orkesta-timestamp",
-              "value": "={{ $json._callback.ts }}"
-            },
-            {
-              "name": "x-orkesta-signature",
-              "value": "={{ $json._callback.firma }}"
-            }
-          ]
-        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
         "body": "={{ $json._callback.body }}",
         "options": {}
       },
-      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SU6JD77rWqcyxTYI",
+          "name": "Diagnóstico · token app ↔ motor"
+        }
+      },
+      "onError": "continueErrorOutput",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000
     },
     {
-      "id": "ce5bc51d-f988-45f7-a5cf-1cfd2e191772",
+      "id": "bbb1a72c-df41-4237-a628-7e5101b43ba7",
+      "name": "¿La app ya tenía redacción?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        620
+      ],
+      "parameters": {
+        "jsCode": "// La app no aceptó el callback. 409 = ya tenía redacción (un diagnóstico, una redacción): se para\n// aquí sin enviar emails. Cualquier otro fallo, tras los reintentos: aviso a Aitor y se sigue.\nconst e = $input.first().json;\nif (/\\b409\\b/.test(JSON.stringify(e))) return [];\nconst d = $('Componer mensajes').first().json;\nreturn [{ json: { telegram: '🔴 La app no aceptó el callback de ' + d.empresa + ' (' + d.diagnostico_id + '). Los emails salen igual; revisa el panel.\\n' + String((e.error || {}).message || JSON.stringify(e)).slice(0, 300) } }];"
+      }
+    },
+    {
+      "id": "9f86f6f8-bd00-4d63-a177-6148e9ad98fb",
+      "name": "Telegram: callback falló",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2220,
+        620
+      ],
+      "parameters": {
+        "chatId": "6674289801",
+        "text": "={{ $json.telegram }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "lFqrk5zgIca5nxYh",
+          "name": "Telegram Hermes (avisos diagnóstico)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "9180dae2-10e1-4a71-94b0-8ff807e76f15",
       "name": "¿Tiene email?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -235,8 +275,8 @@
           },
           "conditions": [
             {
-              "id": "96e67290-4cd8-4105-ab17-66a1a4450302",
-              "leftValue": "={{ $('Componer mensajes').item.json.contacto.email }}",
+              "id": "58f5f0d4-7aa1-48f0-8069-82f8b20a7cea",
+              "leftValue": "={{ $('Componer mensajes').first().json.contacto.email }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -251,7 +291,7 @@
       }
     },
     {
-      "id": "447af204-420a-4a9c-acd3-8f351e9f4c0b",
+      "id": "ef3b1a79-82b5-4f25-bf57-af85c9e5d313",
       "name": "Email al cliente",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -260,10 +300,10 @@
         0
       ],
       "parameters": {
-        "sendTo": "={{ $('Componer mensajes').item.json.contacto.email }}",
-        "subject": "={{ $('Componer mensajes').item.json.asunto_cliente }}",
+        "sendTo": "={{ $('Componer mensajes').first().json.contacto.email }}",
+        "subject": "={{ $('Componer mensajes').first().json.asunto_cliente }}",
         "emailType": "html",
-        "message": "={{ $('Componer mensajes').item.json.html_cliente }}",
+        "message": "={{ $('Componer mensajes').first().json.html_cliente }}",
         "options": {
           "appendAttribution": false,
           "senderName": "Aitor Colino · Orkesta",
@@ -279,7 +319,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "e79267ca-d548-47e1-9045-bc6d9320a568",
+      "id": "e2ab1282-a420-4ae1-be54-0d266f71594e",
       "name": "Email interno a Aitor",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -289,9 +329,9 @@
       ],
       "parameters": {
         "sendTo": "aitor@orkestaia.com",
-        "subject": "={{ $('Componer mensajes').item.json.asunto_interno }}",
+        "subject": "={{ $('Componer mensajes').first().json.asunto_interno }}",
         "emailType": "html",
-        "message": "={{ $('Componer mensajes').item.json.html_interno }}",
+        "message": "={{ $('Componer mensajes').first().json.html_interno }}",
         "options": {
           "appendAttribution": false,
           "senderName": "Aitor Colino · Orkesta",
@@ -307,7 +347,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "693c1c3b-c306-42c1-a0cf-63c48e614b55",
+      "id": "d0da4c6d-0287-4fe2-bb7c-e0946e2c4e74",
       "name": "Telegram a Aitor",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -317,7 +357,7 @@
       ],
       "parameters": {
         "chatId": "6674289801",
-        "text": "={{ $('Componer mensajes').item.json.telegram }}",
+        "text": "={{ $('Componer mensajes').first().json.telegram }}",
         "additionalFields": {
           "appendAttribution": false,
           "disable_web_page_preview": true
@@ -332,7 +372,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "839fbb0b-86a6-447e-8270-38999770f15a",
+      "id": "285cd445-0d86-48f0-a001-cc76083db6eb",
       "name": "Guardar en Airtable",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -347,7 +387,7 @@
         "nodeCredentialType": "airtableTokenApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ performUpsert: { fieldsToMergeOn: ['Diagnóstico ID'] }, typecast: true, records: [{ fields: $('Componer mensajes').item.json.airtable }] }) }}",
+        "jsonBody": "={{ JSON.stringify({ performUpsert: { fieldsToMergeOn: ['Diagnóstico ID'] }, typecast: true, records: [{ fields: $('Componer mensajes').first().json.airtable }] }) }}",
         "options": {}
       },
       "credentials": {
@@ -359,7 +399,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "44cca59d-834a-41e0-98a6-c647112a124e",
+      "id": "46b4734f-ce7e-400a-bd8e-f4cab369b8ac",
       "name": "Componer aviso de visita",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -372,7 +412,7 @@
       }
     },
     {
-      "id": "dee5bd18-6c2d-4d48-b099-e8ead7112ac8",
+      "id": "4aafca15-197c-4fbe-979a-8321c773e81d",
       "name": "Telegram visita cerrada",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -397,7 +437,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "ea1e584e-9d31-4b04-b37d-c9d2eadcec7c",
+      "id": "18a0975c-a6cf-442d-89f4-08b3d4e89dc5",
       "name": "Email visita cerrada",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -425,7 +465,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "cc9c9b20-daf3-40a9-985f-d82653475413",
+      "id": "fc5f7d0f-f61e-4be1-84f8-2c1cc00228bd",
       "name": "Airtable visita cerrada",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -452,7 +492,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "23c265dc-a931-4ed6-9958-e02b186cbdaa",
+      "id": "749d9760-7cf4-41be-a78d-890c49ab36c5",
       "name": "Cada día a las 10:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -472,20 +512,7 @@
       }
     },
     {
-      "id": "8ceb79cb-30bc-472d-9714-265484e10d2c",
-      "name": "Firmar petición",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        220,
-        900
-      ],
-      "parameters": {
-        "jsCode": "// Petición firmada (cuerpo vacío) a la app para los previos sin terminar.\nconst crypto = require('crypto');\nconst SECRETO = '{{DIAGNOSTICO_HMAC_SECRET}}';\nconst ts = String(Math.floor(Date.now() / 1000));\nconst firma = crypto.createHmac('sha256', SECRETO).update(ts + '.').digest('hex');\nreturn [{ json: { ts, firma } }];"
-      }
-    },
-    {
-      "id": "3273e975-67a4-4b17-99e3-caa7c62b7ae0",
+      "id": "b8c7cf51-2502-4b3f-8e65-fb79a0a484c1",
       "name": "Previos sin terminar",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -496,25 +523,20 @@
       "parameters": {
         "method": "POST",
         "url": "https://diagnostico-orkestaia.vercel.app/api/motor/pendientes",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "x-orkesta-timestamp",
-              "value": "={{ $json.ts }}"
-            },
-            {
-              "name": "x-orkesta-signature",
-              "value": "={{ $json.firma }}"
-            }
-          ]
-        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": false,
         "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SU6JD77rWqcyxTYI",
+          "name": "Diagnóstico · token app ↔ motor"
+        }
       }
     },
     {
-      "id": "29774ead-6b30-4663-a830-4872a4ad0d6a",
+      "id": "bfb376c3-23b1-4dd0-8ca5-875ad6c550ba",
       "name": "Uno por diagnóstico",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -527,7 +549,7 @@
       }
     },
     {
-      "id": "470900d6-839e-4df4-92cf-d91602a4edc1",
+      "id": "e1d73bf4-da61-4efd-9285-6cae4b1290b7",
       "name": "¿Tiene email? (recordatorio)",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -545,7 +567,7 @@
           },
           "conditions": [
             {
-              "id": "fb2f3214-7145-48be-9a7d-3a98a38f508b",
+              "id": "6da5c3f3-27b6-4481-b257-a044b776abad",
               "leftValue": "={{ $json.contacto.email }}",
               "rightValue": "",
               "operator": {
@@ -561,7 +583,7 @@
       }
     },
     {
-      "id": "b1426b46-2dd4-4230-b688-a35d26945b64",
+      "id": "a2763a8a-11f3-4031-9157-00865eb00a13",
       "name": "Recordatorio al cliente",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -589,7 +611,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "fdd16bf0-9a48-44d5-bbb3-1a6c397e42f6",
+      "id": "ffcf7719-b909-46ea-b8dd-52680c06bb0b",
       "name": "Telegram recordatorio",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -614,7 +636,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "41019b5f-5af5-4a8d-b584-0f0048ae9714",
+      "id": "2a4c9292-e96a-49ee-8f40-eac5b882dd75",
       "name": "Airtable recordatorio",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -646,14 +668,14 @@
       "main": [
         [
           {
-            "node": "Verificar firma",
+            "node": "Datos del evento",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Verificar firma": {
+    "Datos del evento": {
       "main": [
         [
           {
@@ -719,14 +741,14 @@
       "main": [
         [
           {
-            "node": "Firmar callback",
+            "node": "Preparar callback",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Firmar callback": {
+    "Preparar callback": {
       "main": [
         [
           {
@@ -738,6 +760,50 @@
       ]
     },
     "Callback a la app": {
+      "main": [
+        [
+          {
+            "node": "¿Tiene email?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email interno a Aitor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram a Aitor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Guardar en Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿La app ya tenía redacción?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿La app ya tenía redacción?": {
+      "main": [
+        [
+          {
+            "node": "Telegram: callback falló",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram: callback falló": {
       "main": [
         [
           {
@@ -799,17 +865,6 @@
       "main": [
         [
           {
-            "node": "Firmar petición",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Firmar petición": {
-      "main": [
-        [
-          {
             "node": "Previos sin terminar",
             "type": "main",
             "index": 0
@@ -867,6 +922,7 @@
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "all",
     "saveManualExecutions": true,
-    "availableInMCP": true
+    "availableInMCP": true,
+    "errorWorkflow": "dYdCdIkmNtUoKCuj"
   }
 }

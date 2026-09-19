@@ -1,5 +1,5 @@
 import { enlaceWhatsApp, mensajeRecordatorio } from "@/lib/invitacion";
-import { verificarFirma } from "@/lib/motor";
+import { exigirTokenMotor } from "@/lib/motor";
 import { estaCompleta, pasosPrevio } from "@/lib/previo";
 import { supabaseAdmin } from "@/lib/supabase";
 import { urlBase } from "@/lib/url";
@@ -7,7 +7,7 @@ import type { Respuestas, SectorId } from "@/config/tipos";
 
 /**
  * Recordatorio si el previo no se termina (decisión de Aitor, 18-sep). Lo llama n8n una vez al
- * día, firmado con HMAC (cuerpo vacío: se firma "timestamp.").
+ * día, con la cabecera x-orkesta-token.
  *
  * Devuelve los previos sin terminar con más de 48 h desde la invitación, sin recordatorio
  * enviado y cuya reunión no ha pasado, y los marca como avisados en la misma operación (cada
@@ -16,14 +16,8 @@ import type { Respuestas, SectorId } from "@/config/tipos";
 const HORAS_ESPERA = 48;
 
 export async function POST(req: Request) {
-  const crudo = await req.text();
-  const ok = verificarFirma(
-    process.env.DIAGNOSTICO_HMAC_SECRET,
-    req.headers.get("x-orkesta-timestamp"),
-    req.headers.get("x-orkesta-signature"),
-    crudo,
-  );
-  if (!ok) return Response.json({ error: "Firma no válida" }, { status: 401 });
+  const denegado = exigirTokenMotor(req);
+  if (denegado) return denegado;
 
   const limite = new Date(Date.now() - HORAS_ESPERA * 3600_000).toISOString();
   const hoy = new Date().toISOString().slice(0, 10);
