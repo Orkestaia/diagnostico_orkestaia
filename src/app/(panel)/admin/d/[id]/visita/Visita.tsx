@@ -4,14 +4,28 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Marca } from "@/components/compartido/Marca";
 import { Orkestador } from "@/components/compartido/Orkestador";
-import { BLOQUES, CAMPOS_VISITA, MINUTOS_VISITA, REGLAS_VISITA, type BloqueId, type CampoVisita } from "@/config/consultor/bloques";
+import {
+  BLOQUES,
+  CAMPOS_VISITA,
+  MINUTOS_VISITA,
+  REGLAS_VISITA,
+  type BloqueId,
+  type CampoVisita,
+} from "@/config/consultor/bloques";
 import { EXTRAS_BLOQUE_A } from "@/config/consultor/plantillas";
 import type { TarjetaProceso } from "@/config/consultor/tarjeta";
 import type { Respuestas, SectorId, TipoPregunta, ValorRespuesta } from "@/config/tipos";
 import { redondearHoras } from "@/lib/calculo";
-import { claveExtra, sumarDiasHabiles, type ParcheVisita, type RespuestasVisita } from "@/lib/visita";
+import {
+  claveExtra,
+  ID_NOTAS,
+  sumarDiasHabiles,
+  type ParcheVisita,
+  type RespuestasVisita,
+} from "@/lib/visita";
 import { BOTON, BOTON_PRIMARIO, CAMPO, Chips, Etiqueta, Numero, Seccion, Texto } from "./campos";
 import { BotonCandado, SoloPrivado, usePrivada, VistaPrivada } from "./privada";
+import { BotonGrabar, EstadoTranscripcion, Grabacion, useGrabacion } from "./grabacion";
 import { BloqueProcesos, horasHoy } from "./Tarjetas";
 import { useGuardado, type EstadoGuardado } from "./useGuardado";
 
@@ -45,14 +59,21 @@ const hoyISO = () => new Date().toISOString().slice(0, 10);
 
 function fechaLarga(iso: string) {
   const [a, m, d] = iso.slice(0, 10).split("-").map(Number);
-  return new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(
-    new Date(Date.UTC(a, m - 1, d)),
-  );
+  return new Intl.DateTimeFormat("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(a, m - 1, d)));
 }
 
 export function Visita({ datos }: { datos: DatosVisita }) {
-  const [campos, setCampos] = useState<Record<string, unknown>>(datos.respuestasVisita.campos ?? {});
-  const [correcciones, setCorrecciones] = useState<Respuestas>(datos.respuestasVisita.correcciones_previo ?? {});
+  const [campos, setCampos] = useState<Record<string, unknown>>(
+    datos.respuestasVisita.campos ?? {},
+  );
+  const [correcciones, setCorrecciones] = useState<Respuestas>(
+    datos.respuestasVisita.correcciones_previo ?? {},
+  );
   const [procesos, setProcesos] = useState<TarjetaProceso[]>(datos.procesos);
   const [inicio, setInicio] = useState<string | null>(datos.respuestasVisita.inicio_at ?? null);
   const [cerrada, setCerrada] = useState(!EDITABLE.includes(datos.estado));
@@ -89,28 +110,36 @@ export function Visita({ datos }: { datos: DatosVisita }) {
 
   const entrega = (campos["e.entrega"] as string | undefined) || sumarDiasHabiles(hoyISO());
 
-  if (cerrada) return <Cierre datos={datos} procesos={procesos} entrega={entrega} />;
+  if (cerrada) {
+    return (
+      <Grabacion id={datos.id}>
+        <Cierre datos={datos} procesos={procesos} entrega={entrega} />
+      </Grabacion>
+    );
+  }
 
   return (
-    <VistaPrivada id={datos.id} encolar={encolar}>
-      <Pantalla
-        datos={datos}
-        estado={estado}
-        inicio={inicio}
-        campos={campos}
-        ponerCampo={ponerCampo}
-        correcciones={correcciones}
-        ponerCorreccion={ponerCorreccion}
-        procesos={procesos}
-        ponerProcesos={ponerProcesos}
-        entrega={entrega}
-        vaciar={vaciar}
-        onCerrada={(p) => {
-          setProcesos(p);
-          setCerrada(true);
-        }}
-      />
-    </VistaPrivada>
+    <Grabacion id={datos.id}>
+      <VistaPrivada id={datos.id} encolar={encolar}>
+        <Pantalla
+          datos={datos}
+          estado={estado}
+          inicio={inicio}
+          campos={campos}
+          ponerCampo={ponerCampo}
+          correcciones={correcciones}
+          ponerCorreccion={ponerCorreccion}
+          procesos={procesos}
+          ponerProcesos={ponerProcesos}
+          entrega={entrega}
+          vaciar={vaciar}
+          onCerrada={(p) => {
+            setProcesos(p);
+            setCerrada(true);
+          }}
+        />
+      </VistaPrivada>
+    </Grabacion>
   );
 }
 
@@ -142,6 +171,7 @@ function Pantalla({
   onCerrada: (p: TarjetaProceso[]) => void;
 }) {
   const [bloque, setBloque] = useState<BloqueId>("A");
+  const [notas, setNotas] = useState(false);
   const actual = BLOQUES.find((b) => b.id === bloque)!;
   const ir = (b: BloqueId) => {
     setBloque(b);
@@ -150,7 +180,10 @@ function Pantalla({
 
   return (
     <div className="relative min-h-dvh">
-      <Orkestador intensidad="tenue" className="pointer-events-none fixed -right-28 bottom-0 h-[55vh] opacity-60 md:right-[2%]" />
+      <Orkestador
+        intensidad="tenue"
+        className="pointer-events-none fixed -right-28 bottom-0 h-[55vh] opacity-60 md:right-[2%]"
+      />
       <header className="sticky top-0 z-40 border-b border-ork-border bg-ork-bg/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 flex-col leading-tight">
@@ -160,10 +193,27 @@ function Pantalla({
           <div className="flex items-center gap-3">
             <Temporizador inicio={inicio} onCierre={() => ir("E")} />
             <IndicadorGuardado estado={estado} />
+            <BotonGrabar />
+            <button
+              type="button"
+              aria-expanded={notas}
+              onClick={() => setNotas((n) => !n)}
+              className={
+                "flex h-10 items-center rounded-full border px-3 text-small transition-colors " +
+                (notas
+                  ? "border-ork-violet text-ork-text"
+                  : "border-ork-border-hi text-ork-text-muted hover:text-ork-text")
+              }
+            >
+              Notas
+            </button>
             <BotonCandado />
           </div>
         </div>
-        <nav aria-label="Bloques de la visita" className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4 pb-2">
+        <nav
+          aria-label="Bloques de la visita"
+          className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4 pb-2"
+        >
           {BLOQUES.map((b) => (
             <button
               key={b.id}
@@ -172,7 +222,9 @@ function Pantalla({
               onClick={() => ir(b.id)}
               className={
                 "shrink-0 rounded-full px-4 py-2 text-small transition-colors " +
-                (b.id === bloque ? "bg-ork-cyan/15 text-ork-text ring-1 ring-ork-cyan" : "text-ork-text-muted hover:text-ork-text")
+                (b.id === bloque
+                  ? "bg-ork-cyan/15 text-ork-text ring-1 ring-ork-cyan"
+                  : "text-ork-text-muted hover:text-ork-text")
               }
             >
               <span className="font-mono text-ork-cyan">{b.id}</span> {b.nombre}
@@ -189,39 +241,84 @@ function Pantalla({
           <p className="mt-2 max-w-3xl font-display text-h3 text-ork-text">{actual.frase}</p>
         </div>
 
+        {notas ? <PanelNotas onCerrar={() => setNotas(false)} /> : null}
+
         <SoloPrivado>
-          <p className="text-small text-ork-text-muted">Unos {actual.minutos} min. Recuerda: {REGLAS_VISITA.join(" · ").replace(/`/g, "")}.</p>
+          <EstadoTranscripcion />
+          <p className="mt-2 text-small text-ork-text-muted">
+            Unos {actual.minutos} min. Recuerda: {REGLAS_VISITA.join(" · ").replace(/`/g, "")}.
+          </p>
           <Preparacion />
         </SoloPrivado>
 
         {bloque === "A" ? (
           <>
-            <LoQueNosContaste datos={datos} correcciones={correcciones} ponerCorreccion={ponerCorreccion} />
+            <LoQueNosContaste
+              datos={datos}
+              correcciones={correcciones}
+              ponerCorreccion={ponerCorreccion}
+            />
             <Seccion titulo="Contexto">
-              <CamposBloque bloque="A" sector={datos.sector} campos={campos} ponerCampo={ponerCampo} procesos={procesos} ponerProcesos={ponerProcesos} />
+              <CamposBloque
+                bloque="A"
+                sector={datos.sector}
+                campos={campos}
+                ponerCampo={ponerCampo}
+                procesos={procesos}
+                ponerProcesos={ponerProcesos}
+              />
             </Seccion>
           </>
         ) : null}
         {bloque === "B" ? (
-          <BloqueProcesos sector={datos.sector} tarjetas={procesos} sugeridas={datos.sugeridas} onCambio={ponerProcesos} />
+          <BloqueProcesos
+            sector={datos.sector}
+            tarjetas={procesos}
+            sugeridas={datos.sugeridas}
+            onCambio={ponerProcesos}
+          />
         ) : null}
         {bloque === "C" || bloque === "D" ? (
           <Seccion titulo={actual.nombre}>
-            <CamposBloque bloque={bloque} sector={datos.sector} campos={campos} ponerCampo={ponerCampo} procesos={procesos} ponerProcesos={ponerProcesos} />
+            <CamposBloque
+              bloque={bloque}
+              sector={datos.sector}
+              campos={campos}
+              ponerCampo={ponerCampo}
+              procesos={procesos}
+              ponerProcesos={ponerProcesos}
+            />
           </Seccion>
         ) : null}
         {bloque === "E" ? (
           <>
             <Seccion titulo="Cierre">
-              <CamposBloque bloque="E" sector={datos.sector} campos={campos} ponerCampo={ponerCampo} procesos={procesos} ponerProcesos={ponerProcesos} entrega={entrega} />
+              <CamposBloque
+                bloque="E"
+                sector={datos.sector}
+                campos={campos}
+                ponerCampo={ponerCampo}
+                procesos={procesos}
+                ponerProcesos={ponerProcesos}
+                entrega={entrega}
+              />
             </Seccion>
-            <CerrarVisita id={datos.id} vaciar={vaciar} onCerrada={onCerrada} irACostes={() => ir("C")} />
+            <CerrarVisita
+              id={datos.id}
+              vaciar={vaciar}
+              onCerrada={onCerrada}
+              irACostes={() => ir("C")}
+            />
           </>
         ) : null}
 
         <div className="flex justify-between gap-3 pt-2">
           {actual.id !== "A" ? (
-            <button type="button" className={BOTON} onClick={() => ir(BLOQUES[BLOQUES.indexOf(actual) - 1].id)}>
+            <button
+              type="button"
+              className={BOTON}
+              onClick={() => ir(BLOQUES[BLOQUES.indexOf(actual) - 1].id)}
+            >
               Anterior
             </button>
           ) : (
@@ -230,7 +327,11 @@ function Pantalla({
             </Link>
           )}
           {actual.id !== "E" ? (
-            <button type="button" className={BOTON_PRIMARIO} onClick={() => ir(BLOQUES[BLOQUES.indexOf(actual) + 1].id)}>
+            <button
+              type="button"
+              className={BOTON_PRIMARIO}
+              onClick={() => ir(BLOQUES[BLOQUES.indexOf(actual) + 1].id)}
+            >
               Siguiente: {BLOQUES[BLOQUES.indexOf(actual) + 1].nombre}
             </button>
           ) : null}
@@ -256,12 +357,19 @@ function Temporizador({ inicio, onCierre }: { inicio: string | null; onCierre: (
     <>
       <span
         title={`Tiempo de visita (sobre ${MINUTOS_VISITA} min)`}
-        className={"cifra rounded-full border px-3 py-1.5 text-small " + (pasado ? "border-[#f5a623] text-[#f5c46b]" : "border-ork-border text-ork-text-muted")}
+        className={
+          "cifra rounded-full border px-3 py-1.5 text-small " +
+          (pasado ? "border-[#f5a623] text-[#f5c46b]" : "border-ork-border text-ork-text-muted")
+        }
       >
-        {Math.floor(min / 60)}:{String(min % 60).padStart(2, "0")} / {Math.floor(MINUTOS_VISITA / 60)}:{String(MINUTOS_VISITA % 60).padStart(2, "0")}
+        {Math.floor(min / 60)}:{String(min % 60).padStart(2, "0")} /{" "}
+        {Math.floor(MINUTOS_VISITA / 60)}:{String(MINUTOS_VISITA % 60).padStart(2, "0")}
       </span>
       {pasado && !descartado ? (
-        <div role="alert" className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#f5a623]/70 bg-ork-surface-1 px-5 py-4 shadow-xl">
+        <div
+          role="alert"
+          className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#f5a623]/70 bg-ork-surface-1 px-5 py-4 shadow-xl"
+        >
           <p className="text-ork-text">Llevamos {min} minutos. Toca cerrar.</p>
           <div className="flex gap-2">
             <button type="button" className={BOTON} onClick={() => setDescartado(true)}>
@@ -331,6 +439,44 @@ function Preparacion() {
   );
 }
 
+/**
+ * Notas libres de Aitor (🔒). El panel se abre siempre, pero solo se puede leer y escribir con
+ * la vista privada activa: en la vista cliente las notas no están en la página.
+ */
+function PanelNotas({ onCerrar }: { onCerrar: () => void }) {
+  const privada = usePrivada();
+  return (
+    <section
+      aria-label="Notas"
+      className="rounded-2xl border border-ork-violet/60 bg-ork-surface-1/95 p-5"
+    >
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="font-display text-body-lg text-ork-text">Notas de la reunión</h2>
+        <button
+          type="button"
+          onClick={onCerrar}
+          className="text-small text-ork-text-muted hover:text-ork-text"
+        >
+          Cerrar
+        </button>
+      </div>
+      {privada.activa ? (
+        <Texto
+          etiqueta="Solo para ti. Van al export de JARVIS."
+          valor={String(privada.campo(ID_NOTAS) ?? "")}
+          filas={10}
+          max={20000}
+          onGuardar={(v) => privada.ponerCampo(ID_NOTAS, v)}
+        />
+      ) : (
+        <p className="text-small">
+          Mantén pulsado el candado 1 segundo para ver y escribir tus notas.
+        </p>
+      )}
+    </section>
+  );
+}
+
 // ── Bloque A · Lo que nos contaste ──
 
 function LoQueNosContaste({
@@ -366,7 +512,9 @@ function LoQueNosContaste({
         </ul>
       ) : null}
       <details>
-        <summary className="cursor-pointer text-small text-ork-text-muted hover:text-ork-text">Respuesta a respuesta ({datos.contado.length})</summary>
+        <summary className="cursor-pointer text-small text-ork-text-muted hover:text-ork-text">
+          Respuesta a respuesta ({datos.contado.length})
+        </summary>
         <ul className="mt-3 divide-y divide-ork-border">
           {datos.contado.map((c) => (
             <li key={c.id} className="py-3">
@@ -375,23 +523,36 @@ function LoQueNosContaste({
                   <p className="text-small">{c.texto}</p>
                   <p className="text-ork-text">
                     {mostrar(c)}
-                    {c.id in correcciones ? <span className="ml-2 text-small text-ork-cyan">corregido</span> : null}
+                    {c.id in correcciones ? (
+                      <span className="ml-2 text-small text-ork-cyan">corregido</span>
+                    ) : null}
                   </p>
                 </div>
-                <button type="button" className="text-small text-ork-text-muted hover:text-ork-text" onClick={() => setEditando(editando === c.id ? null : c.id)}>
+                <button
+                  type="button"
+                  className="text-small text-ork-text-muted hover:text-ork-text"
+                  onClick={() => setEditando(editando === c.id ? null : c.id)}
+                >
                   {editando === c.id ? "Listo" : "Corregir"}
                 </button>
               </div>
               {editando === c.id ? (
                 <div className="mt-3">
                   {c.tipo === "texto" || c.tipo === "url" || !c.opciones.length ? (
-                    <Texto etiqueta="Corrección" valor={String(correcciones[c.id] ?? c.valor ?? "")} filas={1} onGuardar={(v) => ponerCorreccion(c.id, v)} />
+                    <Texto
+                      etiqueta="Corrección"
+                      valor={String(correcciones[c.id] ?? c.valor ?? "")}
+                      filas={1}
+                      onGuardar={(v) => ponerCorreccion(c.id, v)}
+                    />
                   ) : (
                     <Chips
                       opciones={c.opciones}
                       multi={c.tipo === "multi"}
                       max={c.max ?? undefined}
-                      valor={(c.id in correcciones ? correcciones[c.id] : c.valor) as string | string[]}
+                      valor={
+                        (c.id in correcciones ? correcciones[c.id] : c.valor) as string | string[]
+                      }
                       onCambio={(v) => ponerCorreccion(c.id, v)}
                     />
                   )}
@@ -431,7 +592,13 @@ function CamposBloque({
       {CAMPOS_VISITA.filter((c) => c.bloque === bloque).map((c) =>
         c.privado ? (
           <SoloPrivado key={c.id}>
-            <Campo c={c} valor={privada.campo(c.id)} poner={(v) => privada.ponerCampo(c.id, v)} procesos={procesos} ponerProcesos={ponerProcesos} />
+            <Campo
+              c={c}
+              valor={privada.campo(c.id)}
+              poner={(v) => privada.ponerCampo(c.id, v)}
+              procesos={procesos}
+              ponerProcesos={ponerProcesos}
+            />
           </SoloPrivado>
         ) : (
           <Campo
@@ -447,10 +614,21 @@ function CamposBloque({
       {extras.map((e) =>
         e.privado ? (
           <SoloPrivado key={e.texto}>
-            <Texto etiqueta={e.texto} valor={String(privada.campo(claveExtra(e.texto)) ?? "")} filas={2} onGuardar={(v) => privada.ponerCampo(claveExtra(e.texto), v)} />
+            <Texto
+              etiqueta={e.texto}
+              valor={String(privada.campo(claveExtra(e.texto)) ?? "")}
+              filas={2}
+              onGuardar={(v) => privada.ponerCampo(claveExtra(e.texto), v)}
+            />
           </SoloPrivado>
         ) : (
-          <Texto key={e.texto} etiqueta={e.texto} valor={String(campos[claveExtra(e.texto)] ?? "")} filas={2} onGuardar={(v) => ponerCampo(claveExtra(e.texto), v)} />
+          <Texto
+            key={e.texto}
+            etiqueta={e.texto}
+            valor={String(campos[claveExtra(e.texto)] ?? "")}
+            filas={2}
+            onGuardar={(v) => ponerCampo(claveExtra(e.texto), v)}
+          />
         ),
       )}
     </>
@@ -477,27 +655,67 @@ function Campo({
     case "texto":
       return <Texto etiqueta={etiqueta} valor={String(valor ?? "")} onGuardar={poner} />;
     case "numero":
-      return <Numero etiqueta={etiqueta} valor={typeof valor === "number" ? valor : null} placeholder="aprox." onGuardar={poner} />;
+      return (
+        <Numero
+          etiqueta={etiqueta}
+          valor={typeof valor === "number" ? valor : null}
+          placeholder="aprox."
+          onGuardar={poner}
+        />
+      );
     case "chips":
     case "multi":
-      return <Chips etiqueta={etiqueta} opciones={c.opciones ?? []} multi={c.tipo === "multi"} valor={valor as string | string[]} onCambio={poner} />;
+      return (
+        <Chips
+          etiqueta={etiqueta}
+          opciones={c.opciones ?? []}
+          multi={c.tipo === "multi"}
+          valor={valor as string | string[]}
+          onCambio={poner}
+        />
+      );
     case "si_no":
     case "si_no_nose":
-      return <Chips etiqueta={etiqueta} opciones={c.tipo === "si_no" ? ["Sí", "No"] : ["Sí", "No", "No lo sé"]} valor={valor as string} onCambio={poner} />;
+      return (
+        <Chips
+          etiqueta={etiqueta}
+          opciones={c.tipo === "si_no" ? ["Sí", "No"] : ["Sí", "No", "No lo sé"]}
+          valor={valor as string}
+          onCambio={poner}
+        />
+      );
     case "fecha":
       return (
         <div>
           <Etiqueta htmlFor={c.id}>{etiqueta}</Etiqueta>
-          <input id={c.id} type="date" value={String(valor ?? "")} onChange={(e) => e.target.value && poner(e.target.value)} className={CAMPO + " max-w-56"} />
-          {typeof valor === "string" && valor ? <p className="mt-1 text-small">{fechaLarga(valor)}</p> : null}
+          <input
+            id={c.id}
+            type="date"
+            value={String(valor ?? "")}
+            onChange={(e) => e.target.value && poner(e.target.value)}
+            className={CAMPO + " max-w-56"}
+          />
+          {typeof valor === "string" && valor ? (
+            <p className="mt-1 text-small">{fechaLarga(valor)}</p>
+          ) : null}
         </div>
       );
     case "texto_si_no": {
       const v = (valor ?? {}) as { texto?: string; aqui?: string };
       return (
         <div className="space-y-3">
-          <Texto etiqueta={etiqueta} valor={v.texto ?? ""} filas={1} onGuardar={(t) => poner({ ...v, texto: t })} />
-          <Chips etiqueta="¿Está hoy aquí?" opciones={["Sí", "No"]} valor={v.aqui} onCambio={(x) => poner({ ...v, aqui: x })} />
+          <Texto
+            etiqueta={etiqueta}
+            valor={v.texto ?? ""}
+            filas={1}
+            onGuardar={(t) => poner({ ...v, texto: t })}
+          />
+          <Chips
+            etiqueta="¿Está hoy aquí?"
+            opciones={["Sí", "No"]}
+            valor={v.aqui}
+            onCambio={(x) => poner({ ...v, aqui: x })}
+          />
         </div>
       );
     }
@@ -525,7 +743,12 @@ function Campo({
             { id: "nombre", nombre: "Herramienta", tipo: "texto" },
             { id: "para", nombre: "Para qué", tipo: "texto" },
             { id: "quien", nombre: "Quién la usa", tipo: "texto" },
-            { id: "conecta", nombre: "¿Se conecta?", tipo: "opciones", opciones: ["Sí", "No", "No sé"] },
+            {
+              id: "conecta",
+              nombre: "¿Se conecta?",
+              tipo: "opciones",
+              opciones: ["Sí", "No", "No sé"],
+            },
             { id: "coste", nombre: "€/mes aprox.", tipo: "numero" },
             { id: "claves", nombre: "Quién tiene las claves", tipo: "texto" },
           ]}
@@ -535,17 +758,50 @@ function Campo({
     case "costes_perfil":
       return <CostesPerfil valor={valor} poner={poner} />;
     case "elegir_tarjetas":
-      return <ElegirPrioridades etiqueta={etiqueta} procesos={procesos} ponerProcesos={ponerProcesos} poner={poner} max={c.max ?? 3} />;
+      return (
+        <ElegirPrioridades
+          etiqueta={etiqueta}
+          procesos={procesos}
+          ponerProcesos={ponerProcesos}
+          poner={poner}
+          max={c.max ?? 3}
+        />
+      );
     case "senales": {
-      const v = (valor ?? {}) as { decisor?: string; urgencia?: string; encaje?: string; riesgo?: string };
+      const v = (valor ?? {}) as {
+        decisor?: string;
+        urgencia?: string;
+        encaje?: string;
+        riesgo?: string;
+      };
       const escala = ["1", "2", "3", "4", "5"];
       return (
         <div className="space-y-4">
           <p className="text-small text-ork-text">Señales</p>
-          <Chips etiqueta="Decisor presente" opciones={["Sí", "No"]} valor={v.decisor} onCambio={(x) => poner({ ...v, decisor: x })} />
-          <Chips etiqueta="Urgencia real" opciones={escala} valor={v.urgencia} onCambio={(x) => poner({ ...v, urgencia: x })} />
-          <Chips etiqueta="Encaje" opciones={escala} valor={v.encaje} onCambio={(x) => poner({ ...v, encaje: x })} />
-          <Texto etiqueta="Riesgo principal" valor={v.riesgo ?? ""} filas={1} onGuardar={(x) => poner({ ...v, riesgo: x })} />
+          <Chips
+            etiqueta="Decisor presente"
+            opciones={["Sí", "No"]}
+            valor={v.decisor}
+            onCambio={(x) => poner({ ...v, decisor: x })}
+          />
+          <Chips
+            etiqueta="Urgencia real"
+            opciones={escala}
+            valor={v.urgencia}
+            onCambio={(x) => poner({ ...v, urgencia: x })}
+          />
+          <Chips
+            etiqueta="Encaje"
+            opciones={escala}
+            valor={v.encaje}
+            onCambio={(x) => poner({ ...v, encaje: x })}
+          />
+          <Texto
+            etiqueta="Riesgo principal"
+            valor={v.riesgo ?? ""}
+            filas={1}
+            onGuardar={(x) => poner({ ...v, riesgo: x })}
+          />
         </div>
       );
     }
@@ -576,7 +832,8 @@ function ListaFilas({
   poner: (v: Fila[]) => void;
 }) {
   const [filas, setFilas] = useState<Fila[]>(iniciales);
-  const cambiar = (i: number, k: string, v: string | number | null) => setFilas((f) => f.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
+  const cambiar = (i: number, k: string, v: string | number | null) =>
+    setFilas((f) => f.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
   const guardar = (f = filas) => poner(f);
   return (
     <div
@@ -588,7 +845,10 @@ function ListaFilas({
       {ayuda ? <p className="mb-2 text-small text-ork-text-faint">{ayuda}</p> : null}
       <div className="space-y-3">
         {filas.map((f, i) => (
-          <div key={i} className="grid gap-2 rounded-xl border border-ork-border p-3 sm:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))_auto]">
+          <div
+            key={i}
+            className="grid gap-2 rounded-xl border border-ork-border p-3 sm:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))_auto]"
+          >
             {columnas.map((col) =>
               col.tipo === "opciones" ? (
                 <select
@@ -610,12 +870,24 @@ function ListaFilas({
                   placeholder={col.nombre}
                   inputMode={col.tipo === "numero" ? "decimal" : undefined}
                   maxLength={200}
-                  value={f[col.id] === null || f[col.id] === undefined ? "" : String(f[col.id]).replace(".", col.tipo === "numero" ? "," : ".")}
+                  value={
+                    f[col.id] === null || f[col.id] === undefined
+                      ? ""
+                      : String(f[col.id]).replace(".", col.tipo === "numero" ? "," : ".")
+                  }
                   onChange={(e) => {
                     const t = e.target.value;
                     if (col.tipo !== "numero") return cambiar(i, col.id, t);
                     const n = Number(t.replace(",", "."));
-                    cambiar(i, col.id, t.trim() === "" ? null : Number.isFinite(n) && n >= 0 ? n : (f[col.id] as number | null));
+                    cambiar(
+                      i,
+                      col.id,
+                      t.trim() === ""
+                        ? null
+                        : Number.isFinite(n) && n >= 0
+                          ? n
+                          : (f[col.id] as number | null),
+                    );
                   }}
                   className={CAMPO + (col.tipo === "numero" ? " cifra" : "")}
                 />
@@ -653,7 +925,12 @@ function ListaFilas({
 
 /** Bloque C 🔒: coste por hora (JARVIS: se pregunta siempre y se guarda su origen). */
 function CostesPerfil({ valor, poner }: { valor: unknown; poner: (v: unknown) => void }) {
-  const v = (valor ?? {}) as { operativo?: number; tactico?: number; directivo?: number; origen?: "cliente" | "orientativo" };
+  const v = (valor ?? {}) as {
+    operativo?: number;
+    tactico?: number;
+    directivo?: number;
+    origen?: "cliente" | "orientativo";
+  };
   const perfiles = [
     ["operativo", "Operativo", 14],
     ["tactico", "Mando intermedio", 25],
@@ -675,7 +952,9 @@ function CostesPerfil({ valor, poner }: { valor: unknown; poner: (v: unknown) =>
           type="button"
           aria-pressed={v.origen === "orientativo"}
           className={BOTON + (v.origen === "orientativo" ? " border-ork-cyan text-ork-text" : "")}
-          onClick={() => poner({ operativo: 14, tactico: 25, directivo: 40, origen: "orientativo" })}
+          onClick={() =>
+            poner({ operativo: 14, tactico: 25, directivo: 40, origen: "orientativo" })
+          }
         >
           No lo sabe: orientativo 14 / 25 / 40 €
         </button>
@@ -689,7 +968,13 @@ function CostesPerfil({ valor, poner }: { valor: unknown; poner: (v: unknown) =>
               sufijo="€/h"
               placeholder={String(defecto)}
               valor={v[k] ?? null}
-              onGuardar={(n) => poner({ ...v, [k]: n, origen: v.origen === "orientativo" && n !== defecto ? "cliente" : v.origen })}
+              onGuardar={(n) =>
+                poner({
+                  ...v,
+                  [k]: n,
+                  origen: v.origen === "orientativo" && n !== defecto ? "cliente" : v.origen,
+                })
+              }
             />
           ))}
         </div>
@@ -714,15 +999,21 @@ function ElegirPrioridades({
   poner: (v: unknown) => void;
   max: number;
 }) {
-  const orden = procesos.filter((t) => t.prioridadCliente).sort((a, b) => a.prioridadCliente! - b.prioridadCliente!);
+  const orden = procesos
+    .filter((t) => t.prioridadCliente)
+    .sort((a, b) => a.prioridadCliente! - b.prioridadCliente!);
   const alternar = (id: string) => {
     let ids = orden.map((t) => t.id);
     ids = ids.includes(id) ? ids.filter((x) => x !== id) : ids.length < max ? [...ids, id] : ids;
-    const nuevas = procesos.map((t) => ({ ...t, prioridadCliente: ids.includes(t.id) ? ((ids.indexOf(t.id) + 1) as 1 | 2 | 3) : null }));
+    const nuevas = procesos.map((t) => ({
+      ...t,
+      prioridadCliente: ids.includes(t.id) ? ((ids.indexOf(t.id) + 1) as 1 | 2 | 3) : null,
+    }));
     ponerProcesos(nuevas);
     poner(ids);
   };
-  if (!procesos.length) return <p className="text-small">{etiqueta} Primero hacen falta tarjetas (bloque B).</p>;
+  if (!procesos.length)
+    return <p className="text-small">{etiqueta} Primero hacen falta tarjetas (bloque B).</p>;
   return (
     <div>
       <p className="mb-2 text-small text-ork-text">{etiqueta}</p>
@@ -735,7 +1026,9 @@ function ElegirPrioridades({
               onClick={() => alternar(t.id)}
               className={
                 "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors " +
-                (t.prioridadCliente ? "border-ork-cyan bg-ork-cyan/10 text-ork-text" : "border-ork-border text-ork-text-muted hover:text-ork-text")
+                (t.prioridadCliente
+                  ? "border-ork-cyan bg-ork-cyan/10 text-ork-text"
+                  : "border-ork-border text-ork-text-muted hover:text-ork-text")
               }
             >
               <span className="cifra flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-current font-display">
@@ -765,8 +1058,10 @@ function CerrarVisita({
 }) {
   const [confirmar, setConfirmar] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [error, setError] = useState<"coste" | "red" | null>(null);
+  const [error, setError] = useState<"coste" | "red" | "grabando" | null>(null);
+  const grabacion = useGrabacion();
   const cerrar = async () => {
+    if (grabacion.estado === "grabando") return setError("grabando");
     setEnviando(true);
     setError(null);
     try {
@@ -788,9 +1083,16 @@ function CerrarVisita({
     <section className="rounded-2xl border border-ork-border bg-ork-surface-1/85 p-5">
       {confirmar ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-ork-text">Al cerrar ya no se puede editar y se avisa para preparar el mapa.</p>
+          <p className="text-ork-text">
+            Al cerrar ya no se puede editar y se avisa para preparar el mapa.
+          </p>
           <div className="flex gap-2">
-            <button type="button" className={BOTON} onClick={() => setConfirmar(false)} disabled={enviando}>
+            <button
+              type="button"
+              className={BOTON}
+              onClick={() => setConfirmar(false)}
+              disabled={enviando}
+            >
               Volver
             </button>
             <button type="button" className={BOTON_PRIMARIO} onClick={cerrar} disabled={enviando}>
@@ -811,9 +1113,15 @@ function CerrarVisita({
           </button>
         </p>
       ) : null}
+      {error === "grabando" ? (
+        <p role="alert" className="mt-3 text-small text-[#f5c46b]">
+          Para la grabación antes de cerrar (botón «Grabando» de arriba).
+        </p>
+      ) : null}
       {error === "red" ? (
         <p role="alert" className="mt-3 text-small text-[#ff8a8e]">
-          No se ha podido cerrar: hay cambios sin enviar o no hay conexión. Lo tienes todo guardado en este dispositivo; vuelve a intentarlo.
+          No se ha podido cerrar: hay cambios sin enviar o no hay conexión. Lo tienes todo guardado
+          en este dispositivo; vuelve a intentarlo.
         </p>
       ) : null}
     </section>
@@ -837,10 +1145,15 @@ function Cierre({
         .sort((a, b) => (b.h ?? -1) - (a.h ?? -1)),
     [procesos, datos.sector],
   );
-  const prioridades = procesos.filter((t) => t.prioridadCliente).sort((a, b) => a.prioridadCliente! - b.prioridadCliente!);
+  const prioridades = procesos
+    .filter((t) => t.prioridadCliente)
+    .sort((a, b) => a.prioridadCliente! - b.prioridadCliente!);
   return (
     <div className="relative min-h-dvh">
-      <Orkestador intensidad="tenue" className="pointer-events-none fixed -right-28 bottom-0 h-[60vh] opacity-70 md:right-[4%]" />
+      <Orkestador
+        intensidad="tenue"
+        className="pointer-events-none fixed -right-28 bottom-0 h-[60vh] opacity-70 md:right-[4%]"
+      />
       <main className="relative mx-auto max-w-3xl space-y-10 px-4 py-12">
         <div>
           <Marca className="text-body-lg" />
@@ -849,7 +1162,9 @@ function Cierre({
         <h1 className="font-display text-h2 text-ork-text">Esto es lo que nos llevamos</h1>
 
         <section>
-          <h2 className="mb-3 font-mono text-[0.72rem] uppercase tracking-[0.14em] text-ork-cyan">Lo que os ocupa hoy</h2>
+          <h2 className="mb-3 font-mono text-[0.72rem] uppercase tracking-[0.14em] text-ork-cyan">
+            Lo que os ocupa hoy
+          </h2>
           <ul className="divide-y divide-ork-border rounded-2xl border border-ork-border bg-ork-surface-1/85">
             {conHoras.map(({ t, h }) => (
               <li key={t.id} className="flex items-center justify-between gap-4 px-5 py-4">
@@ -864,7 +1179,9 @@ function Cierre({
 
         {prioridades.length ? (
           <section>
-            <h2 className="mb-3 font-mono text-[0.72rem] uppercase tracking-[0.14em] text-ork-cyan">Lo primero que quieres resolver</h2>
+            <h2 className="mb-3 font-mono text-[0.72rem] uppercase tracking-[0.14em] text-ork-cyan">
+              Lo primero que quieres resolver
+            </h2>
             <ol className="space-y-2">
               {prioridades.map((t) => (
                 <li key={t.id} className="flex items-center gap-3 text-body-lg text-ork-text">
@@ -882,7 +1199,10 @@ function Cierre({
           Tu mapa llegará el <span className="text-ork-cyan-hi">{fechaLarga(entrega)}</span>.
         </p>
 
-        <Link href="/admin" className="inline-block text-small text-ork-text-faint hover:text-ork-text">
+        <Link
+          href="/admin"
+          className="inline-block text-small text-ork-text-faint hover:text-ork-text"
+        >
           Volver al panel
         </Link>
       </main>

@@ -24,14 +24,21 @@ export const metadata: Metadata = {
 export default async function PaginaVisita({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) notFound();
-  const { data: d } = await supabaseAdmin().from("diagnosticos").select(COLUMNAS_VISITA).eq("id", id).maybeSingle();
+  const { data: d } = await supabaseAdmin()
+    .from("diagnosticos")
+    .select(COLUMNAS_VISITA)
+    .eq("id", id)
+    .maybeSingle();
   if (!d) notFound();
 
   const sector = d.sector as SectorId;
   const previo = (d.respuestas_previo ?? {}) as Respuestas;
   // "Lo que nos contaste": solo lo que respondió, con su texto, para poder corregirlo delante de él.
   const contado = pasosPrevio(sector, previo)
-    .filter(({ pregunta: p }) => previo[p.id] !== undefined && previo[p.id] !== null && previo[p.id] !== "")
+    .filter(
+      ({ pregunta: p }) =>
+        previo[p.id] !== undefined && previo[p.id] !== null && previo[p.id] !== "",
+    )
     .map(({ pregunta: p }) => ({
       id: p.id,
       texto: p.texto,
@@ -40,7 +47,9 @@ export default async function PaginaVisita({ params }: { params: Promise<{ id: s
       opciones: p.tipo === "si_no" ? ["Sí", "No"] : (p.opciones ?? []).map((o) => o.etiqueta),
       max: p.maxSeleccion ?? null,
       cual: Object.fromEntries(
-        Object.entries(previo).filter(([k]) => k.startsWith(`${p.id}::`)).map(([k, v]) => [k.split("::")[1], String(v ?? "")]),
+        Object.entries(previo)
+          .filter(([k]) => k.startsWith(`${p.id}::`))
+          .map(([k, v]) => [k.split("::")[1], String(v ?? "")]),
       ),
     }));
 

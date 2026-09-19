@@ -35,7 +35,10 @@ interface Reconocimiento {
 
 function crearReconocimiento(): Reconocimiento | null {
   if (typeof window === "undefined") return null;
-  const w = window as unknown as { SpeechRecognition?: new () => Reconocimiento; webkitSpeechRecognition?: new () => Reconocimiento };
+  const w = window as unknown as {
+    SpeechRecognition?: new () => Reconocimiento;
+    webkitSpeechRecognition?: new () => Reconocimiento;
+  };
   const C = w.SpeechRecognition ?? w.webkitSpeechRecognition;
   return C ? new C() : null;
 }
@@ -63,7 +66,10 @@ function BotonDictado({ onTexto }: { onTexto: (t: string) => void }) {
         r.interimResults = false;
         r.continuous = false;
         r.onresult = (e) => {
-          const t = Array.from(e.results).map((x) => x[0].transcript).join(" ").trim();
+          const t = Array.from(e.results)
+            .map((x) => x[0].transcript)
+            .join(" ")
+            .trim();
           if (t) onTexto(t);
         };
         r.onend = () => setEscuchando(false);
@@ -74,14 +80,41 @@ function BotonDictado({ onTexto }: { onTexto: (t: string) => void }) {
       }}
       className={
         "absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full border " +
-        (escuchando ? "border-[#e5484d] text-[#ff8a8e]" : "border-ork-border-hi text-ork-text-muted hover:text-ork-text")
+        (escuchando
+          ? "border-[#e5484d] text-[#ff8a8e]"
+          : "border-ork-border-hi text-ork-text-muted hover:text-ork-text")
       }
     >
-      <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <svg
+        aria-hidden="true"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      >
         <rect x="9" y="3" width="6" height="11" rx="3" />
         <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
       </svg>
     </button>
+  );
+}
+
+/**
+ * La vista privada se cierra sola (20 s) y desmonta los campos sin que pierdan el foco: sin esto,
+ * lo último escrito se perdería. Guarda al desmontarse si el valor ha cambiado.
+ */
+function useGuardarAlDesmontar<T>(actual: T, guardado: T, guardar: (v: T) => void) {
+  const ref = useRef({ actual, guardado, guardar });
+  ref.current = { actual, guardado, guardar };
+  useEffect(
+    () => () => {
+      const { actual: a, guardado: g, guardar: f } = ref.current;
+      if (a !== g) f(a);
+    },
+    [],
   );
 }
 
@@ -104,6 +137,7 @@ export function Texto({
   const id = useId();
   const [t, setT] = useState(valor);
   useEffect(() => setT(valor), [valor]);
+  useGuardarAlDesmontar(t, valor, onGuardar);
   return (
     <div>
       <Etiqueta htmlFor={id}>{etiqueta}</Etiqueta>
@@ -158,10 +192,14 @@ export function Numero({
   const id = useId();
   const [t, setT] = useState(valor === null ? "" : String(valor).replace(".", ","));
   useEffect(() => setT(valor === null ? "" : String(valor).replace(".", ",")), [valor]);
+  const leer = (x: string) => (x.trim() === "" ? null : Number(x.replace(",", ".")));
+  const valido = (n: number | null) => n === null || (Number.isFinite(n) && n >= 0);
   const guardar = () => {
-    const n = t.trim() === "" ? null : Number(t.replace(",", "."));
-    if (n === null || (Number.isFinite(n) && n >= 0)) onGuardar(n);
+    const n = leer(t);
+    if (valido(n)) onGuardar(n);
   };
+  const n = leer(t);
+  useGuardarAlDesmontar(n, valor, (x) => valido(x) && onGuardar(x));
   return (
     <div>
       <Etiqueta htmlFor={id}>{etiqueta}</Etiqueta>
@@ -200,7 +238,11 @@ export function Chips({
   return (
     <div>
       {etiqueta ? <p className="mb-1.5 text-small text-ork-text">{etiqueta}</p> : null}
-      <div role={multi ? "group" : "radiogroup"} aria-label={etiqueta} className="flex flex-wrap gap-2">
+      <div
+        role={multi ? "group" : "radiogroup"}
+        aria-label={etiqueta}
+        className="flex flex-wrap gap-2"
+      >
         {opciones.map((o) => {
           const si = elegidos.includes(o);
           const lleno = multi && !!max && elegidos.length >= max && !si;
@@ -217,7 +259,9 @@ export function Chips({
               }}
               className={
                 "min-h-10 rounded-full border px-3.5 py-1.5 text-small transition-colors disabled:opacity-40 " +
-                (si ? "border-ork-cyan-hi bg-ork-cyan/15 text-ork-text" : "border-ork-border-hi text-ork-text-muted hover:text-ork-text")
+                (si
+                  ? "border-ork-cyan-hi bg-ork-cyan/15 text-ork-text"
+                  : "border-ork-border-hi text-ork-text-muted hover:text-ork-text")
               }
             >
               {o}

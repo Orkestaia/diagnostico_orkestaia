@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { exigirTokenJarvis } from "@/lib/acceso";
-import { COLUMNAS_EXPORT, exportJson, exportMarkdown, nombreArchivo, type FilaExport } from "@/lib/exportar";
+import {
+  COLUMNAS_EXPORT,
+  exportJson,
+  exportMarkdown,
+  nombreArchivo,
+  type FilaExport,
+} from "@/lib/exportar";
 import { supabaseAdmin } from "@/lib/supabase";
 
 /**
@@ -11,13 +17,24 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const denegado = exigirTokenJarvis(req);
   if (denegado) return denegado;
   const { id } = await params;
-  if (!z.string().uuid().safeParse(id).success) return Response.json({ error: "Id no válido" }, { status: 400 });
+  if (!z.string().uuid().safeParse(id).success)
+    return Response.json({ error: "Id no válido" }, { status: 400 });
   const formato = new URL(req.url).searchParams.get("formato") ?? "md";
-  if (formato !== "md" && formato !== "json") return Response.json({ error: "formato: md o json" }, { status: 400 });
+  if (formato !== "md" && formato !== "json")
+    return Response.json({ error: "formato: md o json" }, { status: 400 });
 
-  const { data, error } = await supabaseAdmin().from("diagnosticos").select(COLUMNAS_EXPORT).eq("id", id).maybeSingle();
+  const { data, error } = await supabaseAdmin()
+    .from("diagnosticos")
+    .select(COLUMNAS_EXPORT)
+    .eq("id", id)
+    .maybeSingle();
   if (error || !data) return Response.json({ error: "No encontrado" }, { status: 404 });
-  const fila = data as unknown as FilaExport;
+  const { data: grabacion } = await supabaseAdmin()
+    .from("diagnostico_grabaciones")
+    .select("orden, duracion_s, estado, texto")
+    .eq("diagnostico_id", id)
+    .order("orden");
+  const fila = { ...(data as unknown as FilaExport), transcripcion: grabacion ?? [] };
   const hoy = new Date().toISOString().slice(0, 10);
   const cabeceras = { "Cache-Control": "no-store" };
 

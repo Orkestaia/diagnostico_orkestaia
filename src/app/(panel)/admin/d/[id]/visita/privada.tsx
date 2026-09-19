@@ -18,7 +18,11 @@ export const MS_INACTIVIDAD = 20000;
 interface Ctx {
   activa: boolean;
   datos: PrivadoVisita | null;
-  interno: { hipotesis?: { hipotesis: string; basada_en?: string }[]; preguntas_visita?: string[]; alertas?: string[] } | null;
+  interno: {
+    hipotesis?: { hipotesis: string; basada_en?: string }[];
+    preguntas_visita?: string[];
+    alertas?: string[];
+  } | null;
   entrar: () => Promise<void>;
   salir: () => void;
   campo: (id: string) => unknown;
@@ -48,8 +52,11 @@ export function VistaPrivada({
   const [datos, setDatos] = useState<PrivadoVisita | null>(null);
   const [interno, setInterno] = useState<Ctx["interno"]>(null);
   const reloj = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Los campos guardan al desmontarse (al salir): eso va a la cola, no de vuelta a la memoria.
+  const activaRef = useRef(false);
 
   const salir = useCallback(() => {
+    activaRef.current = false;
     setActiva(false);
     setDatos(null);
     setInterno(null);
@@ -72,6 +79,7 @@ export function VistaPrivada({
       // Sin conexión: se entra con lo vacío; lo que se escriba se guarda en la cola igualmente.
       setDatos({});
     }
+    activaRef.current = true;
     setActiva(true);
     rearmar();
   }, [id, rearmar]);
@@ -98,7 +106,7 @@ export function VistaPrivada({
   const campo = useCallback((cid: string) => datos?.campos?.[cid], [datos]);
   const ponerCampo = useCallback(
     (cid: string, v: unknown) => {
-      setDatos((d) => ({ ...d, campos: { ...d?.campos, [cid]: v } }));
+      if (activaRef.current) setDatos((d) => ({ ...d, campos: { ...d?.campos, [cid]: v } }));
       encolar({ privado_campos: { [cid]: v } });
     },
     [encolar],
@@ -106,14 +114,20 @@ export function VistaPrivada({
   const tarjeta = useCallback((tid: string) => datos?.procesos?.[tid] ?? {}, [datos]);
   const ponerTarjeta = useCallback(
     (tid: string, v: Partial<TarjetaPrivada>) => {
-      setDatos((d) => ({ ...d, procesos: { ...d?.procesos, [tid]: { ...d?.procesos?.[tid], ...v } } }));
+      if (activaRef.current)
+        setDatos((d) => ({
+          ...d,
+          procesos: { ...d?.procesos, [tid]: { ...d?.procesos?.[tid], ...v } },
+        }));
       encolar({ privado_procesos: { [tid]: v } });
     },
     [encolar],
   );
 
   return (
-    <Contexto.Provider value={{ activa, datos, interno, entrar, salir, campo, ponerCampo, tarjeta, ponerTarjeta }}>
+    <Contexto.Provider
+      value={{ activa, datos, interno, entrar, salir, campo, ponerCampo, tarjeta, ponerTarjeta }}
+    >
       {children}
     </Contexto.Provider>
   );
@@ -125,7 +139,9 @@ export function SoloPrivado({ children }: { children: React.ReactNode }) {
   if (!activa) return null;
   return (
     <div className="rounded-xl border border-dashed border-ork-violet/70 bg-ork-violet/[0.06] p-4">
-      <p className="mb-3 font-mono text-[0.7rem] uppercase tracking-[0.14em] text-[#b58cf0]">Privado · no lo ve el cliente</p>
+      <p className="mb-3 font-mono text-[0.7rem] uppercase tracking-[0.14em] text-[#b58cf0]">
+        Privado · no lo ve el cliente
+      </p>
       {children}
     </div>
   );
@@ -184,11 +200,20 @@ export function BotonCandado() {
       onClick={() => activa && Date.now() - abiertoEn.current > 800 && salir()}
       className={
         "relative flex h-10 items-center gap-2 rounded-full border px-3 text-small transition-colors select-none " +
-        (activa ? "border-ork-violet bg-ork-violet/15 text-ork-text" : "border-ork-border-hi text-ork-text-muted hover:text-ork-text")
+        (activa
+          ? "border-ork-violet bg-ork-violet/15 text-ork-text"
+          : "border-ork-border-hi text-ork-text-muted hover:text-ork-text")
       }
     >
       <svg aria-hidden="true" width="34" height="34" viewBox="0 0 34 34" className="-ml-2">
-        <circle cx="17" cy="17" r={r} fill="none" stroke="var(--color-ork-border-hi)" strokeWidth="2" />
+        <circle
+          cx="17"
+          cy="17"
+          r={r}
+          fill="none"
+          stroke="var(--color-ork-border-hi)"
+          strokeWidth="2"
+        />
         <circle
           cx="17"
           cy="17"

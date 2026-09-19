@@ -13,7 +13,15 @@ import type { Respuestas, SectorId } from "@/config/tipos";
 import { hoyHorasMes, redondearHoras, type CalculoTarjeta, type CalculoVisita } from "./calculo";
 import { indicePreguntas } from "./preguntas";
 import { pasosPrevio } from "./previo";
-import { claveExtra, type PrivadoVisita, type RespuestasVisita } from "./visita";
+import { claveExtra, ID_NOTAS, type PrivadoVisita, type RespuestasVisita } from "./visita";
+
+/** Fragmento de la grabación de la visita (tabla `diagnostico_grabaciones`). */
+export interface FragmentoTranscripcion {
+  orden: number;
+  duracion_s: number | null;
+  estado: string;
+  texto: string | null;
+}
 
 export interface FilaExport {
   id: string;
@@ -33,18 +41,28 @@ export interface FilaExport {
   respuestas_visita: RespuestasVisita | null;
   procesos: TarjetaProceso[] | null;
   privado: PrivadoVisita | null;
-  interno: { hipotesis?: { hipotesis: string; basada_en?: string }[]; preguntas_visita?: string[]; alertas?: string[] } | null;
+  interno: {
+    hipotesis?: { hipotesis: string; basada_en?: string }[];
+    preguntas_visita?: string[];
+    alertas?: string[];
+  } | null;
   informe: Record<string, unknown> | null;
   calculo: (CalculoVisita & { coste_origen?: string; calculado_at?: string }) | null;
   previo_completado_at: string | null;
   visita_cerrada_at: string | null;
+  /** No es columna de `diagnosticos`: la ruta la añade desde `diagnostico_grabaciones`. */
+  transcripcion?: FragmentoTranscripcion[];
 }
 
 export const COLUMNAS_EXPORT =
   "id, estado, sector, subsector, tipo_negocio, empresa, contacto_nombre, web, origen, fecha_reunion, hora_reunion, lugar_reunion, config_version, respuestas_previo, respuestas_visita, procesos, privado, interno, informe, calculo, previo_completado_at, visita_cerrada_at";
 
 /** `YYYY-MM-DD_diagnostico-app_raw.md` con la fecha de la visita (o la de la reunión, o hoy). */
-export function nombreArchivo(f: Pick<FilaExport, "visita_cerrada_at" | "fecha_reunion">, hoyISO: string, ext = "md") {
+export function nombreArchivo(
+  f: Pick<FilaExport, "visita_cerrada_at" | "fecha_reunion">,
+  hoyISO: string,
+  ext = "md",
+) {
   const fecha = (f.visita_cerrada_at ?? f.fecha_reunion ?? hoyISO).slice(0, 10);
   return `${fecha}_diagnostico-app_raw.${ext}`;
 }
@@ -75,7 +93,10 @@ function previoLegible(sector: SectorId, r: Respuestas, correcciones: Respuestas
   const lineas: string[] = [];
   // En el orden en que se preguntaron; lo que no esté en el recorrido actual, al final.
   const orden = pasosPrevio(sector, r).map((x) => x.pregunta.id);
-  const ids = [...orden.filter((id) => id in r), ...Object.keys(r).filter((id) => !orden.includes(id))];
+  const ids = [
+    ...orden.filter((id) => id in r),
+    ...Object.keys(r).filter((id) => !orden.includes(id)),
+  ];
   for (const id of ids) {
     const v = r[id];
     if (id.includes("::")) continue;
@@ -85,16 +106,25 @@ function previoLegible(sector: SectorId, r: Respuestas, correcciones: Respuestas
       .map(([k, x]) => `${k.split("::")[1]}: ${valorLegible(x)}`);
     let linea = `- **${p?.texto ?? id}** (\`${id}\`): ${valorLegible(v)}`;
     if (cuales.length) linea += ` (${cuales.join("; ")})`;
-    if (id in correcciones) linea += ` → **corregido en la visita:** ${valorLegible(correcciones[id])}`;
+    if (id in correcciones)
+      linea += ` → **corregido en la visita:** ${valorLegible(correcciones[id])}`;
     lineas.push(linea);
   }
   for (const [id, v] of Object.entries(correcciones)) {
-    if (!(id in r)) lineas.push(`- **${indice.get(id)?.texto ?? id}** (\`${id}\`): añadido en la visita: ${valorLegible(v)}`);
+    if (!(id in r))
+      lineas.push(
+        `- **${indice.get(id)?.texto ?? id}** (\`${id}\`): añadido en la visita: ${valorLegible(v)}`,
+      );
   }
   return lineas;
 }
 
-function tarjetaMd(t: TarjetaProceso, priv: PrivadoVisita["procesos"], calc: CalculoTarjeta | undefined, sector: SectorId): string[] {
+function tarjetaMd(
+  t: TarjetaProceso,
+  priv: PrivadoVisita["procesos"],
+  calc: CalculoTarjeta | undefined,
+  sector: SectorId,
+): string[] {
   const periodo = PERIODOS.find((p) => p.id === t.volumenPeriodo)?.etiqueta ?? t.volumenPeriodo;
   const hoy = t.hoyRegistro?.horasMes ?? hoyHorasMes(t, sector);
   const p = priv?.[t.id] ?? {};
@@ -107,19 +137,35 @@ function tarjetaMd(t: TarjetaProceso, priv: PrivadoVisita["procesos"], calc: Cal
   fila("Área", t.area);
   fila("Plantilla", t.plantilla);
   if (t.rapida) fila("Tipo", "tarjeta rápida (solo nombre, volumen y minutos)");
-  fila("Datos de volumen y minutos", t.origenDatos === "previo" ? "precargados del previo" : "acordados en la visita");
-  if (t.volumen !== null) fila("Volumen", `${valorLegible(t.volumen)}${t.volumenUnidad ? ` ${t.volumenUnidad}` : ""} al ${periodo}`);
+  fila(
+    "Datos de volumen y minutos",
+    t.origenDatos === "previo" ? "precargados del previo" : "acordados en la visita",
+  );
+  if (t.volumen !== null)
+    fila(
+      "Volumen",
+      `${valorLegible(t.volumen)}${t.volumenUnidad ? ` ${t.volumenUnidad}` : ""} al ${periodo}`,
+    );
   fila("Minutos cada vez", t.minutosPorVez);
   if (t.hoyRegistro) {
-    fila("Horas al mes hoy (registro fijo)", `${h(t.hoyRegistro.horasMes)} (${t.hoyRegistro.horasMes} sin redondear) · ${t.hoyRegistro.fecha} · origen ${t.hoyRegistro.origen}`);
+    fila(
+      "Horas al mes hoy (registro fijo)",
+      `${h(t.hoyRegistro.horasMes)} (${t.hoyRegistro.horasMes} sin redondear) · ${t.hoyRegistro.fecha} · origen ${t.hoyRegistro.origen}`,
+    );
   } else if (hoy !== null) {
     fila("Horas al mes hoy (calculado, visita sin cerrar)", h(hoy));
   }
   fila("Qué lo pone en marcha", t.disparador);
-  fila("Quién", t.quien ? `${t.quien}${t.quienPersonas ? ` (${t.quienPersonas} personas)` : ""}` : null);
+  fila(
+    "Quién",
+    t.quien ? `${t.quien}${t.quienPersonas ? ` (${t.quienPersonas} personas)` : ""}` : null,
+  );
   fila("Herramientas", t.herramientas);
   fila("Dónde se atasca", t.atasco);
-  fila("Errores", t.errores ? `${t.errores}${t.erroresEjemplo ? `: ${t.erroresEjemplo}` : ""}` : null);
+  fila(
+    "Errores",
+    t.errores ? `${t.errores}${t.erroresEjemplo ? `: ${t.erroresEjemplo}` : ""}` : null,
+  );
   fila("Frase literal del cliente", t.cita ? `"${t.cita}"` : null);
   fila("Lo enseñó (visto)", t.visto);
   fila("Prioridad del cliente", t.prioridadCliente);
@@ -156,8 +202,13 @@ export function exportMarkdown(f: FilaExport, hoyISO: string): string {
   const l: string[] = [];
 
   l.push(`# Diagnóstico ${f.empresa} — datos en bruto de la app`, "");
-  l.push(`> Generado por la app de diagnóstico el ${hoyISO}. Archivo sugerido: \`${nombreArchivo(f, hoyISO)}\`.`);
-  l.push("> Documento interno: incluye notas privadas. Las cifras salen de `calculo` (banco v1); no se recalculan a mano.", "");
+  l.push(
+    `> Generado por la app de diagnóstico el ${hoyISO}. Archivo sugerido: \`${nombreArchivo(f, hoyISO)}\`.`,
+  );
+  l.push(
+    "> Documento interno: incluye notas privadas. Las cifras salen de `calculo` (banco v1); no se recalculan a mano.",
+    "",
+  );
   l.push("## Ficha", "");
   const ficha: [string, unknown][] = [
     ["Empresa", f.empresa],
@@ -166,7 +217,10 @@ export function exportMarkdown(f: FilaExport, hoyISO: string): string {
     ["Sector", f.subsector ? `${f.sector} (${f.subsector})` : f.sector],
     ["Web", f.web],
     ["Origen", f.origen],
-    ["Reunión", [f.fecha_reunion, f.hora_reunion?.slice(0, 5), f.lugar_reunion].filter(Boolean).join(" · ")],
+    [
+      "Reunión",
+      [f.fecha_reunion, f.hora_reunion?.slice(0, 5), f.lugar_reunion].filter(Boolean).join(" · "),
+    ],
     ["Estado", f.estado],
     ["Previo completado", f.previo_completado_at],
     ["Visita iniciada", rv.inicio_at],
@@ -182,7 +236,7 @@ export function exportMarkdown(f: FilaExport, hoyISO: string): string {
   l.push(...(previo.length ? previo : ["Sin respuestas."]), "");
   const inf = f.informe as { resumen_entendido?: string[]; temas_reunion?: string[] } | null;
   if (inf?.resumen_entendido?.length) {
-    l.push("**Lo que le enseñamos al terminar (\"lo que he entendido\"):**", "");
+    l.push('**Lo que le enseñamos al terminar ("lo que he entendido"):**', "");
     for (const x of inf.resumen_entendido) l.push(`- ${x}`);
     l.push("");
   }
@@ -193,7 +247,8 @@ export function exportMarkdown(f: FilaExport, hoyISO: string): string {
   }
   if (f.interno) {
     l.push("**Preparación del motor (interno):**", "");
-    for (const x of f.interno.hipotesis ?? []) l.push(`- Hipótesis: ${x.hipotesis}${x.basada_en ? ` (basada en: ${x.basada_en})` : ""}`);
+    for (const x of f.interno.hipotesis ?? [])
+      l.push(`- Hipótesis: ${x.hipotesis}${x.basada_en ? ` (basada en: ${x.basada_en})` : ""}`);
     for (const x of f.interno.preguntas_visita ?? []) l.push(`- Pregunta para la visita: ${x}`);
     for (const x of f.interno.alertas ?? []) l.push(`- Alerta: ${x}`);
     l.push("");
@@ -211,25 +266,40 @@ export function exportMarkdown(f: FilaExport, hoyISO: string): string {
     const campos = CAMPOS_VISITA.filter((c) => c.bloque === b).map((c) => ({
       texto: c.texto,
       privado: c.privado,
-      valor: c.id === "e.prioridades" ? idsANombres(rv.campos?.[c.id], procesos) : (c.privado ? pr.campos : rv.campos)?.[c.id],
+      valor:
+        c.id === "e.prioridades"
+          ? idsANombres(rv.campos?.[c.id], procesos)
+          : (c.privado ? pr.campos : rv.campos)?.[c.id],
     }));
     if (b === "A") {
       for (const e of EXTRAS_BLOQUE_A[f.sector]) {
-        campos.push({ texto: e.texto, privado: e.privado, valor: (e.privado ? pr.campos : rv.campos)?.[claveExtra(e.texto)] });
+        campos.push({
+          texto: e.texto,
+          privado: e.privado,
+          valor: (e.privado ? pr.campos : rv.campos)?.[claveExtra(e.texto)],
+        });
       }
     }
     const con = campos.filter((c) => valorLegible(c.valor) !== "—");
     if (!con.length) l.push("Sin datos.");
-    for (const c of con) l.push(`- **${c.texto}**${c.privado ? " _(privado)_" : ""}: ${valorLegible(c.valor)}`);
+    for (const c of con)
+      l.push(`- **${c.texto}**${c.privado ? " _(privado)_" : ""}: ${valorLegible(c.valor)}`);
     l.push("");
   }
 
   l.push(`## 3. Procesos (${procesos.length})`, "");
   if (!procesos.length) l.push("Sin tarjetas.", "");
   const orden = [...procesos].sort(
-    (a, b) => (b.hoyRegistro?.horasMes ?? hoyHorasMes(b, f.sector) ?? -1) - (a.hoyRegistro?.horasMes ?? hoyHorasMes(a, f.sector) ?? -1),
+    (a, b) =>
+      (b.hoyRegistro?.horasMes ?? hoyHorasMes(b, f.sector) ?? -1) -
+      (a.hoyRegistro?.horasMes ?? hoyHorasMes(a, f.sector) ?? -1),
   );
   for (const t of orden) l.push(...tarjetaMd(t, pr.procesos, calcPorId.get(t.id), f.sector));
+
+  const notas = pr.campos?.[ID_NOTAS];
+  if (typeof notas === "string" && notas.trim()) {
+    l.push("## Notas de Aitor durante la visita (privado)", "", notas.trim(), "");
+  }
 
   l.push("## 4. Cálculo", "");
   if (!f.calculo) {
@@ -238,12 +308,49 @@ export function exportMarkdown(f: FilaExport, hoyISO: string): string {
     const c = f.calculo;
     l.push(`- **Horas al mes hoy (total):** ${h(c.totalHoyHorasMes)}`);
     l.push(`- **Ahorro central (total, tras tope):** ${h(c.totalAhorroCentral)}`);
-    l.push(`- **Coste por hora:** operativo ${c.costes.operativo} € · mando intermedio ${c.costes.tactico} € · dirección ${c.costes.directivo} € (${c.coste_origen === "cliente" ? "dato del cliente" : "orientativo del banco"})`);
-    if (c.personas !== null) l.push(`- **Personas:** ${c.personas}${c.topeHorasMes !== null ? ` · tope ${h(c.topeHorasMes)} al mes${c.ajustadoPorTope ? " (aplicado)" : ""}` : ""}`);
+    l.push(
+      `- **Coste por hora:** operativo ${c.costes.operativo} € · mando intermedio ${c.costes.tactico} € · dirección ${c.costes.directivo} € (${c.coste_origen === "cliente" ? "dato del cliente" : "orientativo del banco"})`,
+    );
+    if (c.personas !== null)
+      l.push(
+        `- **Personas:** ${c.personas}${c.topeHorasMes !== null ? ` · tope ${h(c.topeHorasMes)} al mes${c.ajustadoPorTope ? " (aplicado)" : ""}` : ""}`,
+      );
     if (c.calculado_at) l.push(`- **Calculado:** ${c.calculado_at} (${c.version})`);
     l.push("");
   }
+  l.push(...transcripcionMd(f.transcripcion ?? []));
   return l.join("\n");
+}
+
+const marca = (s: number) =>
+  [Math.floor(s / 3600), Math.floor((s % 3600) / 60), Math.floor(s % 60)]
+    .map((x) => String(x).padStart(2, "0"))
+    .join(":");
+
+/**
+ * Transcripción de la grabación, fragmento a fragmento con la hora desde el inicio. Los que
+ * aún no tienen texto se marcan: JARVIS sabe que falta un trozo en vez de creer que no se habló.
+ */
+export function transcripcionMd(fragmentos: FragmentoTranscripcion[]): string[] {
+  if (!fragmentos.length) return [];
+  const orden = [...fragmentos].sort((a, b) => a.orden - b.orden);
+  const inicio = orden[0].orden;
+  const l = ["## 5. Transcripción de la reunión", ""];
+  l.push(
+    "> Transcripción automática (OpenAI). Puede tener errores en nombres y cifras: manda lo anotado en las tarjetas.",
+    "",
+  );
+  for (const f of orden) {
+    const desde = marca((f.orden - inicio) / 1000);
+    if (f.estado === "transcrito" && f.texto) l.push(`**[${desde}]** ${f.texto}`, "");
+    else if (f.estado === "transcrito") l.push(`**[${desde}]** _(sin voz en este fragmento)_`, "");
+    else
+      l.push(
+        `**[${desde}]** _(fragmento de ${Math.round((f.duracion_s ?? 0) / 60)} min todavía sin transcribir: ${f.estado})_`,
+        "",
+      );
+  }
+  return l;
 }
 
 function idsANombres(v: unknown, procesos: TarjetaProceso[]): unknown {
@@ -280,5 +387,6 @@ export function exportJson(f: FilaExport, hoyISO: string) {
     procesos: f.procesos ?? [],
     privado: f.privado ?? {},
     calculo: f.calculo ?? null,
+    transcripcion: f.transcripcion ?? [],
   };
 }

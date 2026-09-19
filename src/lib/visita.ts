@@ -65,11 +65,15 @@ export interface ParcheVisita {
 /** Clave de un extra del bloque A (batería §3): `extra:<texto>`. */
 export const claveExtra = (texto: string) => `extra:${texto}`;
 
+/** Notas libres de Aitor durante la visita (🔒). No son de la batería. */
+export const ID_NOTAS = "x.notas";
+
 export function idsCampos(sector: SectorId): { visibles: Set<string>; privados: Set<string> } {
   const visibles = new Set<string>();
   const privados = new Set<string>();
   for (const c of CAMPOS_VISITA) (c.privado ? privados : visibles).add(c.id);
   for (const e of EXTRAS_BLOQUE_A[sector]) (e.privado ? privados : visibles).add(claveExtra(e.texto));
+  privados.add(ID_NOTAS);
   return { visibles, privados };
 }
 

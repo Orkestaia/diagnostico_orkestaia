@@ -10,7 +10,7 @@ Contexto, reglas y documentos de referencia: ver `CLAUDE.md`.
 1. `npm install`
 2. `cp .env.example .env.local` y rellenar (ver comentarios del archivo).
 3. Base de datos: ejecutar `supabase/diagnostico-v1-ddl.sql` en el editor SQL de Supabase
-   (`ORKESTA_OPS_2026`).
+   (`ORKESTA_OPS_2026`), y después `diagnostico-v2-ddl.sql` y `diagnostico-v3-ddl.sql` (grabación).
 4. `npm run dev` → http://localhost:3000/admin
 
 ## Visita (modo consultor)
