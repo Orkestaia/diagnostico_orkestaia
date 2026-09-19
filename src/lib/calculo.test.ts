@@ -43,6 +43,9 @@ function tarjeta(p: Partial<TarjetaProceso>): TarjetaProceso {
     cita: "",
     visto: false,
     prioridadCliente: null,
+    rapida: false,
+    origenDatos: "visita",
+    hoyRegistro: null,
     ...p,
   };
 }

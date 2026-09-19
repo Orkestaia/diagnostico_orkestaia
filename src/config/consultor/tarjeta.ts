@@ -69,6 +69,18 @@ export interface TarjetaProceso {
   cita: string;
   visto: boolean;
   prioridadCliente: 1 | 2 | 3 | null;
+  /** "Tarjeta rápida" (JARVIS, 19-sep): solo nombre, volumen y minutos; se completa si hay tiempo. */
+  rapida: boolean;
+  /**
+   * De dónde salen volumen y minutos: precargados del previo o acordados en la visita.
+   * Pasa a "visita" en cuanto Aitor los toca delante del cliente.
+   */
+  origenDatos: "previo" | "visita";
+  /**
+   * Registro FIJO de las horas que consume hoy (JARVIS, 19-sep): se escribe al cerrar la visita y
+   * no se recalcula nunca. Es la línea base para medir el resultado real después.
+   */
+  hoyRegistro: { horasMes: number; fecha: string; origen: "previo" | "visita" } | null;
 }
 
 /** Campos 🔒 de cada tarjeta (van en `diagnosticos.privado.procesos[id]`). */
@@ -78,3 +90,34 @@ export interface TarjetaPrivada {
   dependencias: string;
   nota: string;
 }
+
+/** Tarjeta vacía con valores por defecto. */
+export function tarjetaNueva(p: Partial<TarjetaProceso> & { id: string }): TarjetaProceso {
+  return {
+    nombre: "",
+    area: null,
+    plantilla: null,
+    disparador: "",
+    pasos: [],
+    quien: null,
+    quienPersonas: null,
+    volumen: null,
+    volumenUnidad: "",
+    volumenPeriodo: "mes",
+    minutosPorVez: null,
+    herramientas: [],
+    atasco: "",
+    errores: null,
+    erroresEjemplo: "",
+    cita: "",
+    visto: false,
+    prioridadCliente: null,
+    rapida: false,
+    origenDatos: "visita",
+    hoyRegistro: null,
+    ...p,
+  };
+}
+
+/** Tarjetas objetivo por visita (JARVIS, 19-sep: 5-7, empezando por las que traen datos del previo). */
+export const TARJETAS_VISITA = { min: 5, max: 7 };

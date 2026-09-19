@@ -163,5 +163,8 @@ export const CAMPOS_VISITA: CampoVisita[] = [
 /** `e.entrega`: por defecto +5 días hábiles (sin festivos, solo fines de semana). */
 export const DIAS_HABILES_ENTREGA = 5;
 
-/** Batería §4 B: "entre 5 y 9 tarjetas bien rellenas". */
-export const TARJETAS_OBJETIVO = { min: 5, max: 9 };
+/**
+ * Duración (JARVIS, 19-sep): el temporizador cuenta sobre 150 min, no sobre los 180 de la agenda,
+ * y en el minuto 150 avisa para saltar al cierre. Deja 30 min de margen.
+ */
+export const MINUTOS_VISITA = 150;

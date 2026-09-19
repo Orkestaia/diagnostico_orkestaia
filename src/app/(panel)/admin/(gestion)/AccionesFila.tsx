@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ResultadoInvitacion, type DatosInvitacion } from "@/components/panel/ResultadoInvitacion";
 import { claseBoton } from "@/components/panel/ui";
@@ -54,9 +55,9 @@ export function AccionesFila(p: {
         <a href={datos.enlace} target="_blank" rel="noopener noreferrer" className={claseBoton.discreto}>
           Ver previo
         </a>
-        <span className={claseBoton.discreto + " cursor-not-allowed opacity-40"} title="Llega en la fase 5">
+        <Link href={`/admin/d/${p.id}/visita`} className={claseBoton.discreto}>
           Visita
-        </span>
+        </Link>
         <button
           type="button"
           className={claseBoton.discreto}
