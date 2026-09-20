@@ -174,7 +174,11 @@ function Pantalla({
 }) {
   const [bloque, setBloque] = useState<BloqueId>("A");
   const [notas, setNotas] = useState(false);
-  const actual = BLOQUES.find((b) => b.id === bloque)!;
+  const indice = BLOQUES.findIndex((b) => b.id === bloque);
+  const actual = BLOQUES[indice];
+  // En el último bloque no hay "siguiente": esto reventaba la pantalla en el cierre.
+  const anterior = indice > 0 ? BLOQUES[indice - 1] : null;
+  const siguiente = indice < BLOQUES.length - 1 ? BLOQUES[indice + 1] : null;
   const ir = (b: BloqueId) => {
     setBloque(b);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -303,12 +307,8 @@ function Pantalla({
         ) : null}
 
         <div className="flex justify-between gap-3 pt-2">
-          {actual.id !== "A" ? (
-            <button
-              type="button"
-              className={BOTON}
-              onClick={() => ir(BLOQUES[BLOQUES.indexOf(actual) - 1].id)}
-            >
+          {anterior ? (
+            <button type="button" className={BOTON} onClick={() => ir(anterior.id)}>
               Anterior
             </button>
           ) : (
@@ -316,13 +316,9 @@ function Pantalla({
               Panel
             </Link>
           )}
-          {actual.id !== "E" ? (
-            <button
-              type="button"
-              className={BOTON_PRIMARIO}
-              onClick={() => ir(BLOQUES[BLOQUES.indexOf(actual) + 1].id)}
-            >
-              Siguiente: {BLOQUES[BLOQUES.indexOf(actual) + 1].nombre}
+          {siguiente ? (
+            <button type="button" className={BOTON_PRIMARIO} onClick={() => ir(siguiente.id)}>
+              Siguiente: {siguiente.nombre}
             </button>
           ) : null}
         </div>
