@@ -44,8 +44,9 @@ export function FormularioInvitacion({
   const [resultado, setResultado] = useState<DatosInvitacion | null>(null);
 
   const tipo = catalogo.flatMap((g) => g.tipos).find((t) => t.etiqueta === f.tipo_negocio);
-  const poner = (k: keyof typeof VACIO) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setF((x) => ({ ...x, [k]: e.target.value }));
+  const poner =
+    (k: keyof typeof VACIO) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setF((x) => ({ ...x, [k]: e.target.value }));
 
   function elegirCrm(c: ContactoCrm) {
     setCrm(c);
@@ -83,7 +84,9 @@ export function FormularioInvitacion({
     return (
       <section className="mt-8 rounded-2xl border border-ork-border bg-ork-surface-1 p-6">
         <h2 className="font-display text-h3">Invitación creada para {f.empresa}</h2>
-        <p className="mt-1 mb-6">Envíale el enlace. El previo guarda lo que lleve si se queda a medias.</p>
+        <p className="mt-1 mb-6">
+          Envíale el enlace. El previo guarda lo que lleve si se queda a medias.
+        </p>
         <ResultadoInvitacion datos={resultado} />
         <div className="mt-8 flex flex-wrap gap-2 border-t border-ork-border pt-6">
           <button
@@ -113,29 +116,65 @@ export function FormularioInvitacion({
         <legend className="mb-4 font-display text-body-lg text-ork-text">Cliente</legend>
         <div className="sm:col-span-2">
           <Etiqueta htmlFor="empresa">Empresa</Etiqueta>
-          <input id="empresa" required maxLength={120} value={f.empresa} onChange={poner("empresa")} className={claseCampo} />
+          <input
+            id="empresa"
+            required
+            maxLength={120}
+            value={f.empresa}
+            onChange={poner("empresa")}
+            className={claseCampo}
+          />
         </div>
         <div>
           <Etiqueta htmlFor="nombre">Nombre (como le saludas)</Etiqueta>
-          <input id="nombre" required maxLength={80} value={f.contacto_nombre} onChange={poner("contacto_nombre")} className={claseCampo} />
+          <input
+            id="nombre"
+            required
+            maxLength={80}
+            value={f.contacto_nombre}
+            onChange={poner("contacto_nombre")}
+            className={claseCampo}
+          />
         </div>
         <div>
           <Etiqueta htmlFor="telefono" opcional>
             Teléfono
           </Etiqueta>
-          <input id="telefono" type="tel" maxLength={30} value={f.contacto_telefono} onChange={poner("contacto_telefono")} className={claseCampo} />
+          <input
+            id="telefono"
+            type="tel"
+            maxLength={30}
+            value={f.contacto_telefono}
+            onChange={poner("contacto_telefono")}
+            className={claseCampo}
+          />
         </div>
         <div>
-          <Etiqueta htmlFor="email" opcional>
-            Email
-          </Etiqueta>
-          <input id="email" type="email" maxLength={160} value={f.contacto_email} onChange={poner("contacto_email")} className={claseCampo} />
+          <Etiqueta htmlFor="email">Email</Etiqueta>
+          <input
+            id="email"
+            type="email"
+            required
+            maxLength={160}
+            value={f.contacto_email}
+            onChange={poner("contacto_email")}
+            className={claseCampo}
+          />
+          <p className="mt-1 text-small text-ork-text-faint">
+            Hace falta para el correo de &laquo;recibido&raquo; y para tenerle fichado como cliente.
+          </p>
         </div>
         <div>
           <Etiqueta htmlFor="web" opcional>
             Web
           </Etiqueta>
-          <input id="web" maxLength={200} value={f.web} onChange={poner("web")} className={claseCampo} />
+          <input
+            id="web"
+            maxLength={200}
+            value={f.web}
+            onChange={poner("web")}
+            className={claseCampo}
+          />
         </div>
       </fieldset>
 
@@ -143,7 +182,13 @@ export function FormularioInvitacion({
         <legend className="mb-4 font-display text-body-lg text-ork-text">Diagnóstico</legend>
         <div className="sm:col-span-2">
           <Etiqueta htmlFor="tipo">Tipo de negocio</Etiqueta>
-          <select id="tipo" required value={f.tipo_negocio} onChange={poner("tipo_negocio")} className={claseCampo}>
+          <select
+            id="tipo"
+            required
+            value={f.tipo_negocio}
+            onChange={poner("tipo_negocio")}
+            className={claseCampo}
+          >
             <option value="" disabled>
               Elige el tipo de negocio
             </option>
@@ -158,14 +203,22 @@ export function FormularioInvitacion({
             ))}
           </select>
           {tipo ? (
-            <p className="mt-1.5 text-small text-ork-text-faint">Preguntas del previo: {tipo.preguntas}</p>
+            <p className="mt-1.5 text-small text-ork-text-faint">
+              Preguntas del previo: {tipo.preguntas}
+            </p>
           ) : null}
         </div>
         <div>
           <Etiqueta htmlFor="fecha" opcional>
             Fecha de la reunión
           </Etiqueta>
-          <input id="fecha" type="date" value={f.fecha_reunion} onChange={poner("fecha_reunion")} className={claseCampo + " [color-scheme:dark]"} />
+          <input
+            id="fecha"
+            type="date"
+            value={f.fecha_reunion}
+            onChange={poner("fecha_reunion")}
+            className={claseCampo + " [color-scheme:dark]"}
+          />
         </div>
         <div>
           <Etiqueta htmlFor="hora" opcional>
@@ -247,7 +300,9 @@ function BuscadorCrm({
       setBuscando(true);
       setError(false);
       try {
-        const r = await fetch(`/api/admin/crm/buscar?q=${encodeURIComponent(q)}`, { signal: ctrl.signal });
+        const r = await fetch(`/api/admin/crm/buscar?q=${encodeURIComponent(q)}`, {
+          signal: ctrl.signal,
+        });
         if (!r.ok) throw new Error();
         setLista((await r.json()).contactos ?? []);
       } catch (e) {
@@ -268,7 +323,10 @@ function BuscadorCrm({
         <div>
           <p className="text-small text-ork-cyan">Vinculado al CRM</p>
           <p className="text-ork-text">
-            {elegido.empresa} <span className="text-ork-text-faint">· {elegido.sector} · {elegido.estado}</span>
+            {elegido.empresa}{" "}
+            <span className="text-ork-text-faint">
+              · {elegido.sector} · {elegido.estado}
+            </span>
           </p>
         </div>
         <button type="button" className={claseBoton.discreto} onClick={onQuitar}>
@@ -295,7 +353,9 @@ function BuscadorCrm({
         Solo lectura: rellena los datos y guarda el vínculo. El CRM no se modifica.
       </p>
       {buscando ? <p className="mt-2 text-small">Buscando…</p> : null}
-      {error ? <p className="mt-2 text-small text-[#ff8a8e]">No se ha podido buscar en el CRM.</p> : null}
+      {error ? (
+        <p className="mt-2 text-small text-[#ff8a8e]">No se ha podido buscar en el CRM.</p>
+      ) : null}
       {lista.length > 0 ? (
         <ul className="mt-3 divide-y divide-ork-border rounded-lg border border-ork-border">
           {lista.map((c) => (
@@ -307,7 +367,9 @@ function BuscadorCrm({
               >
                 <span className="text-ork-text">{c.empresa}</span>
                 <span className="block text-small text-ork-text-faint">
-                  {[c.persona_contacto, c.localidad, c.sector, c.estado].filter(Boolean).join(" · ")}
+                  {[c.persona_contacto, c.localidad, c.sector, c.estado]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </span>
               </button>
             </li>

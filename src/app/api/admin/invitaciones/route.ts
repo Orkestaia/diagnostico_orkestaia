@@ -15,7 +15,8 @@ const esquema = z
   .object({
     empresa: z.string().trim().min(1).max(120),
     contacto_nombre: z.string().trim().min(1).max(80),
-    contacto_email: opcional(z.string().trim().email().max(160)),
+    // Obligatorio (decisión de Aitor, 20-sep): sin él no hay email de "recibido" ni ficha de cliente.
+    contacto_email: z.string().trim().email().max(160),
     contacto_telefono: opcional(z.string().trim().max(30)),
     web: opcional(z.string().trim().max(200)),
     tipo_negocio: z.string(),
@@ -26,8 +27,14 @@ const esquema = z
     crm_contacto_id: opcional(z.string().uuid()),
   })
   .superRefine((d, ctx) => {
-    if (!tipoNegocio(d.tipo_negocio)) ctx.addIssue({ code: "custom", path: ["tipo_negocio"], message: "Tipo de negocio no válido" });
-    if (d.hora_reunion && !d.fecha_reunion) ctx.addIssue({ code: "custom", path: ["fecha_reunion"], message: "Falta la fecha" });
+    if (!tipoNegocio(d.tipo_negocio))
+      ctx.addIssue({
+        code: "custom",
+        path: ["tipo_negocio"],
+        message: "Tipo de negocio no válido",
+      });
+    if (d.hora_reunion && !d.fecha_reunion)
+      ctx.addIssue({ code: "custom", path: ["fecha_reunion"], message: "Falta la fecha" });
   });
 
 /** Crea un diagnóstico → enlace del previo + mensaje de WhatsApp listo para copiar (spec §9). */
@@ -37,7 +44,10 @@ export async function POST(req: Request) {
 
   const cuerpo = esquema.safeParse(await req.json().catch(() => null));
   if (!cuerpo.success) {
-    return Response.json({ error: "Datos no válidos", detalle: cuerpo.error.issues }, { status: 400 });
+    return Response.json(
+      { error: "Datos no válidos", detalle: cuerpo.error.issues },
+      { status: 400 },
+    );
   }
   const d = cuerpo.data;
   const tipo = tipoNegocio(d.tipo_negocio)!;
@@ -54,7 +64,7 @@ export async function POST(req: Request) {
       tipo_negocio: tipo.etiqueta,
       empresa: d.empresa,
       contacto_nombre: d.contacto_nombre,
-      contacto_email: d.contacto_email ?? null,
+      contacto_email: d.contacto_email,
       contacto_telefono: d.contacto_telefono ?? null,
       web: d.web ?? null,
       fecha_reunion: d.fecha_reunion ?? null,

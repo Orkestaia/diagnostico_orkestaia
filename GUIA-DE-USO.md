@@ -3,7 +3,7 @@
 Versión del 20-sep-2026. Batería del consultor v2: 8 bloques, preguntas de núcleo y de
 profundizar, grabación, notas y encuesta de madurez en IA del equipo.
 
-- Panel: https://diagnostico-orkestaia.vercel.app/admin
+- Panel: https://diagnostico.orkestaia.com/admin (también https://diagnostico-orkestaia.vercel.app/admin)
 - Entras con aitor@orkestaia.com (Clerk). Nadie más puede entrar.
 
 ---
@@ -25,7 +25,7 @@ El cliente **nunca** tiene cuenta. Solo ve su enlace personal, y ese enlace no l
 ## 2. Crear una invitación
 
 1. Panel → **Nueva invitación**.
-2. Rellena empresa, contacto y tipo de negocio. Si ninguno encaja claramente, elige **Otro**.
+2. Rellena empresa, contacto, **email** (obligatorio: sin él no sale el correo de «recibido») y tipo de negocio. Si ninguno encaja claramente, elige **Otro**.
 3. Pon fecha, hora y lugar de la reunión: salen en el mensaje y en el botón de calendario del cliente.
 4. Si el contacto ya está en el CRM, búscalo en el buscador (solo lectura).
 5. Al guardar (y luego, desde la fila del cliente en el panel) tienes:
