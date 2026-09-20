@@ -6,8 +6,12 @@ import { Marca } from "@/components/compartido/Marca";
  */
 export default function Inicio() {
   return (
-    <main className="flex min-h-dvh items-center justify-center px-4">
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 px-4 text-center">
       <Marca className="text-h3" />
+      <p className="max-w-sm text-ork-text-muted">
+        Esta página no lleva a ningún sitio. Si te hemos pasado un enlace personal para tu
+        diagnóstico, entra por él.
+      </p>
     </main>
   );
 }

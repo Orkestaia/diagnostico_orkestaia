@@ -18,14 +18,25 @@ export function AccionesFila(p: {
   horaReunion: string | null;
 }) {
   const router = useRouter();
-  const [abierto, setAbierto] = useState<"enviar" | "revocar" | null>(null);
+  const [abierto, setAbierto] = useState<"enviar" | "revocar" | "borrar" | null>(null);
+  const [confirmacion, setConfirmacion] = useState("");
   const [nuevo, setNuevo] = useState<DatosInvitacion | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 
   const enlace = `${p.base}/d/${p.token}`;
-  const mensaje = mensajeInvitacion({ nombre: p.nombre, empresa: p.empresa, enlace, fechaReunion: p.fechaReunion, horaReunion: p.horaReunion });
-  const datos: DatosInvitacion = nuevo ?? { enlace, mensaje, whatsapp: enlaceWhatsApp(p.telefono, mensaje) };
+  const mensaje = mensajeInvitacion({
+    nombre: p.nombre,
+    empresa: p.empresa,
+    enlace,
+    fechaReunion: p.fechaReunion,
+    horaReunion: p.horaReunion,
+  });
+  const datos: DatosInvitacion = nuevo ?? {
+    enlace,
+    mensaje,
+    whatsapp: enlaceWhatsApp(p.telefono, mensaje),
+  };
 
   async function revocar() {
     setCargando(true);
@@ -41,6 +52,22 @@ export function AccionesFila(p: {
     router.refresh();
   }
 
+  async function borrar() {
+    setCargando(true);
+    setError(null);
+    const r = await fetch(`/api/admin/diagnosticos/${p.id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ empresa: confirmacion }),
+    });
+    setCargando(false);
+    if (!r.ok) {
+      setError(r.status === 409 ? "El nombre no coincide." : "No se ha podido borrar.");
+      return;
+    }
+    router.refresh();
+  }
+
   return (
     <div>
       <div className="flex flex-wrap items-center gap-1">
@@ -52,7 +79,12 @@ export function AccionesFila(p: {
         >
           Enviar enlace
         </button>
-        <a href={datos.enlace} target="_blank" rel="noopener noreferrer" className={claseBoton.discreto}>
+        <a
+          href={datos.enlace}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={claseBoton.discreto}
+        >
           Ver previo
         </a>
         <Link href={`/admin/d/${p.id}/visita`} className={claseBoton.discreto}>
@@ -66,14 +98,60 @@ export function AccionesFila(p: {
         >
           Revocar enlace
         </button>
+        <button
+          type="button"
+          className={claseBoton.discreto}
+          aria-expanded={abierto === "borrar"}
+          onClick={() => {
+            setConfirmacion("");
+            setError(null);
+            setAbierto(abierto === "borrar" ? null : "borrar");
+          }}
+        >
+          Borrar
+        </button>
       </div>
 
       {abierto === "enviar" ? (
         <div className="mt-3 rounded-xl border border-ork-border-hi bg-ork-bg p-4">
           {nuevo ? (
-            <p className="mb-3 text-small text-ork-cyan">Enlace nuevo generado. El anterior ya no abre nada.</p>
+            <p className="mb-3 text-small text-ork-cyan">
+              Enlace nuevo generado. El anterior ya no abre nada.
+            </p>
           ) : null}
           <ResultadoInvitacion datos={datos} />
+        </div>
+      ) : null}
+
+      {abierto === "borrar" ? (
+        <div className="mt-3 rounded-xl border border-[#e5484d]/50 bg-ork-bg p-4">
+          <p className="text-ork-text">¿Borrar el diagnóstico de {p.empresa}?</p>
+          <p className="mt-1 text-small">
+            Se va todo: respuestas del previo, visita, tarjetas, notas privadas, grabación y
+            encuesta del equipo. No se puede deshacer.
+          </p>
+          <label className="mt-3 block text-small">
+            Escribe <span className="text-ork-text">{p.empresa}</span> para confirmarlo:
+            <input
+              value={confirmacion}
+              onChange={(e) => setConfirmacion(e.target.value)}
+              className="mt-1 w-full max-w-sm rounded-lg border border-ork-border-hi bg-ork-bg px-3 py-2 text-ork-text focus:border-ork-cyan focus:outline-none"
+            />
+          </label>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              className={claseBoton.peligro}
+              onClick={borrar}
+              disabled={cargando || confirmacion !== p.empresa}
+            >
+              {cargando ? "Borrando…" : "Sí, borrar"}
+            </button>
+            <button type="button" className={claseBoton.discreto} onClick={() => setAbierto(null)}>
+              Cancelar
+            </button>
+          </div>
+          {error ? <p className="mt-2 text-small text-[#ff8a8e]">{error}</p> : null}
         </div>
       ) : null}
 
@@ -84,7 +162,12 @@ export function AccionesFila(p: {
             El enlace actual deja de funcionar y se genera uno nuevo. Las respuestas no se pierden.
           </p>
           <div className="mt-3 flex gap-2">
-            <button type="button" className={claseBoton.peligro} onClick={revocar} disabled={cargando}>
+            <button
+              type="button"
+              className={claseBoton.peligro}
+              onClick={revocar}
+              disabled={cargando}
+            >
               {cargando ? "Revocando…" : "Sí, revocar"}
             </button>
             <button type="button" className={claseBoton.discreto} onClick={() => setAbierto(null)}>
