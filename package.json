@@ -38,6 +38,7 @@
     "eslint-config-next": "15.5.23",
     "jsdom": "^25.0.1",
     "prettier": "^3.9.6",
+    "puppeteer-core": "^23.11.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.4"

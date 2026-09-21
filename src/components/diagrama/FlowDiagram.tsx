@@ -67,6 +67,7 @@ export function FlowDiagram({
   aristas,
   titulo,
   anchoEscritorio,
+  soloHorizontal = false,
 }: {
   nodos: Nodo[];
   aristas: Arista[];
@@ -78,6 +79,12 @@ export function FlowDiagram({
    * Añadido en el diagnóstico (21-sep); opcional, así que el portfolio no cambia.
    */
   anchoEscritorio?: number;
+  /**
+   * Solo la versión horizontal, sin mirar el ancho de pantalla. Para imprimir o guardar en PDF:
+   * al imprimir, el navegador puede tomar el ancho de móvil y dibujar el diagrama en vertical y
+   * enorme. Añadido en el diagnóstico (21-sep); opcional.
+   */
+  soloHorizontal?: boolean;
 }) {
   const llevaHumano = nodos.some((n) => n.humano);
   const escritorio = anchoEscritorio
@@ -86,19 +93,21 @@ export function FlowDiagram({
   return (
     <figure className="ork-diagrama w-full">
       {/* Escritorio: de izquierda a derecha */}
-      <div className="hidden md:block">
+      <div className={soloHorizontal ? "block" : "hidden md:block"}>
         <Lienzo nodos={nodos} aristas={aristas} titulo={titulo} medidas={escritorio} />
       </div>
       {/* Móvil: el mismo grafo, de arriba abajo */}
-      <div className="md:hidden">
-        <Lienzo
-          nodos={nodos.map((n) => ({ ...n, col: n.fila, fila: n.col }))}
-          aristas={aristas}
-          titulo={titulo}
-          medidas={LIENZO.movil}
-          vertical
-        />
-      </div>
+      {!soloHorizontal ? (
+        <div className="md:hidden">
+          <Lienzo
+            nodos={nodos.map((n) => ({ ...n, col: n.fila, fila: n.col }))}
+            aristas={aristas}
+            titulo={titulo}
+            medidas={LIENZO.movil}
+            vertical
+          />
+        </div>
+      ) : null}
 
       {llevaHumano ? (
         <figcaption className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-mono-label tracking-[0.12em] uppercase">

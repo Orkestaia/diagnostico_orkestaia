@@ -88,7 +88,7 @@ function volumenTexto(p: ProcesoMapa) {
   return `${String(p.volumen).replace(".", ",")}${p.volumenUnidad ? ` ${p.volumenUnidad}` : ""} al ${periodo}`;
 }
 
-function DetalleProceso({ p }: { p: ProcesoMapa }) {
+function DetalleProceso({ p, imprimir = false }: { p: ProcesoMapa; imprimir?: boolean }) {
   const hoy = diagramaDesdePasos(p.pasos);
   const datos: [string, string | null][] = [
     ["Volumen", volumenTexto(p)],
@@ -123,6 +123,7 @@ function DetalleProceso({ p }: { p: ProcesoMapa }) {
             aristas={hoy.aristas}
             titulo={`${p.nombre}: así es hoy`}
             anchoEscritorio={ANCHO_DIAGRAMA}
+            soloHorizontal={imprimir}
           />
         </div>
       ) : null}
@@ -181,11 +182,11 @@ function AsiFuncionaHoy({ procesos, imprimir }: { procesos: ProcesoMapa[]; impri
                     {imprimir ? (
                       <div className="space-y-4">
                         {cabecera}
-                        <DetalleProceso p={p} />
+                        <DetalleProceso p={p} imprimir={imprimir} />
                       </div>
                     ) : (
                       <Desplegable cabecera={cabecera}>
-                        <DetalleProceso p={p} />
+                        <DetalleProceso p={p} imprimir={imprimir} />
                       </Desplegable>
                     )}
                   </li>
@@ -289,6 +290,7 @@ function AsiSeria({
                       aristas={hayHoy.aristas}
                       titulo={`${it.titulo}: hoy`}
                       anchoEscritorio={ANCHO_DIAGRAMA}
+                      soloHorizontal={imprimir}
                     />
                   </div>
                 ) : null}
@@ -301,6 +303,7 @@ function AsiSeria({
                     aristas={d.aristas}
                     titulo={d.titulo}
                     anchoEscritorio={ANCHO_DIAGRAMA}
+                    soloHorizontal={imprimir}
                   />
                 </div>
               </div>
