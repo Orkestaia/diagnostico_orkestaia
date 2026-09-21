@@ -2,7 +2,13 @@
 
 Llegan al mismo webhook del motor (`N8N_WEBHOOK_URL`, cabecera `x-orkesta-token`) que el resto.
 **No montar hasta desplegar la rama `mapa-v1-2`** (después de la visita del jueves 24). Mientras
-el motor no los conozca, que los ignore sin error (no deben disparar el flujo de errores).
+tanto no pasa nada: comprobado el 22-sep, el switch «Según el evento» del motor no tiene salida
+para ellos y n8n los ignora sin error (igual que hoy `diagnostico.mapa_publicado`).
+
+**Cómo montarlo:** `node n8n/aplicar-eventos-mapa-v1-2.mjs` enseña los cambios sin tocar nada;
+con `--aplicar` los hace (antes guarda una copia del workflow en `n8n/copias/`). Probado en
+simulación el 22-sep: añade dos salidas al switch y 4 nodos, y el código del nodo nuevo se ha
+ejecutado en local con los dos eventos de ejemplo.
 
 ## `diagnostico.prioridades_elegidas`
 
