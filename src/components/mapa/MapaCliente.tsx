@@ -13,6 +13,9 @@ import { Comparador, Desplegable } from "./Interactivos";
  * vista previa del panel y en la versión para imprimir o guardar en PDF (`imprimir`): ahí no hay
  * animaciones, todo va desplegado y se enseñan los dos diagramas, el de hoy y el nuevo.
  *
+ * Se entrega SOLO como enlace web (decisión de Aitor, 21-sep): no hay botón de PDF. La versión
+ * `?imprimir=1` existe por si un cliente pide PDF; se avisa de que no queda bien maquetado.
+ *
  * Al cliente solo se le enseñan horas. Los euros se quedan para Aitor (pendiente de decidir con
  * JARVIS si alguna vez aparecen aquí).
  */
@@ -399,16 +402,6 @@ export function MapaCliente({ datos, imprimir = false }: { datos: DatosMapa; imp
         <header className="mapa-junto space-y-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <Marca className="text-body-lg" />
-            {!imprimir ? (
-              <a
-                href="?imprimir=1"
-                target="_blank"
-                rel="noopener"
-                className="solo-pantalla rounded-full border border-ork-border-hi px-4 py-2 text-small text-ork-text-muted hover:text-ork-text"
-              >
-                Versión para imprimir o PDF
-              </a>
-            ) : null}
           </div>
           <div className="space-y-5 pt-6">
             <p className="font-mono text-[0.72rem] uppercase tracking-[0.18em] text-ork-cyan">
