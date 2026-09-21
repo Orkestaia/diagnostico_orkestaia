@@ -9,7 +9,9 @@ El consentimiento agregado va apagado: no se ve nada.
 
 ## Antes de empezar
 
-- En Supabase (proyecto `ORKESTA_OPS_2026`, SQL Editor) pegar y ejecutar el SQL del final.
+- SQL de Supabase: **hecho** (comprobado el 22-sep: existen las columnas v5, v6 y v7).
+- Se usa el diagnóstico de prueba **«Marta Test»** (servicios profesionales, previo completado por
+  Marta, visita sin empezar). No hace falta crear otro.
 - Usar el portátil de las visitas, en Chrome o Edge, con micrófono.
 
 ## Enlaces
@@ -25,8 +27,8 @@ nada a n8n (ni Telegram, ni emails, ni Drive): así la prueba no molesta a nadie
 
 ## Pasos (unos 20 min)
 
-1. **Crear la prueba.** En el panel, nueva invitación «PRUEBA martes», sector Salud, tu email.
-   Abrir la visita.
+1. **Abrir la visita de Marta.** En el panel, fila «Marta Test» → Visita. Comprueba de paso
+   que «Lo que nos contaste» enseña sus respuestas del previo.
 2. **Pausa de la grabación.**
    - Pulsar *Grabar* y aceptar el consentimiento. Hablar unos 30 s.
    - Pulsar el botón rojo: debe poner «En pausa 0:30 · Seguir» y el reloj quedarse quieto.
@@ -44,7 +46,8 @@ nada a n8n (ni Telegram, ni emails, ni Drive): así la prueba no molesta a nadie
 6. **Export.** En resultados, descargar el export: al final de «4. Cálculo» aparecen los avisos.
 7. **Mapa de Colino.** Escribir 25 en «¿Y en euros?» → salen euros por proceso. En
    «Recordatorios que se confirman solos», las flechas llevan «Confirma» y «Pide cambio».
-8. **Borrar** «PRUEBA martes» desde el panel.
+8. **Nada que borrar.** «Marta Test» se queda con la visita cerrada; es de prueba. Una visita
+   cerrada no se puede reabrir: para repetir la prueba, crear otro diagnóstico de prueba.
 
 ## Resultado
 
@@ -58,7 +61,7 @@ nada a n8n (ni Telegram, ni emails, ni Drive): así la prueba no molesta a nadie
 | 7 | | |
 | 8 | | |
 
-## SQL para Supabase (se puede ejecutar dos veces; solo añade columnas)
+## SQL para Supabase (YA EJECUTADO — solo por si hay que repetirlo; no hace daño)
 
 ```sql
 -- v5: con qué redacción del banco se contestó cada respuesta del previo
