@@ -4,8 +4,8 @@
  * globals.css) y mismo formato de datos. Si se mejora aquí o allí, llevar el cambio al otro repo.
  * Único cambio: la importación de los tipos, que aquí viven en `@/lib/diagrama`.
  *
- * Añadido en el diagnóstico (21-sep), PENDIENTE de llevar al portfolio: se pintan las etiquetas
- * de las flechas (`arista.etiqueta`). Antes se aceptaban en los datos pero no se dibujaban.
+ * Añadido en el diagnóstico (21-sep): se pintan las etiquetas de las flechas (`arista.etiqueta`).
+ * Llevado al portfolio en su rama `diagrama-etiquetas` (22-sep, sin desplegar).
  */
 import type { Arista, Nodo } from "@/lib/diagrama";
 
