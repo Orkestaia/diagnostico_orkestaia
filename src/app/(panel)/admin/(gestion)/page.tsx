@@ -98,6 +98,8 @@ export default async function Listado() {
                   telefono={f.contacto_telefono}
                   fechaReunion={f.fecha_reunion}
                   horaReunion={f.hora_reunion}
+                  email={f.contacto_email}
+                  lugarReunion={f.lugar_reunion}
                 />
               </div>
             </li>

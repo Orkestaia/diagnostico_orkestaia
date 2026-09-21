@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ResultadoInvitacion, type DatosInvitacion } from "@/components/panel/ResultadoInvitacion";
 import { claseBoton } from "@/components/panel/ui";
 import { enlaceWhatsApp, mensajeInvitacion } from "@/lib/invitacion";
+import { EditarDatos } from "./EditarDatos";
 
 export function AccionesFila(p: {
   id: string;
@@ -16,9 +17,11 @@ export function AccionesFila(p: {
   telefono: string | null;
   fechaReunion: string | null;
   horaReunion: string | null;
+  email: string | null;
+  lugarReunion: string | null;
 }) {
   const router = useRouter();
-  const [abierto, setAbierto] = useState<"enviar" | "revocar" | "borrar" | null>(null);
+  const [abierto, setAbierto] = useState<"enviar" | "revocar" | "borrar" | "editar" | null>(null);
   const [confirmacion, setConfirmacion] = useState("");
   const [nuevo, setNuevo] = useState<DatosInvitacion | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +99,14 @@ export function AccionesFila(p: {
         <button
           type="button"
           className={claseBoton.discreto}
+          aria-expanded={abierto === "editar"}
+          onClick={() => setAbierto(abierto === "editar" ? null : "editar")}
+        >
+          Editar datos
+        </button>
+        <button
+          type="button"
+          className={claseBoton.discreto}
           aria-expanded={abierto === "revocar"}
           onClick={() => setAbierto(abierto === "revocar" ? null : "revocar")}
         >
@@ -124,6 +135,22 @@ export function AccionesFila(p: {
           ) : null}
           <ResultadoInvitacion datos={datos} />
         </div>
+      ) : null}
+
+      {abierto === "editar" ? (
+        <EditarDatos
+          id={p.id}
+          onCerrar={() => setAbierto(null)}
+          inicial={{
+            empresa: p.empresa,
+            contacto_nombre: p.nombre,
+            contacto_email: p.email ?? "",
+            contacto_telefono: p.telefono ?? "",
+            fecha_reunion: p.fechaReunion ?? "",
+            hora_reunion: (p.horaReunion ?? "").slice(0, 5),
+            lugar_reunion: p.lugarReunion ?? "",
+          }}
+        />
       ) : null}
 
       {abierto === "borrar" ? (
