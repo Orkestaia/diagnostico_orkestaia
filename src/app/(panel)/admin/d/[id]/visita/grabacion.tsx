@@ -12,6 +12,8 @@ import { BOTON, BOTON_PRIMARIO } from "./campos";
  * - Cada fragmento va primero a IndexedDB y luego se sube. Sin conexión, espera en la cola.
  *   Si se recarga la página, lo pendiente se sube al volver.
  * - Mientras se graba se pide al sistema que no apague la pantalla (Wake Lock).
+ * - Pausa (Aitor, 21-sep): se pausa y se reanuda el MISMO fragmento, sin soltar el micrófono; el
+ *   reloj sigue donde iba. Los cortes de 5 min cuentan solo el tiempo grabado. «Terminar» cierra.
  */
 
 export const MS_FRAGMENTO = 5 * 60 * 1000;
@@ -85,7 +87,7 @@ function tipoAudio(): string {
   return "";
 }
 
-type Estado = "parada" | "pidiendo" | "grabando" | "error";
+type Estado = "parada" | "pidiendo" | "grabando" | "pausada" | "error";
 
 interface Ctx {
   estado: Estado;
@@ -96,6 +98,8 @@ interface Ctx {
   resumen: { total: number; transcritos: number; errores: number };
   darConsentimiento: () => Promise<boolean>;
   empezar: () => Promise<void>;
+  pausar: () => void;
+  reanudar: () => void;
   parar: () => void;
   reintentar: () => Promise<void>;
 }
@@ -129,7 +133,14 @@ export function Grabacion({ id, children }: { id: string; children: React.ReactN
   const activa = useRef(false);
   const bloqueo = useRef<{ release: () => Promise<void> } | null>(null);
   const subiendo = useRef(false);
+  // Reloj: tiempo grabado antes del tramo actual + lo que lleva el tramo (desde `inicioSesion`).
   const inicioSesion = useRef(0);
+  const acumulado = useRef(0);
+  // Fragmento en curso: tiempo grabado sin contar pausas y lo que le queda hasta el corte.
+  const fragAcum = useRef(0);
+  const fragDesde = useRef(0);
+  const corriendo = useRef(false);
+  const restante = useRef(MS_FRAGMENTO);
 
   const refrescar = useCallback(async () => {
     try {
@@ -200,15 +211,15 @@ export function Grabacion({ id, children }: { id: string; children: React.ReactN
   useEffect(() => {
     if (estado !== "grabando") return;
     const t = setInterval(
-      () => setSegundos(Math.round((Date.now() - inicioSesion.current) / 1000)),
+      () => setSegundos(Math.round((acumulado.current + Date.now() - inicioSesion.current) / 1000)),
       1000,
     );
     return () => clearInterval(t);
   }, [estado]);
 
-  // No salir de la página a mitad de un fragmento.
+  // No salir de la página a mitad de un fragmento (grabando o en pausa).
   useEffect(() => {
-    if (estado !== "grabando") return;
+    if (estado !== "grabando" && estado !== "pausada") return;
     const aviso = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener("beforeunload", aviso);
     return () => window.removeEventListener("beforeunload", aviso);
@@ -224,8 +235,14 @@ export function Grabacion({ id, children }: { id: string; children: React.ReactN
     });
     const trozos: Blob[] = [];
     const inicio = Date.now();
+    fragAcum.current = 0;
+    fragDesde.current = inicio;
+    corriendo.current = true;
+    restante.current = MS_FRAGMENTO;
     rec.ondataavailable = (e) => e.data.size && trozos.push(e.data);
     rec.onstop = async () => {
+      const duracion =
+        (fragAcum.current + (corriendo.current ? Date.now() - fragDesde.current : 0)) / 1000;
       const audio = new Blob(trozos, {
         type: (rec.mimeType || tipo || "audio/webm").split(";")[0],
       });
@@ -234,7 +251,7 @@ export function Grabacion({ id, children }: { id: string; children: React.ReactN
           clave: `${id}:${inicio}`,
           diagnostico: id,
           orden: inicio,
-          duracion: (Date.now() - inicio) / 1000,
+          duracion,
           audio,
         });
         setEnCola((n) => n + 1);
@@ -281,6 +298,7 @@ export function Grabacion({ id, children }: { id: string; children: React.ReactN
     }
     activa.current = true;
     inicioSesion.current = Date.now();
+    acumulado.current = 0;
     setSegundos(0);
     nuevoFragmento();
     setEstado("grabando");
@@ -295,6 +313,32 @@ export function Grabacion({ id, children }: { id: string; children: React.ReactN
       // Sin Wake Lock: la pantalla puede apagarse; en iPad eso corta la grabación.
     }
   }, [nuevoFragmento]);
+
+  const pausar = useCallback(() => {
+    const rec = grabador.current;
+    if (!rec || rec.state !== "recording") return;
+    rec.pause();
+    const ahora = Date.now();
+    if (corte.current) clearTimeout(corte.current);
+    restante.current = Math.max(1000, restante.current - (ahora - fragDesde.current));
+    fragAcum.current += ahora - fragDesde.current;
+    corriendo.current = false;
+    acumulado.current += ahora - inicioSesion.current;
+    setSegundos(Math.round(acumulado.current / 1000));
+    setEstado("pausada");
+  }, []);
+
+  const reanudar = useCallback(() => {
+    const rec = grabador.current;
+    if (!rec || rec.state !== "paused") return;
+    rec.resume();
+    const ahora = Date.now();
+    fragDesde.current = ahora;
+    corriendo.current = true;
+    inicioSesion.current = ahora;
+    corte.current = setTimeout(() => rec.state !== "inactive" && rec.stop(), restante.current);
+    setEstado("grabando");
+  }, []);
 
   const parar = useCallback(() => {
     activa.current = false;
@@ -312,7 +356,7 @@ export function Grabacion({ id, children }: { id: string; children: React.ReactN
 
   // Si el micrófono se corta solo (auriculares desconectados, pantalla bloqueada), se avisa.
   useEffect(() => {
-    if (estado !== "grabando") return;
+    if (estado !== "grabando" && estado !== "pausada") return;
     const pista = flujo.current?.getAudioTracks()[0];
     if (!pista) return;
     const fin = () => {
@@ -345,6 +389,8 @@ export function Grabacion({ id, children }: { id: string; children: React.ReactN
         resumen,
         darConsentimiento,
         empezar,
+        pausar,
+        reanudar,
         parar,
         reintentar,
       }}
@@ -362,40 +408,58 @@ export function BotonGrabar({ sensible = false }: { sensible?: boolean }) {
   const g = useGrabacion();
   const [pidiendoPermiso, setPidiendoPermiso] = useState(false);
   const grabando = g.estado === "grabando";
+  const pausada = g.estado === "pausada";
 
   return (
     <>
-      <button
-        type="button"
-        aria-pressed={grabando}
-        onClick={() => {
-          if (grabando) g.parar();
-          else if (!g.consentimiento) setPidiendoPermiso(true);
-          else void g.empezar();
-        }}
-        title={grabando ? "Pausar la grabación" : "Grabar la reunión"}
-        className={
-          "flex h-10 items-center gap-2 rounded-full border px-3 text-small transition-colors " +
-          (grabando
-            ? "border-[#e5484d] bg-[#e5484d]/10 text-ork-text"
-            : "border-ork-border-hi text-ork-text-muted hover:text-ork-text")
-        }
-      >
-        <span
-          aria-hidden="true"
-          className={
-            "h-2.5 w-2.5 rounded-full " +
-            (grabando ? "animate-pulse bg-[#e5484d]" : "bg-ork-text-faint")
+      <span className="flex items-center gap-1.5">
+        <button
+          type="button"
+          aria-pressed={grabando}
+          onClick={() => {
+            if (grabando) g.pausar();
+            else if (pausada) g.reanudar();
+            else if (!g.consentimiento) setPidiendoPermiso(true);
+            else void g.empezar();
+          }}
+          title={
+            grabando ? "Pausar la grabación" : pausada ? "Seguir grabando" : "Grabar la reunión"
           }
-        />
-        <span className="cifra">
-          {grabando
-            ? `Grabando ${reloj(g.segundos)}`
-            : g.estado === "pidiendo"
-              ? "Micrófono…"
-              : "Grabar"}
-        </span>
-      </button>
+          className={
+            "flex h-10 items-center gap-2 rounded-full border px-3 text-small transition-colors " +
+            (grabando
+              ? "border-[#e5484d] bg-[#e5484d]/10 text-ork-text"
+              : "border-ork-border-hi text-ork-text-muted hover:text-ork-text")
+          }
+        >
+          <span
+            aria-hidden="true"
+            className={
+              "h-2.5 w-2.5 rounded-full " +
+              (grabando ? "animate-pulse bg-[#e5484d]" : "bg-ork-text-faint")
+            }
+          />
+          <span className="cifra">
+            {grabando
+              ? `Grabando ${reloj(g.segundos)}`
+              : pausada
+                ? `En pausa ${reloj(g.segundos)} · Seguir`
+                : g.estado === "pidiendo"
+                  ? "Micrófono…"
+                  : "Grabar"}
+          </span>
+        </button>
+        {grabando || pausada ? (
+          <button
+            type="button"
+            onClick={() => g.parar()}
+            title="Terminar la grabación"
+            className="h-10 rounded-full border border-ork-border-hi px-3 text-small text-ork-text-muted hover:text-ork-text"
+          >
+            Terminar
+          </button>
+        ) : null}
+      </span>
 
       {pidiendoPermiso ? (
         <div

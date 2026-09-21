@@ -1158,7 +1158,8 @@ function CerrarVisita({
   const [avisos, setAvisos] = useState<{ tarjetaId: string | null; mensaje: string }[]>([]);
   const grabacion = useGrabacion();
   const cerrar = async (confirmarAvisos = false) => {
-    if (grabacion.estado === "grabando") return setError("grabando");
+    if (grabacion.estado === "grabando" || grabacion.estado === "pausada")
+      return setError("grabando");
     setEnviando(true);
     setError(null);
     try {
@@ -1250,7 +1251,7 @@ function CerrarVisita({
       ) : null}
       {error === "grabando" ? (
         <p role="alert" className="mt-3 text-small text-[#f5c46b]">
-          Para la grabación antes de cerrar (botón «Grabando» de arriba).
+          Termina la grabación antes de cerrar (botón «Terminar» de arriba).
         </p>
       ) : null}
       {error === "red" ? (
