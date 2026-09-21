@@ -14,7 +14,10 @@ export default function NuevaInvitacion() {
       <FormularioInvitacion
         catalogo={CATALOGO_SECTORES.map((g) => ({
           grupo: g.grupo,
-          tipos: g.tipos.map((t) => ({ etiqueta: t.etiqueta, preguntas: SECTORES[t.sector].nombre })),
+          tipos: g.tipos.map((t) => ({
+            etiqueta: t.etiqueta,
+            preguntas: SECTORES[t.sector].nombre,
+          })),
         }))}
         origenes={ORIGENES.map((o) => ({ id: o, nombre: ETIQUETA_ORIGEN[o] }))}
       />

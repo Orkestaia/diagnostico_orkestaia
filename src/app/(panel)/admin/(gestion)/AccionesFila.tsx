@@ -90,6 +90,9 @@ export function AccionesFila(p: {
         <Link href={`/admin/d/${p.id}/visita`} className={claseBoton.discreto}>
           Visita
         </Link>
+        <Link href={`/admin/resultados/${p.id}`} className={claseBoton.discreto}>
+          Resultados
+        </Link>
         <button
           type="button"
           className={claseBoton.discreto}

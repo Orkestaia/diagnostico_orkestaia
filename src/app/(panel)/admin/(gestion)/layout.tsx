@@ -10,7 +10,9 @@ export default function GestionLayout({ children }: { children: React.ReactNode 
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <Link href="/admin" className="flex min-w-0 flex-col leading-tight">
             <Marca className="text-body-lg" />
-            <span className="font-mono text-[0.7rem] uppercase tracking-[0.14em] text-ork-cyan">Diagnóstico</span>
+            <span className="font-mono text-[0.7rem] uppercase tracking-[0.14em] text-ork-cyan">
+              Diagnóstico
+            </span>
           </Link>
           <nav className="flex items-center gap-3">
             <Link

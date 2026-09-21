@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { SECTORES } from "@/config/sectores";
-import { COLUMNAS_LISTADO, ETIQUETA_ESTADO, ETIQUETA_ORIGEN, type FilaListado } from "@/lib/diagnosticos";
+import {
+  COLUMNAS_LISTADO,
+  ETIQUETA_ESTADO,
+  ETIQUETA_ORIGEN,
+  type FilaListado,
+} from "@/lib/diagnosticos";
 import { horaCorta } from "@/lib/calendario";
 import { fechaLarga } from "@/lib/invitacion";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -41,14 +46,20 @@ export default async function Listado() {
       ) : filas.length === 0 ? (
         <div className="mt-10 rounded-2xl border border-dashed border-ork-border-hi p-10 text-center">
           <p className="text-ork-text">Todavía no hay ningún diagnóstico.</p>
-          <Link href="/admin/nueva" className="mt-4 inline-block text-ork-cyan underline-offset-4 hover:underline">
+          <Link
+            href="/admin/nueva"
+            className="mt-4 inline-block text-ork-cyan underline-offset-4 hover:underline"
+          >
             Crea la primera invitación
           </Link>
         </div>
       ) : (
         <ul className="mt-8 divide-y divide-ork-border rounded-2xl border border-ork-border bg-ork-surface-1">
           {filas.map((f) => (
-            <li key={f.id} className="grid gap-3 p-4 md:grid-cols-[1.6fr_1fr_1.2fr] md:items-center">
+            <li
+              key={f.id}
+              className="grid gap-3 p-4 md:grid-cols-[1.6fr_1fr_1.2fr] md:items-center"
+            >
               <div className="min-w-0">
                 <p className="truncate font-medium text-ork-text">{f.empresa ?? "Sin empresa"}</p>
                 <p className="truncate text-small">
@@ -57,7 +68,9 @@ export default async function Listado() {
                 </p>
               </div>
               <div className="text-small">
-                <p className="text-ork-text">{f.tipo_negocio ?? f.subsector ?? SECTORES[f.sector]?.nombre ?? f.sector}</p>
+                <p className="text-ork-text">
+                  {f.tipo_negocio ?? f.subsector ?? SECTORES[f.sector]?.nombre ?? f.sector}
+                </p>
                 <p className="truncate">{f.origen ? ETIQUETA_ORIGEN[f.origen] : ""}</p>
               </div>
               <div className="text-small">

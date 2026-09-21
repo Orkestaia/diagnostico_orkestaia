@@ -35,7 +35,8 @@ El cliente **nunca** tiene cuenta. Solo ve su enlace personal, y ese enlace no l
 
 Si el cliente no termina el previo, le llega un **recordatorio automático a las 48 h**.
 
-En cada fila del panel tienes además **Revocar enlace** (el enlace deja de funcionar y se genera
+En cada fila del panel tienes además **Resultados** (leer la transcripción y la encuesta del
+equipo, y descargar el informe, la transcripción o los datos), **Revocar enlace** (el enlace deja de funcionar y se genera
 otro; las respuestas no se tocan) y **Borrar** (se va el diagnóstico entero: previo, visita,
 tarjetas, notas, grabación y encuesta). Para borrar hay que escribir el nombre de la empresa; no
 se puede deshacer.
