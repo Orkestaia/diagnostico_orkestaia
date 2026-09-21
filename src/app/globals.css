@@ -349,3 +349,63 @@ h6 {
     display: none;
   }
 }
+
+/* ── Mapa del cliente ─────────────────────────────────────────────────────────────── */
+
+/* Entrada suave de cada bloque del mapa (pantalla). */
+.mapa-entra {
+  animation: mapa-entra 700ms var(--ease-ork) both;
+  animation-delay: calc(var(--i, 0) * 90ms);
+}
+@keyframes mapa-entra {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Versión para imprimir o guardar en PDF: todo quieto y terminado, colores tal cual. */
+.sin-animacion .ork-diagrama__linea,
+.sin-animacion .ork-diagrama__nodo {
+  animation: none;
+  stroke-dashoffset: 0;
+  opacity: 1;
+}
+.sin-animacion .ork-diagrama__luz {
+  display: none;
+}
+.sin-animacion .mapa-entra {
+  animation: none;
+}
+.sin-animacion {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.mapa-salto {
+  break-before: page;
+}
+.mapa-junto {
+  break-inside: avoid;
+}
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm 10mm;
+  }
+  html,
+  body {
+    background: var(--color-ork-bg);
+  }
+  .solo-pantalla {
+    display: none !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mapa-entra {
+    animation: none;
+  }
+}
