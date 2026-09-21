@@ -31,3 +31,23 @@ Airtable Personal Access Token account (base `Diagnóstico_orkesta`, tabla `Diag
 Los nodos «Callback a la app» y «Previos sin terminar» apuntan a
 `https://diagnostico-orkestaia.vercel.app` (dominio público; el alias `…-orkesta-automation` tiene la protección de Vercel y da 401). Cuando exista el subdominio,
 cambiarlos a `https://diagnostico.orkestaia.com`.
+
+## Copia a Google Drive (workflow aparte)
+
+«Orkesta - Diagnóstico → Drive» (`icBM7fr68LLHJ01a`, activo). Cada hora pide a la app
+`GET /api/motor/archivos` (credencial «Diagnóstico · token app ↔ motor») y sube a la Drive de
+`aitor@orkestaia.com` (credencial «Google Drive Orkesta»):
+
+`Diagnósticos Orkesta/<cliente>/YYYY-MM-DD_diagnostico-app_raw.md` y `…_transcripcion.md`
+
+- Crea las carpetas si no existen y solo sube lo que ha cambiado (la huella va en
+  `appProperties.hash` del archivo en Drive). No borra nada.
+- Lanzarlo a mano: `POST https://acgrowthmarketing.app.n8n.cloud/webhook/diagnostico-drive` con la
+  cabecera `x-orkesta-token` (sin ella, 403).
+- Definición: `drive.plantilla.json`, generada por `generar-drive.mjs`.
+
+## Copia a la carpeta de JARVIS (script local)
+
+`node scripts/copiar-a-jarvis.mjs` escribe lo mismo en
+`ORKESTA - JARVIS/03_PIPELINE/01_leads/<cliente>/`. Usa el mismo endpoint y el mismo token
+(`DIAGNOSTICO_MOTOR_TOKEN`, de `.env.local` o del entorno). Solo reescribe lo que ha cambiado.

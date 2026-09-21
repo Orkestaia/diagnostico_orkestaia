@@ -1,0 +1,676 @@
+{
+  "name": "Orkesta - Diagnóstico → Drive",
+  "nodes": [
+    {
+      "id": "drive-1",
+      "name": "Cada hora",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "drive-2",
+      "name": "Lanzar a mano",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "diagnostico-drive",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "diagnostico-drive",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SU6JD77rWqcyxTYI",
+          "name": "Diagnóstico · token app ↔ motor"
+        }
+      }
+    },
+    {
+      "id": "drive-3",
+      "name": "Pedir archivos a la app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://diagnostico.orkestaia.com/api/motor/archivos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SU6JD77rWqcyxTYI",
+          "name": "Diagnóstico · token app ↔ motor"
+        }
+      }
+    },
+    {
+      "id": "drive-4",
+      "name": "Buscar carpeta raíz",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ \"name = '\" + $json.carpeta_raiz.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, \"\\\\'\") + \"' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and 'root' in parents\" }}"
+            },
+            {
+              "name": "fields",
+              "value": "files(id,name,appProperties)"
+            },
+            {
+              "name": "spaces",
+              "value": "drive"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "vZ6HJRfkvw7OQLiF",
+          "name": "Google Drive Orkesta "
+        }
+      }
+    },
+    {
+      "id": "drive-5",
+      "name": "¿Hay raíz?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const f = ($input.first().json.files || [])[0];\nreturn [{ json: { raizId: f ? f.id : null } }];"
+      }
+    },
+    {
+      "id": "drive-6",
+      "name": "¿Falta la raíz?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c-¿Falta la raíz?",
+              "leftValue": "={{ !$json.raizId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "drive-7",
+      "name": "Crear carpeta raíz",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $('Pedir archivos a la app').first().json.carpeta_raiz, mimeType: 'application/vnd.google-apps.folder' }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "vZ6HJRfkvw7OQLiF",
+          "name": "Google Drive Orkesta "
+        }
+      }
+    },
+    {
+      "id": "drive-8",
+      "name": "Un elemento por cliente",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Llega de «¿Falta la raíz?» (ya existía: raizId) o de «Crear carpeta raíz» (recién creada: id).\nconst e = $input.first().json;\nconst raizId = e.raizId || e.id;\nconst { clientes } = $('Pedir archivos a la app').first().json;\nreturn clientes.map(c => ({ json: { raizId, carpeta: c.carpeta, archivos: c.archivos } }));"
+      }
+    },
+    {
+      "id": "drive-9",
+      "name": "Buscar carpeta del cliente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ \"name = '\" + $json.carpeta.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, \"\\\\'\") + \"' and '\" + $json.raizId + \"' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false\" }}"
+            },
+            {
+              "name": "fields",
+              "value": "files(id,name,appProperties)"
+            },
+            {
+              "name": "spaces",
+              "value": "drive"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "vZ6HJRfkvw7OQLiF",
+          "name": "Google Drive Orkesta "
+        }
+      }
+    },
+    {
+      "id": "drive-10",
+      "name": "¿Hay carpeta?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map((it, i) => {\n  const base = $('Un elemento por cliente').itemMatching(i).json;\n  const f = (it.json.files || [])[0];\n  return { json: { ...base, carpetaId: f ? f.id : null } };\n});"
+      }
+    },
+    {
+      "id": "drive-11",
+      "name": "¿Falta la carpeta?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c-¿Falta la carpeta?",
+              "leftValue": "={{ !$json.carpetaId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "drive-12",
+      "name": "Crear carpeta del cliente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $json.carpeta, mimeType: 'application/vnd.google-apps.folder', parents: [$json.raizId] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "vZ6HJRfkvw7OQLiF",
+          "name": "Google Drive Orkesta "
+        }
+      }
+    },
+    {
+      "id": "drive-13",
+      "name": "Un elemento por archivo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Llega de «¿Falta la carpeta?» (ya existía) o de «Crear carpeta del cliente» (recién creada).\nconst salida = [];\n$input.all().forEach((it, i) => {\n  const base = it.json.archivos ? it.json : $('¿Hay carpeta?').itemMatching(i).json;\n  const carpetaId = base.carpetaId || it.json.id;\n  for (const a of base.archivos) salida.push({ json: { carpetaId, carpeta: base.carpeta, nombre: a.nombre, contenido: a.contenido, hash: a.hash } });\n});\nreturn salida;"
+      }
+    },
+    {
+      "id": "drive-14",
+      "name": "Buscar archivo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3080,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ \"name = '\" + $json.nombre.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, \"\\\\'\") + \"' and '\" + $json.carpetaId + \"' in parents and trashed = false\" }}"
+            },
+            {
+              "name": "fields",
+              "value": "files(id,name,appProperties)"
+            },
+            {
+              "name": "spaces",
+              "value": "drive"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "vZ6HJRfkvw7OQLiF",
+          "name": "Google Drive Orkesta "
+        }
+      }
+    },
+    {
+      "id": "drive-15",
+      "name": "Decidir qué subir",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3300,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Solo se sube lo que ha cambiado: la huella viaja en appProperties.hash del archivo en Drive.\nconst LIM = 'orkesta_limite';\nconst salida = [];\n$input.all().forEach((it, i) => {\n  const a = $('Un elemento por archivo').itemMatching(i).json;\n  const f = (it.json.files || [])[0];\n  if (f && f.appProperties && f.appProperties.hash === a.hash) return;\n  const meta = { name: a.nombre, mimeType: 'text/markdown', appProperties: { hash: a.hash } };\n  if (!f) meta.parents = [a.carpetaId];\n  const cuerpo = '--' + LIM + '\\r\\nContent-Type: application/json; charset=UTF-8\\r\\n\\r\\n' + JSON.stringify(meta)\n    + '\\r\\n--' + LIM + '\\r\\nContent-Type: text/markdown; charset=UTF-8\\r\\n\\r\\n' + a.contenido + '\\r\\n--' + LIM + '--';\n  salida.push({ json: { nuevo: !f, id: f ? f.id : null, carpeta: a.carpeta, nombre: a.nombre, cuerpo } });\n});\nreturn salida;"
+      }
+    },
+    {
+      "id": "drive-16",
+      "name": "¿Archivo nuevo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3520,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c-¿Archivo nuevo?",
+              "leftValue": "={{ $json.nuevo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "drive-17",
+      "name": "Subir archivo nuevo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3740,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "multipart/related; boundary=orkesta_limite",
+        "body": "={{ $json.cuerpo }}",
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "vZ6HJRfkvw7OQLiF",
+          "name": "Google Drive Orkesta "
+        }
+      }
+    },
+    {
+      "id": "drive-18",
+      "name": "Actualizar archivo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3960,
+        300
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://www.googleapis.com/upload/drive/v3/files/' + $json.id + '?uploadType=multipart' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "multipart/related; boundary=orkesta_limite",
+        "body": "={{ $json.cuerpo }}",
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "vZ6HJRfkvw7OQLiF",
+          "name": "Google Drive Orkesta "
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cada hora": {
+      "main": [
+        [
+          {
+            "node": "Pedir archivos a la app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lanzar a mano": {
+      "main": [
+        [
+          {
+            "node": "Pedir archivos a la app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pedir archivos a la app": {
+      "main": [
+        [
+          {
+            "node": "Buscar carpeta raíz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar carpeta raíz": {
+      "main": [
+        [
+          {
+            "node": "¿Hay raíz?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay raíz?": {
+      "main": [
+        [
+          {
+            "node": "¿Falta la raíz?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Falta la raíz?": {
+      "main": [
+        [
+          {
+            "node": "Crear carpeta raíz",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Un elemento por cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear carpeta raíz": {
+      "main": [
+        [
+          {
+            "node": "Un elemento por cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Un elemento por cliente": {
+      "main": [
+        [
+          {
+            "node": "Buscar carpeta del cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar carpeta del cliente": {
+      "main": [
+        [
+          {
+            "node": "¿Hay carpeta?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay carpeta?": {
+      "main": [
+        [
+          {
+            "node": "¿Falta la carpeta?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Falta la carpeta?": {
+      "main": [
+        [
+          {
+            "node": "Crear carpeta del cliente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Un elemento por archivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear carpeta del cliente": {
+      "main": [
+        [
+          {
+            "node": "Un elemento por archivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Un elemento por archivo": {
+      "main": [
+        [
+          {
+            "node": "Buscar archivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar archivo": {
+      "main": [
+        [
+          {
+            "node": "Decidir qué subir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decidir qué subir": {
+      "main": [
+        [
+          {
+            "node": "¿Archivo nuevo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Archivo nuevo?": {
+      "main": [
+        [
+          {
+            "node": "Subir archivo nuevo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Actualizar archivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "errorWorkflow": "dYdCdIkmNtUoKCuj"
+  }
+}
