@@ -27,6 +27,7 @@ import {
   sectorSensible,
   useGrabacion,
 } from "./grabacion";
+import { CasillaConsentimiento } from "@/components/compartido/CasillaConsentimiento";
 import { BloqueProcesos, horasHoy, TableroNumeros } from "./Tarjetas";
 import { useGuardado, type EstadoGuardado } from "./useGuardado";
 
@@ -59,6 +60,8 @@ export interface DatosVisita {
   sugeridas: TarjetaProceso[];
   entendido: string[];
   contado: Contado[];
+  /** Casilla de consentimiento agregado en la pantalla de cierre; `null` con el interruptor apagado. */
+  consentimiento?: { inicial: boolean | null } | null;
 }
 
 const EDITABLE = ["invitado", "previo_en_curso", "previo_completado", "visita_en_curso"];
@@ -1329,6 +1332,13 @@ function Cierre({
               ))}
             </ol>
           </section>
+        ) : null}
+
+        {datos.consentimiento ? (
+          <CasillaConsentimiento
+            url={`/api/admin/diagnosticos/${datos.id}/consentimiento`}
+            inicial={datos.consentimiento.inicial}
+          />
         ) : null}
 
         <p className="font-display text-h3 text-ork-text">

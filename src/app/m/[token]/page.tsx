@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MapaCliente } from "@/components/mapa/MapaCliente";
+import { consentimientoActivo } from "@/config/consentimiento";
+import { aperturaMapaActiva } from "@/config/interruptores";
+import { leerConsentimiento } from "@/lib/consentimiento";
 import { leerMapaPublico } from "@/lib/datosMapa";
 
 export const dynamic = "force-dynamic";
@@ -24,5 +27,18 @@ export default async function PaginaMapa({
   const [{ token }, { imprimir }] = await Promise.all([params, searchParams]);
   const datos = await leerMapaPublico(token);
   if (!datos) notFound();
-  return <MapaCliente datos={datos} imprimir={imprimir === "1"} />;
+  return (
+    <MapaCliente
+      datos={datos}
+      imprimir={imprimir === "1"}
+      cliente={{
+        token,
+        aperturaActiva: aperturaMapaActiva(),
+        // Para los previos hechos antes de que existiera la casilla (spec §7).
+        consentimiento: consentimientoActivo()
+          ? { inicial: (await leerConsentimiento(datos.id)).acepta }
+          : null,
+      }}
+    />
+  );
 }

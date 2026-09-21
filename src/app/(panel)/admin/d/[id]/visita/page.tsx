@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import type { TarjetaProceso } from "@/config/consultor/tarjeta";
 import type { Respuestas, SectorId } from "@/config/tipos";
+import { consentimientoActivo } from "@/config/consentimiento";
 import { respuestasPorConfirmar } from "@/config/redacciones";
+import { leerConsentimiento } from "@/lib/consentimiento";
 import { COLUMNAS_VISITA } from "@/lib/diagnosticos";
 import { pasosPrevio } from "@/lib/previo";
 import { loQueHeEntendido } from "@/lib/resumenPrevio";
@@ -77,6 +79,9 @@ export default async function PaginaVisita({ params }: { params: Promise<{ id: s
     sugeridas: sugeridasDelPrevio(sector, previo, porConfirmar.keys()),
     entendido: loQueHeEntendido(previo, sector, porConfirmar.keys()),
     contado,
+    consentimiento: consentimientoActivo()
+      ? { inicial: (await leerConsentimiento(d.id)).acepta }
+      : null,
   };
   return <Visita datos={datos} />;
 }

@@ -29,7 +29,10 @@ export const exigirTokenMotor = (req: Request): Response | null =>
 export type EventoMotor =
   | "diagnostico.previo_completado"
   | "diagnostico.visita_cerrada"
-  | "diagnostico.mapa_publicado";
+  | "diagnostico.mapa_publicado"
+  // mapa_v1.2 (spec §7): el cliente elige sus prioridades / abre el mapa (este, apagado).
+  | "diagnostico.prioridades_elegidas"
+  | "diagnostico.mapa_abierto";
 
 /**
  * Envía un evento a n8n. Nunca lanza: si n8n no está o falla, se registra y la app sigue.

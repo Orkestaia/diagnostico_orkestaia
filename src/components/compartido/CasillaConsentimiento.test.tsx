@@ -23,7 +23,7 @@ describe("consentimiento agregado", () => {
       enviados.push(JSON.parse(String(init.body)));
       return new Response("{}", { status: falla ? 500 : 200 });
     }) as typeof fetch;
-    render(<CasillaConsentimiento token="A4fIy5X2jiYKIMEH7ITWb" inicial={null} />);
+    render(<CasillaConsentimiento url="/api/d/A4fIy5X2jiYKIMEH7ITWb/consentimiento" inicial={null} />);
     const casilla = screen.getByRole("checkbox") as HTMLInputElement;
     expect(casilla.checked).toBe(false);
 

@@ -62,7 +62,8 @@ export const itemRutaSchema = z.object({
 });
 
 export const mapaSchema = z.object({
-  version: z.literal("mapa_v1"),
+  // «mapa_v1.2» (spec §7, 21-sep) solo añade campos opcionales: se aceptan las dos.
+  version: z.enum(["mapa_v1", "mapa_v1.2"]),
   empresa: texto(120),
   sector: texto(60),
   fecha_diagnostico: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -96,7 +97,14 @@ export const mapaSchema = z.object({
   // (el de prueba de Clínica Colino) no las tienen y tienen que seguir abriéndose. ──
   /** 3-5 hallazgos, cada uno con la evidencia que lo sostiene (lo que se vio o se dijo). */
   hallazgos: z
-    .array(z.object({ titulo: texto(90), evidencia: texto(240) }))
+    .array(
+      z.object({
+        titulo: texto(90),
+        evidencia: texto(240),
+        /** v1.2: «Lo que no esperabais». Máximo uno por mapa (se valida en `validarMapa`). */
+        inesperado: z.boolean().optional(),
+      }),
+    )
     .min(3)
     .max(5)
     .optional(),
@@ -113,6 +121,17 @@ export const mapaSchema = z.object({
     .min(1)
     .max(8)
     .optional(),
+  /** v1.2: regalo de 10 minutos. Texto plano: se copia o se descarga como .txt, sin PDF. */
+  regalo: z
+    .object({
+      titulo: texto(70),
+      descripcion: texto(200),
+      tipo: z.enum(["checklist", "plantilla", "ficha"]),
+      contenido: texto(2000),
+    })
+    .optional(),
+  /** v1.2: coste de no hacer nada. Las horas las calcula la app; JARVIS solo decide si se ve. */
+  coste_inaccion: z.object({ mostrar: z.boolean() }).optional(),
   no_automatizar: z.array(texto(160)).max(8).default([]),
   validar: z.array(texto(160)).max(8).default([]),
   siguiente_paso: z.object({ texto: texto(200), cta_url: z.string().url() }),
@@ -248,6 +267,14 @@ export function validarMapa(
       errores.push({ ruta: `${ruta}.ahorro_eur_mes`, mensaje: "No coincide con el cálculo" });
     }
   });
+
+  const inesperados = (mapa.hallazgos ?? []).filter((x) => x.inesperado).length;
+  if (inesperados > 1) {
+    errores.push({
+      ruta: "hallazgos",
+      mensaje: "Solo un hallazgo puede ser «inesperado» (Lo que no esperabais)",
+    });
+  }
 
   mapa.hoja_de_ruta.forEach((fase, i) => {
     if (PARECE_FECHA.test(fase.plazo)) {

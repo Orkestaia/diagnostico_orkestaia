@@ -29,7 +29,8 @@ export function mapaMarkdown(
   ];
   if (mapa.hallazgos?.length) {
     l.push("## Lo que hemos visto", "");
-    for (const x of mapa.hallazgos) l.push(`- **${x.titulo}** — en qué nos basamos: ${x.evidencia}`);
+    for (const x of mapa.hallazgos)
+      l.push(`- ${x.inesperado ? "(Lo que no esperabais) " : ""}**${x.titulo}** — en qué nos basamos: ${x.evidencia}`);
     l.push("");
   }
   if (mapa.lo_que_ya_funciona?.length) {
@@ -58,6 +59,9 @@ export function mapaMarkdown(
       }
     }
     l.push("");
+  }
+  if (mapa.regalo) {
+    l.push(`## Regalo: ${mapa.regalo.titulo} (${mapa.regalo.tipo})`, "", mapa.regalo.descripcion, "", "```", mapa.regalo.contenido, "```", "");
   }
   if (mapa.preocupaciones?.length) {
     l.push("## Lo que os preocupa", "");

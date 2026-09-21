@@ -449,6 +449,23 @@ export function costesConCorreccion(correccion?: Partial<CostesPerfil> | null): 
 }
 
 
+// ── Coste de no hacer nada (spec §7, mapa_v1.2) ──
+
+/**
+ * Horas al año que se seguirán yendo si no se hace nada: horas de hoy × 12 de los procesos de la
+ * hoja de ruta, con el mismo rango ±25 % del resto del cálculo. Sobre el valor sin redondear; el
+ * redondeo solo para mostrar. `null` si no hay horas.
+ */
+export function costeInaccion(horasMesHoy: (number | null)[]): Rango | null {
+  const central = horasMesHoy.reduce<number>((s, x) => s + (x ?? 0), 0) * 12;
+  if (central <= 0) return null;
+  return {
+    min: redondearHoras(central * RANGO.min),
+    central: redondearHoras(central),
+    max: redondearHoras(central * RANGO.max),
+  };
+}
+
 // ── Euros con el coste que pone el cliente en su mapa (revisión con JARVIS, 21-sep) ──
 
 /** Coste por hora que admite la casilla del mapa. Fuera de rango, no se calcula. */

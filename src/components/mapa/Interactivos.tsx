@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FlowDiagram } from "@/components/diagrama/FlowDiagram";
 import { COSTE_CLIENTE, eurosConCosteCliente } from "@/lib/calculo";
 import type { Arista, Nodo } from "@/lib/diagrama";
@@ -164,4 +164,239 @@ export function EurosConTuCoste({
       ) : null}
     </div>
   );
+}
+
+/** Regalo de 10 minutos (spec §7, mapa_v1.2): se copia o se descarga como .txt. Sin PDF. */
+export function Regalo({ titulo, contenido }: { titulo: string; contenido: string }) {
+  const [copiado, setCopiado] = useState<"si" | "error" | null>(null);
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(contenido);
+      setCopiado("si");
+    } catch {
+      setCopiado("error");
+    }
+  };
+  const descargar = () => {
+    const url = URL.createObjectURL(new Blob([contenido], { type: "text/plain;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${nombreArchivoTxt(titulo)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={() => void copiar()}
+        className="inline-flex min-h-11 items-center rounded-xl bg-ork-cyan px-5 font-medium text-ork-bg hover:bg-ork-cyan-hi"
+      >
+        Copiar
+      </button>
+      <button
+        type="button"
+        onClick={descargar}
+        className="inline-flex min-h-11 items-center rounded-xl border border-ork-border-hi px-5 text-ork-text hover:border-ork-cyan"
+      >
+        Descargar (.txt)
+      </button>
+      <span role="status" className="text-small text-ork-text-muted">
+        {copiado === "si" ? "Copiado" : copiado === "error" ? "No se ha podido copiar: usa Descargar" : ""}
+      </span>
+    </div>
+  );
+}
+
+/** Nombre de archivo sin tildes ni símbolos: «Checklist de facturas» → «checklist-de-facturas». */
+export function nombreArchivoTxt(titulo: string): string {
+  return (
+    titulo
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^A-Za-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .toLowerCase() || "regalo"
+  );
+}
+
+/**
+ * «Elige tus 3 prioridades» (spec §7, mapa_v1.2). Guarda al pulsar el botón; se puede cambiar
+ * después. Sin `token` (vista previa del panel) solo enseña lo elegido.
+ */
+export function ElegirPrioridades({
+  token,
+  mejoras,
+  inicial,
+  fechaInicial,
+  max = 3,
+}: {
+  token: string | null;
+  mejoras: string[];
+  inicial: string[];
+  fechaInicial: string | null;
+  max?: number;
+}) {
+  const [sel, setSel] = useState<string[]>(inicial);
+  const [guardadas, setGuardadas] = useState<string[]>(inicial);
+  const [fecha, setFecha] = useState<string | null>(fechaInicial);
+  const [estado, setEstado] = useState<"quieto" | "guardando" | "error">("quieto");
+  const cambiado = sel.join("|") !== guardadas.join("|");
+  const alternar = (m: string) =>
+    setSel((s) => (s.includes(m) ? s.filter((x) => x !== m) : s.length < max ? [...s, m] : s));
+  const guardar = async () => {
+    if (!token) return;
+    setEstado("guardando");
+    try {
+      const r = await fetch(`/api/m/${token}/prioridades`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seleccion: sel }),
+      });
+      if (!r.ok) throw new Error();
+      const j = await r.json();
+      setGuardadas(sel);
+      setFecha(j.prioridades?.fecha ?? new Date().toISOString());
+      setEstado("quieto");
+    } catch {
+      setEstado("error");
+    }
+  };
+  return (
+    <div className="space-y-4">
+      <p className="text-small text-ork-text-muted">
+        Marcadas: {sel.length} de {max}
+      </p>
+      <ul className="grid gap-2 sm:grid-cols-2">
+        {mejoras.map((m) => {
+          const marcada = sel.includes(m);
+          const bloqueada = !token || (!marcada && sel.length >= max);
+          return (
+            <li key={m}>
+              <label
+                className={
+                  "flex min-h-12 items-center gap-3 rounded-xl border px-4 py-3 " +
+                  (marcada
+                    ? "border-ork-cyan bg-ork-cyan/[0.08] text-ork-text"
+                    : "border-ork-border text-ork-text-muted") +
+                  (bloqueada ? " cursor-not-allowed opacity-60" : " cursor-pointer")
+                }
+              >
+                <input
+                  type="checkbox"
+                  className="h-5 w-5 shrink-0 accent-[var(--color-ork-cyan)]"
+                  checked={marcada}
+                  disabled={bloqueada || estado === "guardando"}
+                  onChange={() => alternar(m)}
+                />
+                <span>{m}</span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+      {token ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void guardar()}
+            disabled={!cambiado || estado === "guardando"}
+            className="inline-flex min-h-11 items-center rounded-xl bg-ork-cyan px-5 font-medium text-ork-bg hover:bg-ork-cyan-hi disabled:opacity-50"
+          >
+            {estado === "guardando"
+              ? "Guardando…"
+              : guardadas.length
+                ? "Guardar cambios"
+                : "Guardar mis prioridades"}
+          </button>
+          <span role="status" className="text-small text-ork-text-muted">
+            {estado === "error"
+              ? "No se ha podido guardar. Vuelve a intentarlo."
+              : fecha && !cambiado && guardadas.length
+                ? `Guardadas el ${new Date(fecha).toLocaleDateString("es-ES", { day: "numeric", month: "long" })}. Puedes cambiarlas cuando quieras.`
+                : ""}
+          </span>
+        </div>
+      ) : (
+        <p className="text-small text-ork-text-faint">
+          Vista previa: el cliente las elige en su enlace.
+        </p>
+      )}
+    </div>
+  );
+}
+
+const CLAVE_DISPOSITIVO = "ork-mapa-dispositivo";
+/** El panel marca este navegador: lo que Aitor abra desde aquí no cuenta como apertura. */
+export const CLAVE_PANEL = "ork-panel-aitor";
+
+/**
+ * Aviso de apertura (spec §7), solo si el interruptor está encendido. Cuenta únicamente con
+ * interacción real: 10 s con la página visible o un scroll. No cuenta en navegadores del panel.
+ */
+export function VigiaApertura({ token }: { token: string }) {
+  useEffect(() => {
+    let hecho = false;
+    let visible = 0;
+    let marca = document.visibilityState === "visible" ? Date.now() : 0;
+    const reloj = setInterval(() => {
+      if (marca) {
+        visible += Date.now() - marca;
+        marca = Date.now();
+      }
+      if (visible >= 10_000) enviar();
+    }, 1000);
+    const cambioVisibilidad = () => {
+      if (document.visibilityState === "visible") marca = Date.now();
+      else {
+        if (marca) visible += Date.now() - marca;
+        marca = 0;
+      }
+    };
+    const alScroll = () => {
+      if (window.scrollY > 200) enviar();
+    };
+    function limpiar() {
+      clearInterval(reloj);
+      document.removeEventListener("visibilitychange", cambioVisibilidad);
+      window.removeEventListener("scroll", alScroll);
+    }
+    function enviar() {
+      if (hecho) return;
+      hecho = true;
+      limpiar();
+      try {
+        if (localStorage.getItem(CLAVE_PANEL)) return;
+        let id = localStorage.getItem(CLAVE_DISPOSITIVO);
+        if (!id) {
+          id = crypto.randomUUID().replace(/-/g, "");
+          localStorage.setItem(CLAVE_DISPOSITIVO, id);
+        }
+        void fetch(`/api/m/${token}/apertura`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dispositivo: id }),
+          keepalive: true,
+        }).catch(() => {});
+      } catch {
+        // Sin almacenamiento (modo privado estricto): no se cuenta.
+      }
+    }
+    document.addEventListener("visibilitychange", cambioVisibilidad);
+    window.addEventListener("scroll", alScroll, { passive: true });
+    return limpiar;
+  }, [token]);
+  return null;
+}
+
+/** Lo pone la vista previa del panel: marca el navegador de Aitor para no contar sus aperturas. */
+export function MarcaPanel() {
+  useEffect(() => {
+    try {
+      localStorage.setItem(CLAVE_PANEL, "1");
+    } catch {
+      // Sin almacenamiento: nada que marcar.
+    }
+  }, []);
+  return null;
 }

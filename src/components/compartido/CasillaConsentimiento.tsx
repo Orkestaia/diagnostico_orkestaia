@@ -8,10 +8,11 @@ import { TEXTO_CONSENTIMIENTO } from "@/config/consentimiento";
  * servidor). Marcar y desmarcar guarda al momento; desmarcar es retirarlo.
  */
 export function CasillaConsentimiento({
-  token,
+  url,
   inicial,
 }: {
-  token: string;
+  /** Ruta donde se guarda: la del enlace del cliente o, en el cierre de la visita, la del panel. */
+  url: string;
   inicial: boolean | null;
 }) {
   const [acepta, setAcepta] = useState(inicial === true);
@@ -22,7 +23,7 @@ export function CasillaConsentimiento({
     setAcepta(v);
     setEstado("guardando");
     try {
-      const r = await fetch(`/api/d/${token}/consentimiento`, {
+      const r = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ acepta: v }),

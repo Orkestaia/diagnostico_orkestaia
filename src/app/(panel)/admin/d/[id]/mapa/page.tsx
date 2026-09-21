@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { z } from "zod";
+import { MarcaPanel } from "@/components/mapa/Interactivos";
 import { MapaCliente } from "@/components/mapa/MapaCliente";
 import { leerMapaAdmin } from "@/lib/datosMapa";
 import { BarraMapa } from "./BarraMapa";
@@ -27,6 +28,7 @@ export default async function VistaPreviaMapa({
   return (
     <>
       {imprimir !== "1" ? <BarraMapa id={id} token={datos.token} estado={datos.estado} /> : null}
+      <MarcaPanel />
       <MapaCliente datos={datos} imprimir={imprimir === "1"} />
     </>
   );

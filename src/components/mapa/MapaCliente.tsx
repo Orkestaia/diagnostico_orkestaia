@@ -2,11 +2,20 @@ import { Marca } from "@/components/compartido/Marca";
 import { Orkestador } from "@/components/compartido/Orkestador";
 import { FlowDiagram } from "@/components/diagrama/FlowDiagram";
 import { AREAS, PERIODOS } from "@/config/consultor/tarjeta";
-import { redondearHoras } from "@/lib/calculo";
+import { CasillaConsentimiento } from "@/components/compartido/CasillaConsentimiento";
+import { costeInaccion, redondearHoras } from "@/lib/calculo";
+import { MAX_PRIORIDADES, mejorasElegibles } from "@/lib/interaccionMapa";
 import type { DatosMapa, ProcesoMapa } from "@/lib/datosMapa";
 import { diagramaDesdePasos } from "@/lib/diagrama";
 import type { ItemRuta, Mapa } from "@/lib/mapa";
-import { Comparador, Desplegable, EurosConTuCoste } from "./Interactivos";
+import {
+  Comparador,
+  Desplegable,
+  ElegirPrioridades,
+  EurosConTuCoste,
+  Regalo,
+  VigiaApertura,
+} from "./Interactivos";
 
 /**
  * El mapa que recibe el cliente (spec §6). La misma pieza se usa en su enlace `/m/[token]`, en la
@@ -21,7 +30,23 @@ import { Comparador, Desplegable, EurosConTuCoste } from "./Interactivos";
  *
  * Las secciones de la revisión (hallazgos, lo que ya funciona, preocupaciones, lo que no compensa,
  * plazos por mejora) son opcionales: un mapa guardado sin ellas se pinta como antes.
+ *
+ * mapa_v1.2 (spec §7): «Lo que no esperabais», regalo, coste de no hacer nada y «Elige tus 3
+ * prioridades», también opcionales. Orden de la página: apertura, lo que no esperabais,
+ * hallazgos, así funciona hoy, dónde se va el tiempo (+ coste de no hacer nada), así sería, hoja
+ * de ruta, regalo, (preocupaciones), con criterio, prioridades, siguiente paso.
  */
+
+/** Lo que solo existe en el enlace del cliente, no en la vista previa del panel. */
+export interface EnlaceCliente {
+  token: string;
+  /** Interruptor del aviso de apertura (apagado hasta TEMIS). */
+  aperturaActiva: boolean;
+  /** Casilla de consentimiento agregado; `null` con el interruptor apagado. */
+  consentimiento: { inicial: boolean | null } | null;
+}
+
+const TIPO_REGALO = { checklist: "Checklist", plantilla: "Plantilla", ficha: "Ficha" } as const;
 
 /** Ancho útil de los diagramas dentro de las tarjetas del mapa (max-w-5xl menos márgenes). */
 export const ANCHO_DIAGRAMA = 880;
@@ -417,8 +442,28 @@ function Lista({ titulo, children }: { titulo: string; children: React.ReactNode
   );
 }
 
-export function MapaCliente({ datos, imprimir = false }: { datos: DatosMapa; imprimir?: boolean }) {
+export function MapaCliente({
+  datos,
+  imprimir = false,
+  cliente = null,
+}: {
+  datos: DatosMapa;
+  imprimir?: boolean;
+  /** `null` en la vista previa del panel: nada guarda ni avisa. */
+  cliente?: EnlaceCliente | null;
+}) {
   const { mapa, procesos } = datos;
+  const inesperado = mapa.hallazgos?.find((x) => x.inesperado) ?? null;
+  const otrosHallazgos = (mapa.hallazgos ?? []).filter((x) => x !== inesperado);
+  // Coste de no hacer nada: horas de hoy × 12 de los procesos de la hoja de ruta (calculo.ts).
+  const enRuta = new Set(mapa.hoja_de_ruta.flatMap((f) => f.items.map((it) => it.proceso_id)));
+  const inaccion =
+    mapa.coste_inaccion?.mostrar && !datos.visitaConAvisos
+      ? costeInaccion(procesos.filter((p) => enRuta.has(p.id)).map((p) => p.horasHoy))
+      : null;
+  // «Elige tus 3 prioridades» no tiene campo propio: sale en los mapas que JARVIS sube como
+  // mapa_v1.2. Así los mapas ya guardados (mapa_v1) se siguen pintando igual.
+  const mejoras = mapa.version === "mapa_v1.2" ? mejorasElegibles(mapa) : [];
   const horasHoy = mapa.fugas.reduce((s, f) => s + f.horas_mes_hoy, 0);
   const liberarMin = mapa.fugas.reduce((s, f) => s + f.ahorro_horas_mes.min, 0);
   const liberarMax = mapa.fugas.reduce((s, f) => s + f.ahorro_horas_mes.max, 0);
@@ -491,7 +536,28 @@ export function MapaCliente({ datos, imprimir = false }: { datos: DatosMapa; imp
           </div>
         </header>
 
-        {mapa.hallazgos?.length ? (
+        {cliente?.aperturaActiva && !imprimir ? <VigiaApertura token={cliente.token} /> : null}
+
+        {inesperado ? (
+          <section
+            id="inesperado"
+            aria-labelledby="inesperado-t"
+            className="mapa-junto rounded-3xl border border-ork-violet/60 bg-ork-violet/10 p-8 sm:p-10"
+          >
+            <p className="font-mono text-[0.72rem] uppercase tracking-[0.16em] text-ork-violet">
+              Lo que no esperabais
+            </p>
+            <h2 id="inesperado-t" className="mt-3 font-display text-h2 text-ork-text">
+              {inesperado.titulo}
+            </h2>
+            <p className="mt-3 max-w-3xl text-body-lg text-ork-text-muted">
+              <span className="text-ork-text-faint">En qué nos basamos: </span>
+              {inesperado.evidencia}
+            </p>
+          </section>
+        ) : null}
+
+        {otrosHallazgos.length ? (
           <Seccion
             id="hallazgos"
             numero={num()}
@@ -501,7 +567,7 @@ export function MapaCliente({ datos, imprimir = false }: { datos: DatosMapa; imp
             salto
           >
             <ol className="grid gap-4 sm:grid-cols-2">
-              {mapa.hallazgos.map((x, i) => (
+              {otrosHallazgos.map((x, i) => (
                 <li
                   key={x.titulo}
                   className="mapa-junto rounded-2xl border border-ork-border bg-ork-surface-1/85 p-6"
@@ -555,6 +621,18 @@ export function MapaCliente({ datos, imprimir = false }: { datos: DatosMapa; imp
               fugas={mapa.fugas.map((f) => ({ titulo: f.titulo, ...f.ahorro_horas_mes }))}
             />
           ) : null}
+          {inaccion ? (
+            <div className="mapa-junto rounded-2xl border border-ork-border-hi bg-ork-surface-1/85 p-6">
+              <p className="font-display text-body-lg text-ork-text">El coste de no hacer nada</p>
+              <p className="mt-2 text-ork-text-muted">
+                Según vuestras cifras, si todo sigue igual, en un año se irán{" "}
+                <span className="cifra text-ork-text">
+                  {rango(inaccion.min, inaccion.max)}
+                </span>{" "}
+                en los procesos de la hoja de ruta.
+              </p>
+            </div>
+          ) : null}
         </Seccion>
 
         {conDiagrama.length ? (
@@ -580,6 +658,30 @@ export function MapaCliente({ datos, imprimir = false }: { datos: DatosMapa; imp
         >
           <HojaDeRuta mapa={mapa} />
         </Seccion>
+
+        {mapa.regalo ? (
+          <Seccion
+            id="regalo"
+            numero={num()}
+            titulo="Un regalo de 10 minutos"
+            entrada="Algo que podéis usar ya, sin esperar a nada."
+            imprimir={imprimir}
+          >
+            <div className="mapa-junto space-y-4 rounded-2xl border border-ork-cyan/40 bg-ork-cyan/[0.06] p-6">
+              <p className="font-mono text-[0.72rem] uppercase tracking-[0.14em] text-ork-cyan">
+                {TIPO_REGALO[mapa.regalo.tipo]}
+              </p>
+              <p className="font-display text-h3 text-ork-text">{mapa.regalo.titulo}</p>
+              <p className="text-ork-text-muted">{mapa.regalo.descripcion}</p>
+              <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-xl border border-ork-border bg-ork-bg/70 p-4 font-sans text-small text-ork-text">
+                {mapa.regalo.contenido}
+              </pre>
+              {!imprimir ? (
+                <Regalo titulo={mapa.regalo.titulo} contenido={mapa.regalo.contenido} />
+              ) : null}
+            </div>
+          </Seccion>
+        ) : null}
 
         {mapa.preocupaciones?.length ? (
           <Seccion
@@ -641,6 +743,31 @@ export function MapaCliente({ datos, imprimir = false }: { datos: DatosMapa; imp
               ) : null}
             </div>
           </Seccion>
+        ) : null}
+
+        {mejoras.length && !imprimir ? (
+          <Seccion
+            id="prioridades"
+            numero={num()}
+            titulo={`Elige tus ${MAX_PRIORIDADES} prioridades`}
+            entrada="Marca las mejoras que más os importan. Nos sirve para preparar la propuesta; puedes cambiarlas cuando quieras."
+            imprimir={imprimir}
+          >
+            <ElegirPrioridades
+              token={cliente?.token ?? null}
+              mejoras={mejoras}
+              inicial={(datos.prioridades?.seleccion ?? []).filter((x) => mejoras.includes(x))}
+              fechaInicial={datos.prioridades?.fecha ?? null}
+              max={MAX_PRIORIDADES}
+            />
+          </Seccion>
+        ) : null}
+
+        {cliente?.consentimiento && !imprimir ? (
+          <CasillaConsentimiento
+            url={`/api/d/${cliente.token}/consentimiento`}
+            inicial={cliente.consentimiento.inicial}
+          />
         ) : null}
 
         <section

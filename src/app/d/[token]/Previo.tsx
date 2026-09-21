@@ -232,7 +232,10 @@ export function Previo({
         {fase === "final" && resumen ? (
           <PantallaFinal datos={datos} nombre={nombre} resumen={resumen}>
             {consentimiento ? (
-              <CasillaConsentimiento token={token} inicial={consentimiento.inicial} />
+              <CasillaConsentimiento
+                url={`/api/d/${token}/consentimiento`}
+                inicial={consentimiento.inicial}
+              />
             ) : null}
           </PantallaFinal>
         ) : null}
