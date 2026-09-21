@@ -64,7 +64,7 @@ Panel → fila del cliente → **Visita**. La pantalla está pensada para girarl
   - naranja: sin conexión, guardado en tu dispositivo;
   - rojo: reintentando.
 - **Candado**: la vista privada (ver 3.3).
-- **Bloques A-E**: puedes saltar de uno a otro cuando quieras.
+- **Bloques A-H**: puedes saltar de uno a otro cuando quieras.
 
 ### 3.2 Los bloques
 
