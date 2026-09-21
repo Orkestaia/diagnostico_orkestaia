@@ -34,10 +34,21 @@ Repo `github.com/Orkestaia/diagnostico_orkestaia`. Vercel: equipo `orkesta-autom
 `diagnostico-orkestaia`. **Dominio: https://diagnostico.orkestaia.com** (CNAME en Namecheap; también
 responde `diagnostico-orkestaia.vercel.app`).
 
-## Estado (21-sep-2026)
+## Estado (22-sep-2026)
 
-En producción y usado con clientes reales (3 previos contestados). Detalle y guía:
-`GUIA-DE-USO.md`.
+En producción y usado con clientes reales (3 previos contestados; visitas el 22, 23 y 24-sep).
+Detalle y guía: `GUIA-DE-USO.md`.
+
+**Congelación de despliegues:** nada a `main` desde el martes 22-sep a las 20:00 hasta que acabe
+la visita del jueves 24, salvo un fallo grave.
+
+Ramas abiertas (22-sep):
+
+- `grabacion-pausa`: pausa de la grabación, aviso de más de 60 min en todas las áreas salvo
+  Operación y Dirección, consentimiento agregado apagado, botón «Mapa» en el panel. Aitor la prueba
+  el martes 22 por la mañana con «Marta Test» (`docs/prueba-martes-22-sep.md`); si va bien, se
+  fusiona antes de las 20:00; si no, después del jueves.
+- `mapa-v1-2`: campos opcionales de la spec §7 (21-sep). **No desplegar hasta después del jueves 24.**
 
 - Previo `/d/[token]`, visita `/admin/d/[id]/visita` (batería v2: 8 bloques, núcleo/profundizar,
   vista privada, sin conexión, grabación + transcripción, notas, encuesta del equipo), cierre,
@@ -47,7 +58,19 @@ En producción y usado con clientes reales (3 previos contestados). Detalle y gu
   cálculo), `PUT /api/admin/diagnosticos/[id]/mapa` (JARVIS), `/admin/d/[id]/mapa` (vista previa +
   Publicar), `/m/[token]` (cliente). **Se entrega solo como enlace web; no hay PDF** (decisión de
   Aitor, 21-sep). `?imprimir=1` y `scripts/mapa-pdf.mjs` existen solo por si un cliente lo pide.
-  Al cliente solo se le enseñan horas; los euros, pendiente de decidir con JARVIS.
+  Al cliente solo horas; euros solo con **su** coste por hora, escrito en su mapa y sin guardar.
+- Revisión del mapa con JARVIS (21-sep, en producción): hallazgos, lo que ya funciona,
+  preocupaciones, no rentables, `plazo_orientativo` (semanas, nunca fechas), etiquetas de flecha
+  obligatorias en bifurcaciones (prohibidas en tramos lineales), ningún «Con el sistema» sin su
+  «Así es hoy», aviso de caducidad del enlace y copia `<fecha>_mapa-publicado.md` a Drive/JARVIS.
+  Las reglas nuevas solo se aplican al subir mapas (PUT): el esquema de lectura sigue aceptando los
+  guardados (Colino ya no pasaría el PUT: su tarjeta de recordatorios no tiene pasos).
+- Avisos de plausibilidad al cerrar la visita (`src/lib/plausibilidad.ts`): avisan, no bloquean;
+  quedan en `calculo.avisos_plausibilidad`.
+- banco_v1.1 (`src/config/redacciones.ts`): cada respuesta del previo guarda con qué redacción se
+  contestó (`respuestas_previo_redaccion`); las contestadas a un texto anterior salen «por
+  confirmar en la visita» y no precargan tarjetas (Icónica, `dia.pedidos_mes`). Nunca se tocan
+  los datos guardados: se decide al leer.
 - Mapa de prueba publicado (visita ficticia «Clínica Colino»): `/m/8KDrahMW30hR-AdO5jIlm`. Lo
   escribió BUILDS para ver la maqueta; Aitor lo revisa con JARVIS.
 - **Pendiente:** lo que salga de la revisión del mapa con JARVIS; email al cliente al publicar el
@@ -73,7 +96,13 @@ En producción y usado con clientes reales (3 previos contestados). Detalle y gu
 - Comprobar que los tests pasan ANTES de hacer commit (una vez se coló uno en rojo).
 - `src/components/diagrama/FlowDiagram.tsx` y las animaciones `ork-diagrama__*` de
   `globals.css` son **copia del portfolio** (`orkesta-web`). Si se mejoran aquí, llevarlo allí.
-- DDL: no se ejecuta desde aquí. Se prepara en `supabase/*.sql` y lo ejecuta Aitor.
+- DDL: no se ejecuta desde aquí. Se prepara en `supabase/*.sql` y lo ejecuta Aitor. v1-v7
+  ejecutados (22-sep). Las columnas nuevas se leen aparte y de forma tolerante (`lib/redaccion.ts`,
+  `lib/consentimiento.ts`): si faltan, la app sigue funcionando.
+- **Solo hacia adelante:** nada de lo ya guardado se modifica al cambiar reglas o textos; los campos
+  nuevos son opcionales y los mapas guardados siguen abriéndose.
+- Interruptores (funciones construidas pero apagadas, variable a `1` en Vercel):
+  `CONSENTIMIENTO_AGREGADO_ACTIVO` (hasta tener el texto revisado de TEMIS).
 - Sin emojis en la UI. Tuteo, España.
 
 ## Cómo ejecutar
@@ -96,3 +125,11 @@ npm run lint
 
 `git push` a `main` → Vercel despliega solo. No usar `vercel --prod` a mano. Variables de
 entorno en Vercel, marcadas como sensibles; tras cambiarlas, redeploy.
+
+Versión de prueba: cada rama subida tiene su preview en Vercel, **con protección de Vercel** (pide
+la sesión de la cuenta de Orkesta) y **contra la base de datos real**. Las variables de entorno de
+Preview solo están puestas para la rama `grabacion-pausa` (sin `N8N_WEBHOOK_URL`, para que las
+pruebas no avisen a n8n); otra rama necesita las suyas (`vercel env add NOMBRE preview <rama>`).
+Comprobar una preview desde aquí: `MSYS_NO_PATHCONV=1 npx vercel curl <ruta> --deployment <url>`.
+Comparar con producción sin tocar datos: `next start` en local contra la misma Supabase, huella
+(sha256) de las filas antes y después.

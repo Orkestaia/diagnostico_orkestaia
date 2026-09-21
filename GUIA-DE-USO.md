@@ -1,7 +1,8 @@
 # Guía de uso · Diagnóstico Orkesta
 
-Versión del 20-sep-2026. Batería del consultor v2: 8 bloques, preguntas de núcleo y de
-profundizar, grabación, notas y encuesta de madurez en IA del equipo.
+Versión del 22-sep-2026. Batería del consultor v2: 8 bloques, preguntas de núcleo y de
+profundizar, grabación con pausa, notas, encuesta de madurez en IA del equipo, avisos al cerrar
+la visita y el mapa del cliente.
 
 - Panel: https://diagnostico.orkestaia.com/admin (también https://diagnostico-orkestaia.vercel.app/admin)
 - Entras con aitor@orkestaia.com (Clerk). Nadie más puede entrar.
@@ -16,7 +17,7 @@ profundizar, grabación, notas y encuesta de madurez en IA del equipo.
 | 2. Previo | Cliente, 5 min | Su enlace `/d/…` | Responde unas 10 preguntas. Te llega aviso por Telegram y email |
 | 3. Visita | Tú + cliente, 3 h | Panel → «Visita» | Profundizas bloque a bloque en tu portátil o tableta, delante del cliente |
 | 4. JARVIS | Tú + JARVIS | Export | JARVIS descarga los datos y escribe el mapa |
-| 5. Mapa | Cliente | Su enlace `/m/…` | Sprint 2 (todavía no está) |
+| 5. Mapa | Tú publicas, el cliente lo ve | Panel → «Mapa» · su enlace `/m/…` | JARVIS sube el mapa, tú lo revisas y lo publicas (ver §5) |
 
 El cliente **nunca** tiene cuenta. Solo ve su enlace personal, y ese enlace no lleva a ninguna otra parte.
 
@@ -131,9 +132,13 @@ Si cambias volumen o minutos de una tarjeta que venía del previo, pasa a contar
 2. El botón pasa a **rojo, «Grabando 12:34»**. El cliente ve siempre que se está grabando.
 3. Se graba en trozos de 5 minutos. Cada trozo se sube, lo transcribe OpenAI y su **audio se
    borra** en cuanto hay texto. Solo queda la transcripción, que va al export de JARVIS.
-4. Para parar, toca el botón rojo. **Hay que parar antes de cerrar la visita.**
-5. En la vista privada ves el estado («Grabación: 12 fragmentos · 11 transcritos»). Si alguno
-   falla, pulsa **Reintentar**.
+4. **Pausa:** toca el botón rojo y pasa a **«En pausa 12:34 · Seguir»**. El reloj se queda
+   quieto y el micrófono sigue reservado. Toca otra vez para **seguir**: continúa donde iba, sin
+   empezar de cero.
+5. **Terminar:** botón **«Terminar»**, al lado. Suelta el micrófono. **Hay que terminar la
+   grabación antes de cerrar la visita** (también si está en pausa).
+6. En la vista privada ves el estado («Grabación: 12 fragmentos · 11 transcritos»). Si alguno
+   falla, pulsa **Reintentar**. Los trozos son de 5 minutos **grabados** (las pausas no cuentan).
 
 Consejos:
 
@@ -171,11 +176,22 @@ Si se cae el wifi, **sigue trabajando**: todo se guarda en tu dispositivo y se e
 
 Bloque E → **Terminar la visita** → **Cerrar la visita**.
 
-- Si estás grabando, primero para la grabación.
+- Si estás grabando o en pausa, primero pulsa **Terminar** en la grabación.
 - Si falta el **coste por hora**, no deja cerrar y te ofrece ir al bloque C. Pregúntalo siempre:
   - si el cliente te da su coste real, usa «Me da su coste real»;
   - si no lo sabe, pulsa «No lo sabe: orientativo 14 / 25 / 40 €»;
   - la app guarda de cuál de los dos se trata.
+- **Avisos antes de cerrar** (no impiden cerrar). Salen si:
+  - una tarea tarda **más de 60 min cada vez**, salvo en Operación y Dirección («¿es por vez o por
+    tanda?»);
+  - las **horas de hoy** suman más que el tope de la app para el tamaño del equipo;
+  - el volumen de una tarjeta es **el doble o la mitad** de lo que contestó en el previo.
+
+  **Revisar** te devuelve a la visita; **Cerrar igualmente** cierra. Si cierras con avisos, quedan
+  en el export para que JARVIS los tenga en cuenta.
+- Respuestas **«por confirmar en la visita»**: si JARVIS cambió el texto de una pregunta después de
+  que el cliente contestara, en «Lo que nos contaste» sale en naranja con el texto al que contestó.
+  Pregúntaselo y pulsa **Corregir**; mientras tanto, no precarga ninguna tarjeta.
 - Al cerrar:
   1. Se **congelan** las horas de hoy de cada tarjeta, con fecha y origen. Es la línea base para medir el resultado real después.
   2. Se hace el cálculo completo (ahorros, topes, euros) para JARVIS.
@@ -200,7 +216,28 @@ curl -H "Authorization: Bearer <DIAGNOSTICO_ADMIN_TOKEN>" \
 
 ---
 
-## 5. Si algo falla
+## 5. El mapa del cliente
+
+1. **JARVIS lo sube** con su token (`PUT …/mapa`). La app comprueba que las cifras cuadran con el
+   cálculo de la visita y que los diagramas siguen las reglas; si algo falla, JARVIS recibe la
+   lista de errores. Queda en **borrador**.
+2. **Tú lo revisas:** panel → **«Mapa»** del diagnóstico. Es exactamente lo que verá el cliente.
+3. **Publicar:** botón en esa misma página. Desde ese momento abre su enlace `/m/…` (el mismo
+   token del previo). **Despublicar** lo vuelve a borrador para corregir algo.
+4. **Se entrega solo como enlace web.** No hay PDF (`?imprimir=1` existe por si alguien lo pide).
+
+Lo que ve el cliente: resumen, sus procesos por horas, dónde se le va el tiempo, cómo sería con el
+sistema (con el diagrama de hoy al lado), la hoja de ruta con plazos en semanas y lo que no
+haríamos o hay que validar. Solo **horas**; si quiere euros, escribe **su propio coste por hora**
+en la casilla del mapa (se calcula en su navegador y no se guarda).
+
+- **Caducidad:** el enlace abre 12 meses. La página dice hasta cuándo, y el último mes avisa.
+- **Copia para ti:** al publicar, se guarda una copia en texto del mapa (`<fecha>_mapa-publicado.md`)
+  en su carpeta de Drive y en la de JARVIS, junto al informe.
+
+---
+
+## 6. Si algo falla
 
 | Síntoma | Qué hacer |
 |---|---|
