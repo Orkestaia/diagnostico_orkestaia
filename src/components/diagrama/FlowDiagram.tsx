@@ -3,6 +3,9 @@
  * (spec del diagnóstico §1 y §12). Mismo componente, mismas animaciones (`ork-diagrama__*` en
  * globals.css) y mismo formato de datos. Si se mejora aquí o allí, llevar el cambio al otro repo.
  * Único cambio: la importación de los tipos, que aquí viven en `@/lib/diagrama`.
+ *
+ * Añadido en el diagnóstico (21-sep), PENDIENTE de llevar al portfolio: se pintan las etiquetas
+ * de las flechas (`arista.etiqueta`). Antes se aceptaban en los datos pero no se dibujaban.
  */
 import type { Arista, Nodo } from "@/lib/diagrama";
 
@@ -146,7 +149,20 @@ function Lienzo({
 }) {
   const columnas = Math.max(...nodos.map((n) => n.col)) + 1;
   const filas = Math.max(...nodos.map((n) => n.fila)) + 1;
-  const { sepX, sepY, fuente } = medidas;
+  const { sepY, fuente } = medidas;
+  const fuenteEtiqueta = Math.round(fuente * 0.8);
+  // Una etiqueta en una flecha recta (misma fila) va en el hueco entre columnas: si no cabe, el
+  // hueco se ensancha lo justo y los nodos ceden ese ancho.
+  const porIdTmp = new Map(nodos.map((n) => [n.id, n]));
+  const etiquetaRectaMax = Math.max(
+    0,
+    ...aristas
+      .filter((a) => a.etiqueta && porIdTmp.get(a.de)?.fila === porIdTmp.get(a.a)?.fila)
+      .map((a) => a.etiqueta!.length),
+  );
+  const sepX = vertical
+    ? medidas.sepX
+    : Math.max(medidas.sepX, Math.round(etiquetaRectaMax * fuenteEtiqueta * 0.56 + 16));
 
   // El ancho total es la constante; lo que cede es el ancho de cada nodo.
   const ANCHO_NODO = Math.round((medidas.ancho - (columnas - 1) * sepX) / columnas);
@@ -205,14 +221,39 @@ function Lienzo({
     ].join(" ");
   }
 
+  /**
+   * Dónde va la etiqueta de una flecha. Horizontal: en la recta, encima del hueco entre columnas;
+   * con codo, al lado del tramo vertical, a media altura. Vertical (móvil): a la derecha del tramo.
+   */
+  function posEtiqueta(a: Nodo, b: Nodo): { x: number; y: number; ancla: "start" | "middle" } {
+    const pa = pos(a);
+    const pb = pos(b);
+    if (vertical) {
+      const x2 = pb.x + ANCHO_NODO / 2;
+      const y1 = pa.y + ALTO_NODO;
+      const y2 = pb.y;
+      return { x: x2 + fuenteEtiqueta * 0.5, y: y1 + (y2 - y1) / 2 + fuenteEtiqueta * 0.35, ancla: "start" };
+    }
+    const x1 = pa.x + ANCHO_NODO;
+    const x2 = pb.x;
+    const y1 = pa.y + ALTO_NODO / 2;
+    const y2 = pb.y + ALTO_NODO / 2;
+    const mx = x1 + (x2 - x1) / 2;
+    if (Math.abs(y1 - y2) < 1) return { x: mx, y: y1 - fuenteEtiqueta * 0.6, ancla: "middle" };
+    return { x: mx + fuenteEtiqueta * 0.5, y: (y1 + y2) / 2 + fuenteEtiqueta * 0.35, ancla: "start" };
+  }
+
   const trazados = aristas
     .map((a) => {
       const de = porId.get(a.de);
       const hacia = porId.get(a.a);
       if (!de || !hacia) return null;
-      return { d: trazado(de, hacia), key: `${a.de}-${a.a}` };
+      const etiqueta = a.etiqueta?.trim()
+        ? { texto: a.etiqueta.trim(), ...posEtiqueta(de, hacia) }
+        : null;
+      return { d: trazado(de, hacia), key: `${a.de}-${a.a}`, etiqueta };
     })
-    .filter((t): t is { d: string; key: string } => t !== null);
+    .filter((t) => t !== null);
 
   return (
     <svg
@@ -245,6 +286,25 @@ function Lienzo({
           />
         ))}
       </g>
+
+      {trazados.map((t) =>
+        t.etiqueta ? (
+          <text
+            key={`et-${t.key}`}
+            x={t.etiqueta.x}
+            y={t.etiqueta.y}
+            textAnchor={t.etiqueta.ancla}
+            fontSize={fuenteEtiqueta}
+            className="ork-diagrama__nodo fill-ork-text-muted"
+            // Fondo del color del lienzo para que la etiqueta se lea encima de la línea.
+            stroke="var(--color-ork-bg)"
+            strokeWidth={fuenteEtiqueta / 3}
+            paintOrder="stroke"
+          >
+            {t.etiqueta.texto}
+          </text>
+        ) : null,
+      )}
 
       {nodos.map((n, i) => {
         const p = pos(n);

@@ -246,14 +246,24 @@ export const nuevoIdTarjeta = () => `t${Date.now().toString(36)}${(contador++).t
  * Tarjetas que el previo ya permite rellenar. No se crean solas: salen arriba como sugeridas
  * ("con datos del previo") y Aitor las añade. Los minutos solo si los dio el cliente.
  */
-export function sugeridasDelPrevio(sector: SectorId, previo: Respuestas): TarjetaProceso[] {
+export function sugeridasDelPrevio(
+  sector: SectorId,
+  previo: Respuestas,
+  /**
+   * Respuestas por confirmar (contestadas a otra redacción, `redacciones.ts`): la tarjeta se
+   * sugiere igual, pero sin volumen; se pregunta en la visita.
+   */
+  porConfirmar: Iterable<string> = [],
+): TarjetaProceso[] {
   const e = leerEntradas(previo, sector);
   const plantillas = plantillasDeSector(sector);
+  const pendientes = new Set(porConfirmar);
   const r: TarjetaProceso[] = [];
   for (const pc of PRECARGAS) {
     if (pc.sector !== "todos" && pc.sector !== sector) continue;
-    const volumen = e.n(pc.volumen.desde);
-    if (volumen === undefined || volumen === null || volumen === 0) continue;
+    const sinVolumen = pendientes.has(pc.volumen.desde);
+    const volumen = sinVolumen ? null : e.n(pc.volumen.desde);
+    if (!sinVolumen && (volumen === undefined || volumen === null || volumen === 0)) continue;
     const minutos = pc.minutosDesde ? e.n(pc.minutosDesde) : null;
     let nombre: string;
     let plantilla: string | null = null;
@@ -271,10 +281,10 @@ export function sugeridasDelPrevio(sector: SectorId, previo: Respuestas): Tarjet
         nombre,
         plantilla,
         area: pl?.area ?? null,
-        volumen,
+        volumen: volumen ?? null,
         volumenPeriodo: pc.volumen.periodo,
         minutosPorVez: typeof minutos === "number" ? minutos : null,
-        origenDatos: "previo",
+        origenDatos: sinVolumen ? "visita" : "previo",
       }),
     );
   }

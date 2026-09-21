@@ -34,9 +34,12 @@ export interface DatosMapa {
   mapa: Mapa;
   procesos: ProcesoMapa[];
   publicadoAt: string | null;
+  /** Hasta cuándo abre el enlace (spec §10: 12 meses). Se enseña al cliente para que no caduque sin aviso. */
+  caducaAt: string | null;
 }
 
-const COLUMNAS = "id, token, estado, sector, empresa, mapa, procesos, mapa_publicado_at";
+const COLUMNAS =
+  "id, token, estado, sector, empresa, mapa, procesos, mapa_publicado_at, mapa_caduca_at";
 
 function aDatos(d: Record<string, unknown>): DatosMapa | null {
   const r = mapaSchema.safeParse(d.mapa);
@@ -65,6 +68,7 @@ function aDatos(d: Record<string, unknown>): DatosMapa | null {
     mapa: r.data,
     procesos,
     publicadoAt: (d.mapa_publicado_at as string | null) ?? null,
+    caducaAt: (d.mapa_caduca_at as string | null) ?? null,
   };
 }
 

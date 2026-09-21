@@ -135,7 +135,9 @@ function fraseSector(r: Respuestas, sector: SectorId): string | null {
     }
     case "industria_distribucion": {
       const ped = dato("dia.pedidos_mes");
-      if (ped) partes.push(`entran ${ped} pedidos al mes fuera de la tienda online`);
+      // Redacción banco_v1.1 (21-sep). Las respuestas a la redacción anterior no llegan aquí: son
+      // «por confirmar en la visita» (`redacciones.ts`) y la visita las quita con `omitir`.
+      if (ped) partes.push(`pasáis a mano al programa de gestión ${ped} pedidos o encargos al mes`);
       const est: Record<string, string> = {
         "Con un programa": "con un programa",
         Excel: "con un Excel",
@@ -191,8 +193,19 @@ function frasePrioridad(r: Respuestas): string | null {
   return t ? `Si pudieras quitarte una tarea de encima, sería: «${t}».` : null;
 }
 
-/** "Lo que he entendido": 3-5 frases (las que tengan datos), en orden fijo. */
-export function loQueHeEntendido(r: Respuestas, sector: SectorId): string[] {
+/**
+ * "Lo que he entendido": 3-5 frases (las que tengan datos), en orden fijo. `omitir`: preguntas que
+ * no deben usarse (respuestas por confirmar, contestadas con otra redacción).
+ */
+export function loQueHeEntendido(
+  respuestas: Respuestas,
+  sector: SectorId,
+  omitir?: Iterable<string>,
+): string[] {
+  const fuera = new Set(omitir ?? []);
+  const r = fuera.size
+    ? Object.fromEntries(Object.entries(respuestas).filter(([k]) => !fuera.has(k.split("::")[0])))
+    : respuestas;
   return [
     fraseEquipo(r, sector),
     fraseCaptacion(r, sector),

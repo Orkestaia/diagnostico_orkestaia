@@ -1,7 +1,9 @@
+import { after } from "next/server";
 import { z } from "zod";
 import { leerPrevio } from "@/lib/datosPrevio";
 import { demasiadas, dentroDelLimite } from "@/lib/limite";
 import { ESTADOS_PREVIO_EDITABLE, filtrarRespuestas } from "@/lib/previo";
+import { apuntarRedaccion } from "@/lib/redaccion";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const esquema = z.object({ respuestas: z.record(z.string(), z.unknown()) });
@@ -35,5 +37,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
     console.error("[previo] guardar", error);
     return Response.json({ error: "No se ha podido guardar" }, { status: 500 });
   }
+  // banco_v1.1: con qué redacción se contestó cada respuesta. Aparte y sin bloquear el guardado.
+  const contestadas = Object.entries(aceptadas)
+    .filter(([, v]) => v !== null && v !== "")
+    .map(([k]) => k);
+  after(() => apuntarRedaccion(d.id, contestadas));
   return Response.json({ guardado: Object.keys(aceptadas), rechazadas });
 }

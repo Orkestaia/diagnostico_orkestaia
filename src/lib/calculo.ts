@@ -448,3 +448,28 @@ export function costesConCorreccion(correccion?: Partial<CostesPerfil> | null): 
   return r;
 }
 
+
+// ── Euros con el coste que pone el cliente en su mapa (revisión con JARVIS, 21-sep) ──
+
+/** Coste por hora que admite la casilla del mapa. Fuera de rango, no se calcula. */
+export const COSTE_CLIENTE = { min: 5, max: 300 };
+
+/**
+ * Euros al mes de un ahorro en horas con el coste por hora que escribe el cliente en su mapa. No se
+ * guarda en ningún sitio: es su dato y se queda en su navegador. Misma regla que el resto del
+ * cálculo: por debajo de `MINIMO_HORAS_CON_EUROS` no hay euros, y se redondea a la decena.
+ * El mapa solo trae el rango ±25 % ya redondeado; la central es su punto medio.
+ */
+export function eurosConCosteCliente(
+  ahorro: { min: number; max: number },
+  costeHora: number,
+): RangoEur | null {
+  if (!Number.isFinite(costeHora) || costeHora < COSTE_CLIENTE.min || costeHora > COSTE_CLIENTE.max)
+    return null;
+  const central = (ahorro.min + ahorro.max) / 2;
+  if (central < MINIMO_HORAS_CON_EUROS) return null;
+  return {
+    min: redondearEuros(ahorro.min * costeHora),
+    max: redondearEuros(ahorro.max * costeHora),
+  };
+}

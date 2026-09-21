@@ -3,9 +3,11 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import type { TarjetaProceso } from "@/config/consultor/tarjeta";
 import type { Respuestas, SectorId } from "@/config/tipos";
+import { respuestasPorConfirmar } from "@/config/redacciones";
 import { COLUMNAS_VISITA } from "@/lib/diagnosticos";
 import { pasosPrevio } from "@/lib/previo";
 import { loQueHeEntendido } from "@/lib/resumenPrevio";
+import { leerRedaccion } from "@/lib/redaccion";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sugeridasDelPrevio, type RespuestasVisita } from "@/lib/visita";
 import { Visita, type DatosVisita } from "./Visita";
@@ -33,6 +35,13 @@ export default async function PaginaVisita({ params }: { params: Promise<{ id: s
 
   const sector = d.sector as SectorId;
   const previo = (d.respuestas_previo ?? {}) as Respuestas;
+  const respuestasVisita = (d.respuestas_visita ?? {}) as RespuestasVisita;
+  // banco_v1.1: respuestas contestadas a una redacción anterior de la pregunta.
+  const porConfirmar = respuestasPorConfirmar(previo, {
+    redaccion: await leerRedaccion(d.id),
+    configVersion: d.config_version,
+    correcciones: respuestasVisita.correcciones_previo,
+  });
   // "Lo que nos contaste": solo lo que respondió, con su texto, para poder corregirlo delante de él.
   const contado = pasosPrevio(sector, previo)
     .filter(
@@ -51,6 +60,7 @@ export default async function PaginaVisita({ params }: { params: Promise<{ id: s
           .filter(([k]) => k.startsWith(`${p.id}::`))
           .map(([k, v]) => [k.split("::")[1], String(v ?? "")]),
       ),
+      porConfirmar: porConfirmar.get(p.id)?.textoContestado ?? null,
     }));
 
   const datos: DatosVisita = {
@@ -62,10 +72,10 @@ export default async function PaginaVisita({ params }: { params: Promise<{ id: s
     tipoNegocio: d.tipo_negocio,
     fechaReunion: d.fecha_reunion,
     visitaCerradaAt: d.visita_cerrada_at,
-    respuestasVisita: (d.respuestas_visita ?? {}) as RespuestasVisita,
+    respuestasVisita,
     procesos: (d.procesos ?? []) as TarjetaProceso[],
-    sugeridas: sugeridasDelPrevio(sector, previo),
-    entendido: loQueHeEntendido(previo, sector),
+    sugeridas: sugeridasDelPrevio(sector, previo, porConfirmar.keys()),
+    entendido: loQueHeEntendido(previo, sector, porConfirmar.keys()),
     contado,
   };
   return <Visita datos={datos} />;

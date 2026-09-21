@@ -38,6 +38,11 @@ export interface Contado {
   opciones: string[];
   max: number | null;
   cual: Record<string, string>;
+  /**
+   * Texto de la pregunta al que contestó, si era otro (banco_v1.1): la respuesta está por
+   * confirmar en la visita. Al corregirla queda confirmada.
+   */
+  porConfirmar?: string | null;
 }
 
 export interface DatosVisita {
@@ -511,8 +516,15 @@ function LoQueNosContaste({
                     {mostrar(c)}
                     {c.id in correcciones ? (
                       <span className="ml-2 text-small text-ork-cyan">corregido</span>
+                    ) : c.porConfirmar ? (
+                      <span className="ml-2 text-small text-[#f5c46b]">por confirmar en la visita</span>
                     ) : null}
                   </p>
+                  {c.porConfirmar && !(c.id in correcciones) ? (
+                    <p className="text-small text-ork-text-faint">
+                      Contestó a otra pregunta: «{c.porConfirmar}». Pregúntalo y corrígelo.
+                    </p>
+                  ) : null}
                 </div>
                 <button
                   type="button"
@@ -1142,17 +1154,25 @@ function CerrarVisita({
   const [confirmar, setConfirmar] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<"coste" | "red" | "grabando" | null>(null);
+  // Plausibilidad (revisión con JARVIS, 21-sep): avisos del servidor antes de cerrar.
+  const [avisos, setAvisos] = useState<{ tarjetaId: string | null; mensaje: string }[]>([]);
   const grabacion = useGrabacion();
-  const cerrar = async () => {
+  const cerrar = async (confirmarAvisos = false) => {
     if (grabacion.estado === "grabando") return setError("grabando");
     setEnviando(true);
     setError(null);
     try {
       if (!(await vaciar())) throw new Error();
-      const r = await fetch(`/api/admin/diagnosticos/${id}/cerrar-visita`, { method: "POST" });
+      const r = await fetch(`/api/admin/diagnosticos/${id}/cerrar-visita`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmar_avisos: confirmarAvisos }),
+      });
       const j = await r.json().catch(() => ({}));
       if (r.status === 422 && j.falta === "coste") return setError("coste");
       if (!r.ok && r.status !== 409) throw new Error();
+      if (r.ok && j.cerrada === false && Array.isArray(j.avisos)) return setAvisos(j.avisos);
+      setAvisos([]);
       onCerrada(j.procesos ?? []);
       window.scrollTo({ top: 0 });
     } catch {
@@ -1164,7 +1184,34 @@ function CerrarVisita({
   };
   return (
     <section className="rounded-2xl border border-ork-border bg-ork-surface-1/85 p-5">
-      {confirmar ? (
+      {avisos.length ? (
+        <div role="alert" className="space-y-3">
+          <p className="text-ork-text">Antes de cerrar, revisa esto (no impide cerrar):</p>
+          <ul className="list-disc space-y-1.5 pl-5 text-small text-[#f5c46b]">
+            {avisos.map((a) => (
+              <li key={a.mensaje}>{a.mensaje}</li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={BOTON}
+              onClick={() => setAvisos([])}
+              disabled={enviando}
+            >
+              Revisar
+            </button>
+            <button
+              type="button"
+              className={BOTON_PRIMARIO}
+              onClick={() => cerrar(true)}
+              disabled={enviando}
+            >
+              {enviando ? "Cerrando…" : "Cerrar igualmente"}
+            </button>
+          </div>
+        </div>
+      ) : confirmar ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-ork-text">
             Al cerrar ya no se puede editar y se avisa para preparar el mapa.
@@ -1178,7 +1225,12 @@ function CerrarVisita({
             >
               Volver
             </button>
-            <button type="button" className={BOTON_PRIMARIO} onClick={cerrar} disabled={enviando}>
+            <button
+              type="button"
+              className={BOTON_PRIMARIO}
+              onClick={() => cerrar()}
+              disabled={enviando}
+            >
               {enviando ? "Cerrando…" : "Cerrar la visita"}
             </button>
           </div>

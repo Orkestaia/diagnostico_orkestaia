@@ -1,5 +1,6 @@
 import { carpetasClientes } from "@/lib/archivos";
 import { exigirTokenMotor } from "@/lib/motor";
+import { urlBase } from "@/lib/url";
 
 /**
  * Archivos de cada diagnóstico (informe y transcripción) para guardarlos fuera de la app:
@@ -12,7 +13,7 @@ export async function GET(req: Request) {
   const denegado = exigirTokenMotor(req);
   if (denegado) return denegado;
   return Response.json(
-    { carpeta_raiz: "Diagnósticos Orkesta", clientes: await carpetasClientes() },
+    { carpeta_raiz: "Diagnósticos Orkesta", clientes: await carpetasClientes(await urlBase()) },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

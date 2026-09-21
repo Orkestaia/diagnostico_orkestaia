@@ -9,6 +9,7 @@ import {
   type FilaExport,
 } from "./exportar";
 import { temasDeTranscripcion } from "./grabacion";
+import { leerRedaccion } from "./redaccion";
 import { supabaseAdmin } from "./supabase";
 
 /**
@@ -33,6 +34,7 @@ export async function cargarExport(id: string): Promise<FilaExport | null> {
     ...fila,
     transcripcion: grabacion ?? [],
     madurez: await resultadoMadurez(id),
+    redaccion: await leerRedaccion(id),
     temas: (grabacion ?? []).some((g) => g.texto)
       ? await temasDeTranscripcion(id, fila.empresa)
       : null,

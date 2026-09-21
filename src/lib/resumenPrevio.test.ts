@@ -66,7 +66,7 @@ describe("Lo que he entendido", () => {
       "industria_distribucion",
     );
     expect(f[0]).toBe(
-      "Entran entre 50 y 200 pedidos al mes fuera de la tienda online, sabéis cómo va cada trabajo preguntando y recibís entre 30 y 100 facturas de proveedor al mes.",
+      "Pasáis a mano al programa de gestión entre 50 y 200 pedidos o encargos al mes, sabéis cómo va cada trabajo preguntando y recibís entre 30 y 100 facturas de proveedor al mes.",
     );
   });
 

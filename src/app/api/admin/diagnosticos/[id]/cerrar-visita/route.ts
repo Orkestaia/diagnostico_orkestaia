@@ -1,11 +1,14 @@
 import { after } from "next/server";
 import { z } from "zod";
 import type { TarjetaProceso } from "@/config/consultor/tarjeta";
+import { respuestasPorConfirmar } from "@/config/redacciones";
 import type { Respuestas, SectorId } from "@/config/tipos";
 import { exigirAdmin } from "@/lib/acceso";
 import { calcularVisita, costesConCorreccion, personasEquipo } from "@/lib/calculo";
 import { ESTADOS_VISITA_EDITABLE } from "@/lib/diagnosticos";
 import { enviarEvento } from "@/lib/motor";
+import { avisosPlausibilidad } from "@/lib/plausibilidad";
+import { leerRedaccion } from "@/lib/redaccion";
 import { supabaseAdmin } from "@/lib/supabase";
 import { urlBase } from "@/lib/url";
 import { conRegistroHoy, costeHora, type PrivadoVisita, type RespuestasVisita } from "@/lib/visita";
@@ -14,8 +17,11 @@ import { conRegistroHoy, costeHora, type PrivadoVisita, type RespuestasVisita } 
  * Cierra la visita (spec §4 y §9): estado → visita_cerrada, registro FIJO de las horas de hoy de
  * cada tarjeta (JARVIS), `calculo` completo para el export y evento a n8n ("listo para JARVIS").
  * Exige el coste por hora con su origen (JARVIS: se pregunta siempre).
+ *
+ * Plausibilidad (revisión con JARVIS, 21-sep): si hay avisos y no llega `confirmar_avisos`, no
+ * cierra y los devuelve; Aitor los revisa y puede cerrar igualmente. Avisa, no bloquea.
  */
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const denegado = await exigirAdmin();
   if (denegado) return denegado;
   const { id } = await params;
@@ -24,7 +30,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const db = supabaseAdmin();
   const { data: d, error } = await db
     .from("diagnosticos")
-    .select("id, estado, sector, empresa, respuestas_previo, respuestas_visita, procesos, privado")
+    .select(
+      "id, estado, sector, empresa, config_version, respuestas_previo, respuestas_visita, procesos, privado",
+    )
     .eq("id", id)
     .maybeSingle();
   if (error || !d) return Response.json({ error: "No encontrado" }, { status: 404 });
@@ -44,14 +52,33 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const rv = (d.respuestas_visita ?? {}) as RespuestasVisita;
   const equipo = rv.campos?.["a.equipo"] as { rol: string; numero: number | null }[] | undefined;
   const previo = { ...(d.respuestas_previo ?? {}), ...(rv.correcciones_previo ?? {}) } as Respuestas;
+  const personas = personasEquipo(equipo, previo, sector);
+
+  const cuerpo = (await req.json().catch(() => null)) as { confirmar_avisos?: unknown } | null;
+  const avisos = avisosPlausibilidad(procesos, {
+    sector,
+    personas,
+    previo,
+    porConfirmar: respuestasPorConfirmar((d.respuestas_previo ?? {}) as Respuestas, {
+      redaccion: await leerRedaccion(d.id),
+      configVersion: d.config_version,
+      correcciones: rv.correcciones_previo,
+    }).keys(),
+  });
+  if (avisos.length && cuerpo?.confirmar_avisos !== true) {
+    return Response.json({ cerrada: false, avisos });
+  }
+
   const calculo = {
     ...calcularVisita(procesos, privado.procesos ?? {}, {
       sector,
-      personas: personasEquipo(equipo, previo, sector),
+      personas,
       costes: costesConCorreccion(coste),
     }),
     coste_origen: coste.origen,
     calculado_at: new Date().toISOString(),
+    // Lo que se avisó al cerrar y Aitor dio por bueno: para que JARVIS lo tenga en cuenta.
+    avisos_plausibilidad: avisos,
   };
 
   const { data: cerrado, error: e2 } = await db

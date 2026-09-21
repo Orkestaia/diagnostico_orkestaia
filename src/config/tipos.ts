@@ -5,7 +5,8 @@
  * `scripts/verificar-config.ts` los compara con los documentos de JARVIS.
  */
 
-export const CONFIG_VERSION = "banco_v1";
+/** Versión del banco con la que se crea cada diagnóstico. Historial de redacciones: `redacciones.ts`. */
+export const CONFIG_VERSION = "banco_v1.1";
 
 export type SectorId =
   | "servicios_profesionales"

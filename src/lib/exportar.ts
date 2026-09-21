@@ -10,7 +10,9 @@ import { BLOQUES, CAMPOS_VISITA } from "@/config/consultor/bloques";
 import { camposDeSector } from "@/config/consultor/sector";
 import { PERIODOS, type TarjetaProceso } from "@/config/consultor/tarjeta";
 import type { Respuestas, SectorId } from "@/config/tipos";
+import { respuestasPorConfirmar, type PorConfirmar } from "@/config/redacciones";
 import { hoyHorasMes, redondearHoras, type CalculoTarjeta, type CalculoVisita } from "./calculo";
+import type { AvisoPlausibilidad } from "./plausibilidad";
 import { indicePreguntas } from "./preguntas";
 import { pasosPrevio } from "./previo";
 import type { Madurez } from "./madurez";
@@ -48,11 +50,19 @@ export interface FilaExport {
     alertas?: string[];
   } | null;
   informe: Record<string, unknown> | null;
-  calculo: (CalculoVisita & { coste_origen?: string; calculado_at?: string }) | null;
+  calculo:
+    | (CalculoVisita & {
+        coste_origen?: string;
+        calculado_at?: string;
+        avisos_plausibilidad?: AvisoPlausibilidad[];
+      })
+    | null;
   previo_completado_at: string | null;
   visita_cerrada_at: string | null;
   transcripcion_temas: { lineas?: string[] } | null;
   /** No son columnas de `diagnosticos`: las añade la ruta. */
+  /** Con qué redacción del banco se contestó cada respuesta (DDL v5; `null` si no se apuntó). */
+  redaccion?: Record<string, string> | null;
   transcripcion?: FragmentoTranscripcion[];
   madurez?: Madurez | null;
   temas?: string[] | null;
@@ -92,7 +102,12 @@ export function valorLegible(v: unknown): string {
   return partes.length ? partes.join(" · ") : "—";
 }
 
-function previoLegible(sector: SectorId, r: Respuestas, correcciones: Respuestas): string[] {
+function previoLegible(
+  sector: SectorId,
+  r: Respuestas,
+  correcciones: Respuestas,
+  porConfirmar: Map<string, PorConfirmar> = new Map(),
+): string[] {
   const indice = indicePreguntas(sector);
   const lineas: string[] = [];
   // En el orden en que se preguntaron; lo que no esté en el recorrido actual, al final.
@@ -112,6 +127,9 @@ function previoLegible(sector: SectorId, r: Respuestas, correcciones: Respuestas
     if (cuales.length) linea += ` (${cuales.join("; ")})`;
     if (id in correcciones)
       linea += ` → **corregido en la visita:** ${valorLegible(correcciones[id])}`;
+    const pc = porConfirmar.get(id);
+    if (pc)
+      linea += ` → **por confirmar en la visita:** contestó a otra redacción («${pc.textoContestado}», ${pc.version})`;
     lineas.push(linea);
   }
   for (const [id, v] of Object.entries(correcciones)) {
@@ -236,7 +254,16 @@ export function exportMarkdown(f: FilaExport, hoyISO: string): string {
   l.push("");
 
   l.push("## 1. Previo del cliente", "");
-  const previo = previoLegible(f.sector, f.respuestas_previo ?? {}, rv.correcciones_previo ?? {});
+  const previo = previoLegible(
+    f.sector,
+    f.respuestas_previo ?? {},
+    rv.correcciones_previo ?? {},
+    respuestasPorConfirmar(f.respuestas_previo ?? {}, {
+      redaccion: f.redaccion,
+      configVersion: f.config_version,
+      correcciones: rv.correcciones_previo,
+    }),
+  );
   l.push(...(previo.length ? previo : ["Sin respuestas."]), "");
   const inf = f.informe as { resumen_entendido?: string[]; temas_reunion?: string[] } | null;
   if (inf?.resumen_entendido?.length) {
@@ -321,6 +348,10 @@ export function exportMarkdown(f: FilaExport, hoyISO: string): string {
         `- **Personas:** ${c.personas}${c.topeHorasMes !== null ? ` · tope ${h(c.topeHorasMes)} al mes${c.ajustadoPorTope ? " (aplicado)" : ""}` : ""}`,
       );
     if (c.calculado_at) l.push(`- **Calculado:** ${c.calculado_at} (${c.version})`);
+    if (c.avisos_plausibilidad?.length) {
+      l.push("", "**Avisos de plausibilidad al cerrar (Aitor cerró igualmente):**", "");
+      for (const a of c.avisos_plausibilidad) l.push(`- ${a.mensaje}`);
+    }
     l.push("");
   }
   l.push(...madurezMd(f.madurez ?? null));

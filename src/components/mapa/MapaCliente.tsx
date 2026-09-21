@@ -6,7 +6,7 @@ import { redondearHoras } from "@/lib/calculo";
 import type { DatosMapa, ProcesoMapa } from "@/lib/datosMapa";
 import { diagramaDesdePasos } from "@/lib/diagrama";
 import type { ItemRuta, Mapa } from "@/lib/mapa";
-import { Comparador, Desplegable } from "./Interactivos";
+import { Comparador, Desplegable, EurosConTuCoste } from "./Interactivos";
 
 /**
  * El mapa que recibe el cliente (spec §6). La misma pieza se usa en su enlace `/m/[token]`, en la
@@ -16,8 +16,11 @@ import { Comparador, Desplegable } from "./Interactivos";
  * Se entrega SOLO como enlace web (decisión de Aitor, 21-sep): no hay botón de PDF. La versión
  * `?imprimir=1` existe por si un cliente pide PDF; se avisa de que no queda bien maquetado.
  *
- * Al cliente solo se le enseñan horas. Los euros se quedan para Aitor (pendiente de decidir con
- * JARVIS si alguna vez aparecen aquí).
+ * Al cliente se le enseñan horas. Euros, solo si él escribe su coste por hora (revisión con
+ * JARVIS, 21-sep): se calculan en su navegador y no se guardan.
+ *
+ * Las secciones de la revisión (hallazgos, lo que ya funciona, preocupaciones, lo que no compensa,
+ * plazos por mejora) son opcionales: un mapa guardado sin ellas se pinta como antes.
  */
 
 /** Ancho útil de los diagramas dentro de las tarjetas del mapa (max-w-5xl menos márgenes). */
@@ -28,6 +31,16 @@ const rango = (min: number, max: number) =>
   Math.round(min) === Math.round(max)
     ? `~${h(max)}`
     : `${String(redondearHoras(min)).replace(".", ",")}–${h(max)}`;
+
+const semanas = (p: NonNullable<ItemRuta["plazo_orientativo"]>) =>
+  `${p.min_semanas}–${p.max_semanas} semanas`;
+
+/** Días que faltan para que caduque el enlace, desde hoy. */
+function diasHasta(iso: string) {
+  return Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
+}
+/** A partir de cuántos días antes se avisa en la página de que el enlace va a caducar. */
+const AVISO_CADUCIDAD_DIAS = 30;
 
 function fechaLarga(iso: string) {
   const [a, m, d] = iso.slice(0, 10).split("-").map(Number);
@@ -276,8 +289,15 @@ function AsiSeria({
           >
             <header className="mapa-junto flex flex-wrap items-start justify-between gap-3">
               <h3 className="font-display text-h3 text-ork-text">{it.titulo}</h3>
-              <span className="rounded-full border border-ork-border-hi px-3 py-1 text-small text-ork-text-muted">
-                Esfuerzo: {it.esfuerzo}
+              <span className="flex flex-wrap gap-2">
+                <span className="rounded-full border border-ork-border-hi px-3 py-1 text-small text-ork-text-muted">
+                  Esfuerzo: {it.esfuerzo}
+                </span>
+                {it.plazo_orientativo ? (
+                  <span className="rounded-full border border-ork-border-hi px-3 py-1 text-small text-ork-text-muted">
+                    Plazo orientativo: {semanas(it.plazo_orientativo)}
+                  </span>
+                ) : null}
               </span>
             </header>
 
@@ -370,13 +390,30 @@ function HojaDeRuta({ mapa }: { mapa: Mapa }) {
                   aria-hidden="true"
                   className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-ork-cyan"
                 />
-                {it.titulo}
+                <span>
+                  {it.titulo}
+                  {it.plazo_orientativo ? (
+                    <span className="block text-small text-ork-text-faint">
+                      {semanas(it.plazo_orientativo)}
+                      {it.depende_de.length ? " · tiene requisitos previos" : ""}
+                    </span>
+                  ) : null}
+                </span>
               </li>
             ))}
           </ul>
         </li>
       ))}
     </ol>
+  );
+}
+
+function Lista({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  return (
+    <div className="mapa-junto rounded-2xl border border-ork-border bg-ork-surface-1/85 p-6">
+      <p className="font-display text-body-lg text-ork-text">{titulo}</p>
+      <ul className="mt-3 list-disc space-y-2 pl-5 text-ork-text-muted">{children}</ul>
+    </div>
   );
 }
 
@@ -387,6 +424,12 @@ export function MapaCliente({ datos, imprimir = false }: { datos: DatosMapa; imp
   const liberarMax = mapa.fugas.reduce((s, f) => s + f.ahorro_horas_mes.max, 0);
   const conDiagrama = mapa.hoja_de_ruta.flatMap((f) => f.items.filter((it) => it.diagrama));
   const supuestos = mapa.fugas.flatMap((f) => f.supuestos.map((s) => `${f.titulo}: ${s}`));
+  // Numeración de las secciones: algunas son opcionales.
+  let seccion = 0;
+  const num = () => String(++seccion).padStart(2, "0");
+  const hayCriterio =
+    mapa.no_automatizar.length > 0 || mapa.validar.length > 0 || (mapa.no_rentables?.length ?? 0) > 0;
+  const dias = datos.caducaAt ? diasHasta(datos.caducaAt) : null;
 
   return (
     <div className={"relative min-h-dvh " + (imprimir ? "sin-animacion" : "")}>
@@ -398,6 +441,18 @@ export function MapaCliente({ datos, imprimir = false }: { datos: DatosMapa; imp
       ) : null}
 
       <div className="relative mx-auto max-w-5xl space-y-20 px-4 py-10 sm:px-8 print:px-12 print:py-12">
+        {!imprimir && dias !== null && dias <= AVISO_CADUCIDAD_DIAS ? (
+          <p
+            role="status"
+            className="rounded-2xl border border-ork-violet/60 bg-ork-violet/10 px-5 py-4 text-ork-text"
+          >
+            Este enlace deja de abrir el {fechaLarga(datos.caducaAt!)}
+            {dias > 0 ? ` (en ${dias} ${dias === 1 ? "día" : "días"})` : ""}. Si quieres
+            conservarlo, guárdalo en PDF desde el navegador (Imprimir, Guardar como PDF) o pídenos
+            una copia.
+          </p>
+        ) : null}
+
         {/* ── Portada ── */}
         <header className="mapa-junto space-y-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -436,32 +491,76 @@ export function MapaCliente({ datos, imprimir = false }: { datos: DatosMapa; imp
           </div>
         </header>
 
+        {mapa.hallazgos?.length ? (
+          <Seccion
+            id="hallazgos"
+            numero={num()}
+            titulo="Lo que hemos visto"
+            entrada="Lo más importante de la visita, y en qué nos basamos."
+            imprimir={imprimir}
+            salto
+          >
+            <ol className="grid gap-4 sm:grid-cols-2">
+              {mapa.hallazgos.map((x, i) => (
+                <li
+                  key={x.titulo}
+                  className="mapa-junto rounded-2xl border border-ork-border bg-ork-surface-1/85 p-6"
+                >
+                  <p className="font-mono text-[0.72rem] uppercase tracking-[0.14em] text-ork-cyan">
+                    {String(i + 1).padStart(2, "0")}
+                  </p>
+                  <p className="mt-2 font-display text-body-lg text-ork-text">{x.titulo}</p>
+                  <p className="mt-2 text-small text-ork-text-muted">
+                    <span className="text-ork-text-faint">En qué nos basamos: </span>
+                    {x.evidencia}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </Seccion>
+        ) : null}
+
         <Seccion
           id="hoy"
-          numero="01"
+          numero={num()}
           titulo={`Así funciona hoy ${datos.empresa}`}
           entrada="Los procesos que vimos juntos, por área. Cuanto más intenso el color, más horas consumen al mes."
           imprimir={imprimir}
           salto
         >
           <AsiFuncionaHoy procesos={procesos} imprimir={imprimir} />
+          {mapa.lo_que_ya_funciona?.length ? (
+            <div className="mapa-junto rounded-2xl border border-ork-cyan/40 bg-ork-cyan/[0.06] p-6">
+              <p className="font-display text-body-lg text-ork-text">Lo que ya funciona bien</p>
+              <ul className="mt-3 list-disc space-y-2 pl-5 text-ork-text">
+                {mapa.lo_que_ya_funciona.map((x) => (
+                  <li key={x}>{x}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </Seccion>
 
         <Seccion
           id="tiempo"
-          numero="02"
+          numero={num()}
           titulo="Dónde se os va el tiempo"
           entrada="Las horas de hoy son las que acordamos en la visita. El rango es lo que se podría liberar: preferimos quedarnos cortos."
           imprimir={imprimir}
           salto
         >
           <DondeSeVaElTiempo mapa={mapa} />
+          {!imprimir && mapa.fugas.length ? (
+            <EurosConTuCoste
+              fugas={mapa.fugas.map((f) => ({ titulo: f.titulo, ...f.ahorro_horas_mes }))}
+            />
+          ) : null}
         </Seccion>
 
         {conDiagrama.length ? (
           <Seccion
             id="asi-seria"
-            numero="03"
+            numero={num()}
             titulo="Así sería"
             entrada="Cada proceso, con el sistema. En violeta, lo que sigue haciendo o decidiendo una persona."
             imprimir={imprimir}
@@ -473,7 +572,7 @@ export function MapaCliente({ datos, imprimir = false }: { datos: DatosMapa; imp
 
         <Seccion
           id="ruta"
-          numero="04"
+          numero={num()}
           titulo="Vuestra hoja de ruta"
           entrada="Por fases, empezando por lo que antes se nota. Los plazos llevan margen: preferimos entregar antes de lo prometido."
           imprimir={imprimir}
@@ -482,9 +581,40 @@ export function MapaCliente({ datos, imprimir = false }: { datos: DatosMapa; imp
           <HojaDeRuta mapa={mapa} />
         </Seccion>
 
-        {mapa.no_automatizar.length || mapa.validar.length ? (
-          <Seccion id="criterio" numero="05" titulo="Con criterio" imprimir={imprimir}>
+        {mapa.preocupaciones?.length ? (
+          <Seccion
+            id="preocupaciones"
+            numero={num()}
+            titulo="Lo que os preocupa"
+            entrada="Lo que nos contasteis que os preocupa, y cómo lo tenemos en cuenta."
+            imprimir={imprimir}
+          >
+            <ul className="grid gap-4">
+              {mapa.preocupaciones.map((x) => (
+                <li
+                  key={x.preocupacion}
+                  className="mapa-junto grid gap-3 rounded-2xl border border-ork-border bg-ork-surface-1/85 p-6 sm:grid-cols-2"
+                >
+                  <p className="text-body-lg text-ork-text">«{x.preocupacion}»</p>
+                  <p className="text-ork-text-muted">{x.como_lo_abordamos}</p>
+                </li>
+              ))}
+            </ul>
+          </Seccion>
+        ) : null}
+
+        {hayCriterio ? (
+          <Seccion id="criterio" numero={num()} titulo="Con criterio" imprimir={imprimir}>
             <div className="grid gap-4 sm:grid-cols-2">
+              {mapa.no_rentables?.length ? (
+                <Lista titulo="Lo que no compensa automatizar">
+                  {mapa.no_rentables.map((x) => (
+                    <li key={x.que}>
+                      <span className="text-ork-text">{x.que}</span>: {x.motivo}
+                    </li>
+                  ))}
+                </Lista>
+              ) : null}
               {mapa.no_automatizar.length ? (
                 <div className="mapa-junto rounded-2xl border border-ork-border bg-ork-surface-1/85 p-6">
                   <p className="font-display text-body-lg text-ork-text">
@@ -560,6 +690,7 @@ export function MapaCliente({ datos, imprimir = false }: { datos: DatosMapa; imp
           <span>
             Preparado para {datos.empresa} · {fechaLarga(mapa.fecha_diagnostico)} · Documento
             confidencial
+            {datos.caducaAt ? ` · Enlace disponible hasta el ${fechaLarga(datos.caducaAt)}` : ""}
           </span>
         </footer>
       </div>

@@ -16,6 +16,7 @@ import {
   redondearHoras,
   sugerenciasTarea,
   temasARevisar,
+  eurosConCosteCliente,
 } from "./calculo";
 import { leerEntradas } from "./preguntas";
 
@@ -351,5 +352,16 @@ describe("Catálogo de tipos de negocio", async () => {
   });
   it("sin etiquetas repetidas", () => {
     expect(new Set(TIPOS_NEGOCIO.map((t) => t.etiqueta)).size).toBe(TIPOS_NEGOCIO.length);
+  });
+});
+
+describe("euros con el coste del cliente (mapa)", () => {
+  it("multiplica el rango y redondea a la decena", () => {
+    expect(eurosConCosteCliente({ min: 6, max: 10 }, 25)).toEqual({ min: 150, max: 250 });
+  });
+  it("sin euros por debajo de 2 h o con un coste fuera de rango", () => {
+    expect(eurosConCosteCliente({ min: 1, max: 2 }, 25)).toBeNull();
+    expect(eurosConCosteCliente({ min: 6, max: 10 }, 0)).toBeNull();
+    expect(eurosConCosteCliente({ min: 6, max: 10 }, 5000)).toBeNull();
   });
 });

@@ -2,6 +2,8 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { cargarExport } from "./datosExport";
 import { exportMarkdown, exportTranscripcion, nombreArchivo } from "./exportar";
+import { mapaSchema } from "./mapa";
+import { mapaMarkdown } from "./mapaTexto";
 import { supabaseAdmin } from "./supabase";
 
 /**
@@ -46,10 +48,37 @@ export const huella = (s: string) =>
   createHash("sha256").update(s.replace(LINEA_GENERADO, "")).digest("hex").slice(0, 16);
 
 /**
+ * Copia del mapa publicado (revisión con JARVIS, 21-sep). Una por publicación: el nombre lleva la
+ * fecha en que se publicó, así una corrección posterior no borra la copia de lo que se entregó.
+ */
+async function copiaDelMapa(id: string, base: string): Promise<ArchivoCliente | null> {
+  const { data } = await supabaseAdmin()
+    .from("diagnosticos")
+    .select("empresa, token, mapa, mapa_publicado_at, mapa_caduca_at")
+    .eq("id", id)
+    .eq("estado", "mapa_publicado")
+    .maybeSingle();
+  if (!data?.mapa_publicado_at) return null;
+  const r = mapaSchema.safeParse(data.mapa);
+  if (!r.success) return null;
+  const contenido = mapaMarkdown(r.data, {
+    empresa: data.empresa,
+    enlace: `${base}/m/${data.token}`,
+    publicadoAt: data.mapa_publicado_at,
+    caducaAt: data.mapa_caduca_at,
+  });
+  return {
+    nombre: `${String(data.mapa_publicado_at).slice(0, 10)}_mapa-publicado.md`,
+    contenido,
+    hash: huella(contenido),
+  };
+}
+
+/**
  * Diagnósticos que ya tienen algo que guardar: visita cerrada o alguna transcripción. El informe
  * completo va siempre; la transcripción, solo si se grabó.
  */
-export async function carpetasClientes(): Promise<CarpetaCliente[]> {
+export async function carpetasClientes(base: string): Promise<CarpetaCliente[]> {
   const db = supabaseAdmin();
   const [{ data: cerrados }, { data: grabados }] = await Promise.all([
     db.from("diagnosticos").select("id").not("visita_cerrada_at", "is", null),
@@ -77,6 +106,8 @@ export async function carpetasClientes(): Promise<CarpetaCliente[]> {
     const archivos: ArchivoCliente[] = [
       { nombre: nombreArchivo(f, estable), contenido: raw, hash: huella(raw) },
     ];
+    const copiaMapa = await copiaDelMapa(id, base);
+    if (copiaMapa) archivos.push(copiaMapa);
     if ((f.transcripcion ?? []).length) {
       const t = exportTranscripcion(f, hoy);
       archivos.push({

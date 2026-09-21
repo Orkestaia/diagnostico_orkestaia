@@ -1,0 +1,304 @@
+{
+  "fugas": [
+    {
+      "titulo": "Primera respuesta a una consulta nueva",
+      "supuestos": [
+        "20 consultas nuevas al mes, con unos 200 minutos por consulta entre llamada, datos, agenda y recordatorio.",
+        "Se automatiza la respuesta y la recogida de datos; la cita la sigue confirmando una persona."
+      ],
+      "proceso_id": "previo-captacion-consultas_mes",
+      "horas_mes_hoy": 67,
+      "ahorro_horas_mes": {
+        "max": 42,
+        "min": 25
+      }
+    },
+    {
+      "titulo": "Confirmación y recordatorios",
+      "supuestos": [
+        "20 recordatorios a la semana, unos 40 minutos cada uno entre avisos, llamadas y cambios.",
+        "Los cambios de cita los sigue atendiendo administración."
+      ],
+      "proceso_id": "previo-dia-citas_semana",
+      "horas_mes_hoy": 57,
+      "ahorro_horas_mes": {
+        "max": 50,
+        "min": 30
+      }
+    },
+    {
+      "titulo": "Seguimiento de presupuestos",
+      "supuestos": [
+        "3 presupuestos al mes, unos 90 minutos de seguimiento cada uno.",
+        "La conversación con el paciente la sigue teniendo el dentista."
+      ],
+      "proceso_id": "previo-captacion-presupuestos_mes",
+      "horas_mes_hoy": 4.5,
+      "ahorro_horas_mes": {
+        "max": 4,
+        "min": 2.5
+      }
+    }
+  ],
+  "sector": "Clínica dental",
+  "empresa": "Clínica Colino",
+  "resumen": "En la visita vimos tres procesos que se comen buena parte de la semana de administración: contestar las consultas nuevas, confirmar y recordar las citas y seguir los presupuestos. Todo pasa hoy por las manos del equipo y, cuando la agenda se llena, es lo primero que se resiente. Este mapa propone empezar por lo que antes se nota, la primera respuesta y los recordatorios; ordenar los datos de pacientes para que todo salga de una sola ficha, y dejar siempre en vuestras manos las decisiones clínicas y los presupuestos.",
+  "validar": [
+    "Si DentalSF deja sacar la agenda y las citas de forma automática.",
+    "Con vuestro asesor, el uso de IA para decidir precios por persona (ley europea de IA).",
+    "Qué herramientas guardan datos fuera de la Unión Europea."
+  ],
+  "version": "mapa_v1",
+  "hoja_de_ruta": [
+    {
+      "fase": 1,
+      "items": [
+        {
+          "antes": "Cada consulta entra por teléfono o WhatsApp y la administración responde, recoge los datos y busca hueco a mano, entre paciente y paciente.",
+          "titulo": "Respuesta al momento a cada consulta nueva",
+          "despues": "Cada consulta recibe respuesta al momento, con los datos ya recogidos y huecos libres propuestos. Administración solo revisa y confirma la cita.",
+          "diagrama": {
+            "pie": "Cinco pasos. Una sola persona decide.",
+            "nodos": [
+              {
+                "id": "c1",
+                "col": 0,
+                "fila": 0,
+                "texto": "Consulta por WhatsApp, web o teléfono",
+                "humano": false
+              },
+              {
+                "id": "c2",
+                "col": 1,
+                "fila": 0,
+                "texto": "Respuesta al momento y datos recogidos",
+                "humano": false
+              },
+              {
+                "id": "c3",
+                "col": 2,
+                "fila": 0,
+                "texto": "Propone huecos libres de la agenda",
+                "humano": false
+              },
+              {
+                "id": "c4",
+                "col": 3,
+                "fila": 0,
+                "texto": "Administración revisa y confirma la cita",
+                "humano": true
+              },
+              {
+                "id": "c5",
+                "col": 4,
+                "fila": 0,
+                "texto": "Cita creada y aviso al paciente",
+                "humano": false
+              }
+            ],
+            "titulo": "Primera respuesta con el sistema",
+            "aristas": [
+              {
+                "a": "c2",
+                "de": "c1"
+              },
+              {
+                "a": "c3",
+                "de": "c2"
+              },
+              {
+                "a": "c4",
+                "de": "c3"
+              },
+              {
+                "a": "c5",
+                "de": "c4"
+              }
+            ]
+          },
+          "esfuerzo": "Medio",
+          "depende_de": [
+            "Poder leer los huecos libres de la agenda de DentalSF",
+            "Número de WhatsApp Business de la clínica"
+          ],
+          "proceso_id": "previo-captacion-consultas_mes"
+        },
+        {
+          "antes": "Cada semana la administración confirma y recuerda las citas una a una, y aun así hay pacientes que no vienen.",
+          "titulo": "Recordatorios que se confirman solos",
+          "despues": "El paciente recibe el recordatorio y confirma o pide cambio con un toque. Administración solo atiende los cambios y rellena los huecos que quedan libres.",
+          "diagrama": {
+            "pie": "La agenda se confirma sola. Las personas, solo para los cambios.",
+            "nodos": [
+              {
+                "id": "r1",
+                "col": 0,
+                "fila": 0,
+                "texto": "Cita del día siguiente en la agenda",
+                "humano": false
+              },
+              {
+                "id": "r2",
+                "col": 1,
+                "fila": 0,
+                "texto": "Recordatorio con opción de confirmar",
+                "humano": false
+              },
+              {
+                "id": "r3",
+                "col": 2,
+                "fila": 0,
+                "texto": "El paciente responde",
+                "humano": false
+              },
+              {
+                "id": "r4",
+                "col": 3,
+                "fila": 0,
+                "texto": "Si confirma: no hace falta nada",
+                "humano": false
+              },
+              {
+                "id": "r5",
+                "col": 3,
+                "fila": 1,
+                "texto": "Si pide cambio: administración lo reubica",
+                "humano": true
+              }
+            ],
+            "titulo": "Recordatorios con el sistema",
+            "aristas": [
+              {
+                "a": "r2",
+                "de": "r1"
+              },
+              {
+                "a": "r3",
+                "de": "r2"
+              },
+              {
+                "a": "r4",
+                "de": "r3",
+                "etiqueta": "Confirma"
+              },
+              {
+                "a": "r5",
+                "de": "r3",
+                "etiqueta": "Pide cambio"
+              }
+            ]
+          },
+          "esfuerzo": "Bajo",
+          "depende_de": [
+            "Sacar cada día las citas del día siguiente de DentalSF"
+          ],
+          "proceso_id": "previo-dia-citas_semana"
+        }
+      ],
+      "plazo": "4 a 6 semanas",
+      "nombre": "Lo primero que se nota"
+    },
+    {
+      "fase": 2,
+      "items": [
+        {
+          "antes": "Tras la revisión, el paciente se va con el presupuesto y el seguimiento depende de que alguien se acuerde de llamarle.",
+          "titulo": "Seguimiento de presupuestos sin depender de la memoria",
+          "despues": "Cada presupuesto tiene su seguimiento programado y el dentista ve de un vistazo cuáles siguen pendientes para decidir a quién llamar.",
+          "diagrama": {
+            "pie": "El sistema recuerda. El dentista decide.",
+            "nodos": [
+              {
+                "id": "p1",
+                "col": 0,
+                "fila": 0,
+                "texto": "El dentista entrega el presupuesto",
+                "humano": true
+              },
+              {
+                "id": "p2",
+                "col": 1,
+                "fila": 0,
+                "texto": "Seguimiento a los 3 y a los 10 días",
+                "humano": false
+              },
+              {
+                "id": "p3",
+                "col": 2,
+                "fila": 0,
+                "texto": "Resumen de pendientes cada lunes",
+                "humano": false
+              },
+              {
+                "id": "p4",
+                "col": 3,
+                "fila": 0,
+                "texto": "El dentista decide a quién llamar",
+                "humano": true
+              }
+            ],
+            "titulo": "Seguimiento de presupuestos con el sistema",
+            "aristas": [
+              {
+                "a": "p2",
+                "de": "p1"
+              },
+              {
+                "a": "p3",
+                "de": "p2"
+              },
+              {
+                "a": "p4",
+                "de": "p3"
+              }
+            ]
+          },
+          "esfuerzo": "Bajo",
+          "depende_de": [
+            "Registrar todos los presupuestos en un único sitio"
+          ],
+          "proceso_id": "previo-captacion-presupuestos_mes"
+        },
+        {
+          "antes": "Los pacientes están repartidos entre el CRM, DentalSF y varios Excel, a veces duplicados. Un cambio de CRM obligó a copiarlos uno a uno.",
+          "titulo": "Una sola ficha por paciente",
+          "despues": "Una sola ficha por paciente, sin duplicados, que es la que usan todas las automatizaciones y la que manda cuando dos sitios no coinciden.",
+          "esfuerzo": "Medio",
+          "depende_de": [
+            "Decidir qué programa es la fuente de verdad (hoy, el CRM)"
+          ],
+          "proceso_id": null
+        }
+      ],
+      "plazo": "2 a 3 meses",
+      "nombre": "Que no se escape nada"
+    },
+    {
+      "fase": 3,
+      "items": [
+        {
+          "antes": "Cada uno usa la IA por su cuenta y no hay normas sobre qué información se puede meter en estas herramientas.",
+          "titulo": "La IA en el equipo, con criterio",
+          "despues": "Unas normas claras y una formación corta para que todo el equipo la use con seguridad, que además pide la ley europea de IA.",
+          "esfuerzo": "Bajo",
+          "depende_de": [
+            "Una hora por persona para la formación"
+          ],
+          "proceso_id": null
+        }
+      ],
+      "plazo": "3 a 6 meses",
+      "nombre": "Crecer sin saturar"
+    }
+  ],
+  "frase_apertura": "El tiempo que hoy se va en contestar, recordar y perseguir puede volver a los pacientes.",
+  "no_automatizar": [
+    "La valoración clínica y los presupuestos: los decide siempre el dentista.",
+    "Nada que toque historias clínicas o consentimientos: se quedan en DentalSF, como están."
+  ],
+  "siguiente_paso": {
+    "texto": "Te enseñamos este mapa en detalle y resolvemos dudas antes de decidir nada. Son 30 minutos.",
+    "cta_url": "https://cal.com/aitor-colino-6sl1ai/30min?overlayCalendar=true"
+  },
+  "fecha_diagnostico": "2026-09-20"
+}
