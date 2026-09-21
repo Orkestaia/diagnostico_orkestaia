@@ -102,7 +102,11 @@ Ramas abiertas (22-sep):
 - **Solo hacia adelante:** nada de lo ya guardado se modifica al cambiar reglas o textos; los campos
   nuevos son opcionales y los mapas guardados siguen abriéndose.
 - Interruptores (funciones construidas pero apagadas, variable a `1` en Vercel):
-  `CONSENTIMIENTO_AGREGADO_ACTIVO` (hasta tener el texto revisado de TEMIS).
+  `CONSENTIMIENTO_AGREGADO_ACTIVO` (hasta tener el texto revisado de TEMIS) y
+  `MAPA_APERTURA_ACTIVO` (aviso de apertura del mapa, hasta la luz verde de TEMIS).
+- mapa_v1.2: «Elige tus 3 prioridades» solo sale en mapas con `version: "mapa_v1.2"` (no tiene
+  campo propio; así los mapas `mapa_v1` se pintan igual). Eventos nuevos a n8n
+  (`prioridades_elegidas`, `mapa_abierto`) descritos en `n8n/eventos-mapa-v1-2.md`, sin montar.
 - Sin emojis en la UI. Tuteo, España.
 
 ## Cómo ejecutar

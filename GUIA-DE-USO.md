@@ -235,6 +235,24 @@ en la casilla del mapa (se calcula en su navegador y no se guarda).
 - **Copia para ti:** al publicar, se guarda una copia en texto del mapa (`<fecha>_mapa-publicado.md`)
   en su carpeta de Drive y en la de JARVIS, junto al informe.
 
+### 5.1 Lo nuevo de mapa_v1.2 (desde el 25-sep)
+
+Todo opcional: si JARVIS no lo pone, el mapa se ve como antes.
+
+- **Lo que no esperabais:** un hallazgo marcado como inesperado sale el primero, destacado.
+- **Regalo de 10 minutos:** una checklist, plantilla o ficha que el cliente puede **copiar** o
+  **descargar (.txt)**.
+- **El coste de no hacer nada:** horas al año que se seguirán yendo en los procesos de la hoja de
+  ruta si no se hace nada. Lo calcula la app; sale solo si JARVIS lo pide y **no** sale si cerraste
+  la visita con avisos.
+- **Elige tus 3 prioridades** (solo en mapas que JARVIS sube como `mapa_v1.2`): el cliente marca
+  hasta 3 mejoras y las puede cambiar. Te llega aviso cada vez (cuando el motor de n8n lo tenga
+  montado). En tu vista previa ves lo que eligió, pero no puedes cambiarlo.
+- **Aviso de que ha abierto el mapa:** construido pero **apagado** hasta que TEMIS dé el visto
+  bueno. Lo que abras tú desde el panel no cuenta.
+- **Casilla de consentimiento** (uso agregado y anónimo): en el previo, en la pantalla de cierre de
+  la visita y en el mapa. **Apagada** hasta tener el texto revisado.
+
 ---
 
 ## 6. Si algo falla
