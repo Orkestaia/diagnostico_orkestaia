@@ -44,7 +44,8 @@ nada a n8n (ni Telegram, ni emails, ni Drive): así la prueba no molesta a nadie
    - Salen los avisos de Clientes y del tope; ninguno de Operación.
    - *Revisar* vuelve atrás sin cerrar. *Cerrar igualmente* cierra.
 6. **Export.** En resultados, descargar el export: al final de «4. Cálculo» aparecen los avisos.
-7. **Mapa de Colino.** Escribir 25 en «¿Y en euros?» → salen euros por proceso. En
+7. **Mapa de Colino.** En el panel, la fila «Clínica Colino» tiene ahora un botón **Mapa** (vista
+   previa): comprobar que abre. Después, en el enlace del cliente, escribir 25 en «¿Y en euros?» → salen euros por proceso. En
    «Recordatorios que se confirman solos», las flechas llevan «Confirma» y «Pide cambio».
 8. **Nada que borrar.** «Marta Test» se queda con la visita cerrada; es de prueba. Una visita
    cerrada no se puede reabrir: para repetir la prueba, crear otro diagnóstico de prueba.

@@ -19,6 +19,8 @@ export function AccionesFila(p: {
   horaReunion: string | null;
   email: string | null;
   lugarReunion: string | null;
+  /** Hay mapa (borrador o publicado): se enseña el acceso a su vista previa. */
+  conMapa?: boolean;
 }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState<"enviar" | "revocar" | "borrar" | "editar" | null>(null);
@@ -96,6 +98,11 @@ export function AccionesFila(p: {
         <Link href={`/admin/resultados/${p.id}`} className={claseBoton.discreto}>
           Resultados
         </Link>
+        {p.conMapa ? (
+          <Link href={`/admin/d/${p.id}/mapa`} className={claseBoton.discreto}>
+            Mapa
+          </Link>
+        ) : null}
         <button
           type="button"
           className={claseBoton.discreto}

@@ -100,6 +100,7 @@ export default async function Listado() {
                   horaReunion={f.hora_reunion}
                   email={f.contacto_email}
                   lugarReunion={f.lugar_reunion}
+                  conMapa={f.estado === "mapa_borrador" || f.estado === "mapa_publicado"}
                 />
               </div>
             </li>
