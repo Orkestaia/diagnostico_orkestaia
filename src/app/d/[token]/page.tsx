@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { consentimientoActivo } from "@/config/consentimiento";
 import { SECTORES } from "@/config/sectores";
+import { leerConsentimiento } from "@/lib/consentimiento";
 import { leerPrevio, paraCliente } from "@/lib/datosPrevio";
 import { ESTADOS_PREVIO_EDITABLE } from "@/lib/previo";
 import { resumenFinal } from "@/lib/resumenPrevio";
@@ -20,12 +22,17 @@ export default async function PaginaPrevio({ params }: { params: Promise<{ token
   if (!d) notFound();
 
   const completado = !(ESTADOS_PREVIO_EDITABLE as readonly string[]).includes(d.estado);
+  // Consentimiento agregado: apagado hasta que llegue el texto revisado (config/consentimiento.ts).
+  const consentimiento = consentimientoActivo()
+    ? { inicial: (await leerConsentimiento(d.id)).acepta }
+    : null;
   return (
     <Previo
       token={token}
       datos={paraCliente(d)}
       avisoFijo={SECTORES[d.sector].avisoFijo ?? null}
       resumenInicial={completado ? resumenFinal(d.respuestas_previo, d.sector, d.informe) : null}
+      consentimiento={consentimiento}
     />
   );
 }

@@ -68,11 +68,12 @@ describe("plausibilidad al cerrar la visita", () => {
     expect(avisosPlausibilidad([t], ctx)).toEqual([]);
   });
 
-  it("más de 60 minutos en una tarea administrativa", () => {
+  it("más de 60 minutos: avisa en todas las áreas menos Operación y Dirección", () => {
     const t = tarjetaNueva({ id: "a", nombre: "Facturas", area: "Administración", volumen: 4, volumenPeriodo: "mes", minutosPorVez: 90 });
-    expect(avisosPlausibilidad([t], ctx).map((a) => a.tipo)).toEqual(["minutos"]);
-    const op = { ...t, area: "Operación" as const };
-    expect(avisosPlausibilidad([op], ctx)).toEqual([]);
+    for (const area of ["Administración", "Clientes", "Captación", null] as const)
+      expect(avisosPlausibilidad([{ ...t, area }], ctx).map((a) => a.tipo), String(area)).toEqual(["minutos"]);
+    for (const area of ["Operación", "Dirección"] as const)
+      expect(avisosPlausibilidad([{ ...t, area }], ctx), area).toEqual([]);
   });
 
   it("horas de hoy por encima del tope de la app", () => {

@@ -10,6 +10,7 @@ import { sugerenciasTarea } from "@/lib/calculo";
 import { abiertasElegidas, claveCual, MAX_TEXTO_CUAL, MAX_TEXTO_PREVIO, pasosPrevio, primeraPendiente } from "@/lib/previo";
 import { PREPARACION_CIERRE, PREPARACION_INTRO, preparacionDe } from "@/config/consultor/preparacion";
 import { enlaceGoogle, horaCorta, ics, lineaCita, type Cita } from "@/lib/calendario";
+import { CasillaConsentimiento } from "@/components/compartido/CasillaConsentimiento";
 import { bienvenida, tituloFinal, type ResumenFinal } from "@/lib/resumenPrevio";
 import { useAutoguardado, type EstadoGuardado } from "./useAutoguardado";
 
@@ -31,11 +32,14 @@ export function Previo({
   datos,
   avisoFijo,
   resumenInicial,
+  consentimiento = null,
 }: {
   token: string;
   datos: Datos;
   avisoFijo: string | null;
   resumenInicial: ResumenFinal | null;
+  /** Casilla del consentimiento agregado; `null` mientras el interruptor esté apagado. */
+  consentimiento?: { inicial: boolean | null } | null;
 }) {
   const nombre = datos.contacto_nombre ?? "";
   const [respuestas, setRespuestas] = useState<Respuestas>(datos.respuestas_previo ?? {});
@@ -226,7 +230,11 @@ export function Previo({
         ) : null}
 
         {fase === "final" && resumen ? (
-          <PantallaFinal datos={datos} nombre={nombre} resumen={resumen} />
+          <PantallaFinal datos={datos} nombre={nombre} resumen={resumen}>
+            {consentimiento ? (
+              <CasillaConsentimiento token={token} inicial={consentimiento.inicial} />
+            ) : null}
+          </PantallaFinal>
         ) : null}
 
         {avisoFijo ? <p className="mt-10 border-t border-ork-border pt-4 text-small text-ork-text-faint">{avisoFijo}</p> : null}
@@ -527,7 +535,17 @@ function descargarIcs(cita: Cita) {
  * Pantalla final (spec §3): gracias + cita + lo entendido + temas sin cifras + qué tener a mano.
  * Sin quick wins ni navegación.
  */
-function PantallaFinal({ datos, nombre, resumen }: { datos: Datos; nombre: string; resumen: ResumenFinal }) {
+function PantallaFinal({
+  datos,
+  nombre,
+  resumen,
+  children,
+}: {
+  datos: Datos;
+  nombre: string;
+  resumen: ResumenFinal;
+  children?: React.ReactNode;
+}) {
   const linea = lineaCita(datos.fecha_reunion, datos.hora_reunion, datos.lugar_reunion);
   const cita: Cita | null =
     datos.fecha_reunion && datos.hora_reunion && horaCorta(datos.hora_reunion)
@@ -593,6 +611,7 @@ function PantallaFinal({ datos, nombre, resumen }: { datos: Datos; nombre: strin
         </ul>
         <p className="mt-4 text-small">{PREPARACION_CIERRE}</p>
       </div>
+      {children}
     </section>
   );
 }

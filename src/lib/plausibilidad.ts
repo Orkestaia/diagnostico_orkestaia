@@ -9,8 +9,13 @@ import type { Respuestas, SectorId } from "@/config/tipos";
 import { hoyHorasMes, redondearHoras, topeEquipo, volumenMes } from "./calculo";
 import { leerEntradas } from "./preguntas";
 
-/** Más de esto en una tarea administrativa, cada vez, merece una pregunta. */
-export const MAX_MINUTOS_ADMINISTRATIVA = 60;
+/**
+ * Más de esto cada vez merece una pregunta, salvo en Operación y Dirección, donde una tarea larga
+ * es normal (Aitor y JARVIS, 22-sep: en Colino «Primera respuesta a una consulta nueva» es de
+ * Clientes y no saltaba). Las tarjetas sin área también avisan.
+ */
+export const MAX_MINUTOS_POR_VEZ = 60;
+export const AREAS_SIN_AVISO_MINUTOS: readonly string[] = ["Operación", "Dirección"];
 /** Diferencia con el previo a partir de la que se avisa (el doble o la mitad). */
 export const FACTOR_CONTRADICCION = 2;
 
@@ -36,11 +41,14 @@ export function avisosPlausibilidad(
   const nombre = (t: TarjetaProceso) => t.nombre || "Proceso sin nombre";
 
   for (const t of procesos) {
-    if (t.area === "Administración" && (t.minutosPorVez ?? 0) > MAX_MINUTOS_ADMINISTRATIVA) {
+    if (
+      !AREAS_SIN_AVISO_MINUTOS.includes(t.area ?? "") &&
+      (t.minutosPorVez ?? 0) > MAX_MINUTOS_POR_VEZ
+    ) {
       avisos.push({
         tipo: "minutos",
         tarjetaId: t.id,
-        mensaje: `«${nombre(t)}»: ${t.minutosPorVez} min cada vez es mucho para una tarea administrativa. ¿Es por vez o por tanda?`,
+        mensaje: `«${nombre(t)}»: ${t.minutosPorVez} min cada vez es mucho para esta tarea. ¿Es por vez o por tanda?`,
       });
     }
   }
