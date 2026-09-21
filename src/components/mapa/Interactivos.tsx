@@ -4,28 +4,6 @@ import { useState } from "react";
 import { FlowDiagram } from "@/components/diagrama/FlowDiagram";
 import type { Arista, Nodo } from "@/lib/diagrama";
 
-/** Leyenda de los diagramas: el mismo lenguaje que los casos del portfolio. */
-export function Leyenda() {
-  return (
-    <p className="flex flex-wrap gap-x-5 gap-y-1 text-small text-ork-text-muted">
-      <span className="inline-flex items-center gap-2">
-        <span
-          aria-hidden="true"
-          className="h-3 w-3 rounded-sm border border-ork-cyan bg-ork-cyan/20"
-        />
-        Lo hace el sistema
-      </span>
-      <span className="inline-flex items-center gap-2">
-        <span
-          aria-hidden="true"
-          className="h-3 w-3 rounded-sm border border-ork-violet bg-ork-violet/25"
-        />
-        Lo hace una persona
-      </span>
-    </p>
-  );
-}
-
 interface Grafo {
   nodos: Nodo[];
   aristas: Arista[];
@@ -84,6 +62,7 @@ export function Comparador({
         nodos={grafo.nodos}
         aristas={grafo.aristas}
         titulo={`${titulo}: ${vista === "hoy" ? "hoy" : "con el sistema"}`}
+        anchoEscritorio={880}
       />
     </div>
   );

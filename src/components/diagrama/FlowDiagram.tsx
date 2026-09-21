@@ -66,17 +66,28 @@ export function FlowDiagram({
   nodos,
   aristas,
   titulo,
+  anchoEscritorio,
 }: {
   nodos: Nodo[];
   aristas: Arista[];
   titulo: string;
+  /**
+   * Ancho real (px) que ocupa el diagrama en escritorio, si no es el de la diapositiva del
+   * portfolio. Con el lienzo del mismo ancho que el hueco, la letra se ve a su tamaño en vez de
+   * encogerse (en el mapa del diagnóstico el hueco mide unos 900 px, no 1280).
+   * Añadido en el diagnóstico (21-sep); opcional, así que el portfolio no cambia.
+   */
+  anchoEscritorio?: number;
 }) {
   const llevaHumano = nodos.some((n) => n.humano);
+  const escritorio = anchoEscritorio
+    ? { ...LIENZO.escritorio, ancho: anchoEscritorio }
+    : LIENZO.escritorio;
   return (
     <figure className="ork-diagrama w-full">
       {/* Escritorio: de izquierda a derecha */}
       <div className="hidden md:block">
-        <Lienzo nodos={nodos} aristas={aristas} titulo={titulo} medidas={LIENZO.escritorio} />
+        <Lienzo nodos={nodos} aristas={aristas} titulo={titulo} medidas={escritorio} />
       </div>
       {/* Móvil: el mismo grafo, de arriba abajo */}
       <div className="md:hidden">

@@ -6,7 +6,7 @@ import { redondearHoras } from "@/lib/calculo";
 import type { DatosMapa, ProcesoMapa } from "@/lib/datosMapa";
 import { diagramaDesdePasos } from "@/lib/diagrama";
 import type { ItemRuta, Mapa } from "@/lib/mapa";
-import { Comparador, Desplegable, Leyenda } from "./Interactivos";
+import { Comparador, Desplegable } from "./Interactivos";
 
 /**
  * El mapa que recibe el cliente (spec §6). La misma pieza se usa en su enlace `/m/[token]`, en la
@@ -16,6 +16,9 @@ import { Comparador, Desplegable, Leyenda } from "./Interactivos";
  * Al cliente solo se le enseñan horas. Los euros se quedan para Aitor (pendiente de decidir con
  * JARVIS si alguna vez aparecen aquí).
  */
+
+/** Ancho útil de los diagramas dentro de las tarjetas del mapa (max-w-5xl menos márgenes). */
+export const ANCHO_DIAGRAMA = 880;
 
 const h = (x: number) => `${String(redondearHoras(x)).replace(".", ",")} h`;
 const rango = (min: number, max: number) =>
@@ -115,7 +118,12 @@ function DetalleProceso({ p }: { p: ProcesoMapa }) {
           <p className="mb-2 font-mono text-[0.72rem] uppercase tracking-[0.14em] text-ork-text-faint">
             Así es hoy
           </p>
-          <FlowDiagram nodos={hoy.nodos} aristas={hoy.aristas} titulo={`${p.nombre}: así es hoy`} />
+          <FlowDiagram
+            nodos={hoy.nodos}
+            aristas={hoy.aristas}
+            titulo={`${p.nombre}: así es hoy`}
+            anchoEscritorio={ANCHO_DIAGRAMA}
+          />
         </div>
       ) : null}
     </div>
@@ -278,6 +286,7 @@ function AsiSeria({
                       nodos={hayHoy.nodos}
                       aristas={hayHoy.aristas}
                       titulo={`${it.titulo}: hoy`}
+                      anchoEscritorio={ANCHO_DIAGRAMA}
                     />
                   </div>
                 ) : null}
@@ -285,7 +294,12 @@ function AsiSeria({
                   <p className="mb-2 font-mono text-[0.72rem] uppercase tracking-[0.14em] text-ork-cyan">
                     Con el sistema
                   </p>
-                  <FlowDiagram nodos={d.nodos} aristas={d.aristas} titulo={d.titulo} />
+                  <FlowDiagram
+                    nodos={d.nodos}
+                    aristas={d.aristas}
+                    titulo={d.titulo}
+                    anchoEscritorio={ANCHO_DIAGRAMA}
+                  />
                 </div>
               </div>
             ) : (
@@ -295,7 +309,6 @@ function AsiSeria({
                 sistema={{ nodos: d.nodos, aristas: d.aristas }}
               />
             )}
-            <Leyenda />
             <p className="font-display text-body-lg text-ork-text">{d.pie}</p>
 
             <div className="mapa-junto grid gap-4 sm:grid-cols-2">
