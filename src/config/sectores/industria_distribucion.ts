@@ -32,7 +32,8 @@ export const industriaDistribucion: Sector = {
     },
     {
       id: "dia.pedidos_mes",
-      texto: "¿Cuántos pedidos al mes entran fuera de la tienda online?",
+      texto:
+        "¿Cuántos pedidos o encargos al mes tiene que pasar alguien a mano al programa de gestión?",
       tipo: "rango",
       opciones: [
         { etiqueta: "Menos de 50", valor: 25 },
@@ -84,9 +85,9 @@ export const industriaDistribucion: Sector = {
       id: "dia.estado_trabajos",
       texto: "¿Cómo sabéis en qué punto está cada trabajo o pedido?",
       tipo: "chips",
-      opciones: ["Con un programa", "Excel", "Pizarra o papel", "Preguntando"].map(
-        (etiqueta) => ({ etiqueta }),
-      ),
+      opciones: ["Con un programa", "Excel", "Pizarra o papel", "Preguntando"].map((etiqueta) => ({
+        etiqueta,
+      })),
     },
     {
       id: "dia.llamadas_estado",
