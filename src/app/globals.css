@@ -388,17 +388,32 @@ h6 {
 .mapa-salto {
   break-before: page;
 }
+/* Bloques pequeños que no deben partirse entre dos páginas. */
 .mapa-junto {
   break-inside: avoid;
 }
+/* Un título no se queda solo al final de una página. */
+.mapa-titulo {
+  break-after: avoid;
+}
+.sin-animacion .ork-diagrama {
+  break-inside: avoid;
+}
 @media print {
+  /*
+   * Página con la proporción exacta del A4 (1:1,414) pero de 1024 px de ancho: el mapa se
+   * maqueta como en escritorio (diagramas en horizontal, tres columnas) y, al imprimir en A4
+   * "ajustando a la página", sale igual y sin deformarse. Sin márgenes: el fondo va a sangre.
+   */
   @page {
-    size: A4;
-    margin: 12mm 10mm;
+    size: 1024px 1448px;
+    margin: 0;
   }
   html,
   body {
-    background: var(--color-ork-bg);
+    background: var(--color-ork-bg) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .solo-pantalla {
     display: none !important;

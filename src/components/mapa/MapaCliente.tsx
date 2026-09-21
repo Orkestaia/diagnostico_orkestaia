@@ -59,7 +59,7 @@ function Seccion({
       aria-labelledby={`${id}-t`}
       className={"space-y-6 " + (imprimir && salto ? "mapa-salto pt-4" : "")}
     >
-      <header className="mapa-junto max-w-3xl">
+      <header className="mapa-junto mapa-titulo max-w-3xl">
         <p className="font-mono text-[0.72rem] uppercase tracking-[0.16em] text-ork-cyan">
           {numero}
         </p>
@@ -145,7 +145,9 @@ function AsiFuncionaHoy({ procesos, imprimir }: { procesos: ProcesoMapa[]; impri
         .filter((g) => g.procesos.length)
         .map((g) => (
           <div key={g.area} className="space-y-3">
-            <p className="text-small uppercase tracking-[0.12em] text-ork-text-faint">{g.area}</p>
+            <p className="mapa-titulo text-small uppercase tracking-[0.12em] text-ork-text-faint">
+              {g.area}
+            </p>
             <ul className="grid gap-3">
               {g.procesos.map((p) => {
                 // Intensidad según las horas que consume hoy (spec §6.2).
@@ -173,7 +175,7 @@ function AsiFuncionaHoy({ procesos, imprimir }: { procesos: ProcesoMapa[]; impri
                 return (
                   <li
                     key={p.id}
-                    className="mapa-entra mapa-junto rounded-2xl border border-ork-border bg-ork-surface-1/85 p-5"
+                    className="mapa-entra rounded-2xl border border-ork-border bg-ork-surface-1/85 p-5"
                     style={{ ["--i" as string]: i++ }}
                   >
                     {imprimir ? (
@@ -385,11 +387,11 @@ export function MapaCliente({ datos, imprimir = false }: { datos: DatosMapa; imp
       {!imprimir ? (
         <Orkestador
           intensidad="fondo"
-          className="pointer-events-none fixed -right-28 bottom-0 h-[60vh] opacity-50 md:right-[3%]"
+          className="pointer-events-none fixed -right-28 bottom-0 h-[60vh] opacity-25 md:right-[3%] md:opacity-50"
         />
       ) : null}
 
-      <div className="relative mx-auto max-w-5xl space-y-20 px-4 py-10 sm:px-8">
+      <div className="relative mx-auto max-w-5xl space-y-20 px-4 py-10 sm:px-8 print:px-12 print:py-12">
         {/* ── Portada ── */}
         <header className="mapa-junto space-y-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
