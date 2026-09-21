@@ -1,6 +1,6 @@
 /** Lo que jsdom no trae y las pantallas dan por hecho. */
 
-if (!window.matchMedia) {
+if (typeof window !== "undefined" && !window.matchMedia) {
   window.matchMedia = (query: string) =>
     ({
       matches: false,
