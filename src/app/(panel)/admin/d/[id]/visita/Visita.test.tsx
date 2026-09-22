@@ -13,6 +13,7 @@ import { Visita, type DatosVisita } from "./Visita";
 
 const datos: DatosVisita = {
   id: "986d5763-bbe8-49e1-83c9-239d3ec4c9b4",
+  previo: { "herramientas.info_clientes": "En Excel", "prioridad.exito": ["Más clientes"] },
   estado: "visita_en_curso",
   sector: "salud",
   tipoNegocio: "Clínica dental",
@@ -94,5 +95,13 @@ describe("Pantalla de la visita", () => {
     for (const texto of ["Coste por hora", "Rango de inversión", "riesgo de cumplimiento", "Privado · no lo ve el cliente"]) {
       expect(html.includes(texto), texto).toBe(false);
     }
+  });
+
+  it("las preguntas repetidas salen rellenadas con el previo y con etiqueta (22-sep)", async () => {
+    render(<Visita datos={datos} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /Herramientas/ }));
+    expect(screen.getByText(/Respondido en el previo/)).toBeTruthy();
+    expect(screen.getByRole("checkbox", { name: "En Excel" }).getAttribute("aria-checked")).toBe("true");
   });
 });

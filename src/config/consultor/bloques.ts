@@ -123,6 +123,12 @@ export interface CampoVisita {
   max?: number;
   /** `escala`: además de 1-5, una nota libre. */
   nota?: boolean;
+  /**
+   * Pregunta repetida (Aitor, 22-sep): la misma que ya se contestó en el previo. La visita la
+   * enseña rellenada con esa respuesta, editable, con la etiqueta «respondido en el previo». Si
+   * Aitor la cambia, se guarda como respuesta de la visita (la del previo no se toca).
+   */
+  mismoQuePrevio?: string;
 }
 
 export const CAMPOS_VISITA: CampoVisita[] = [
@@ -448,6 +454,7 @@ export const CAMPOS_VISITA: CampoVisita[] = [
     privado: false,
     nivel: "N",
     opciones: OPCIONES_INFO_CLIENTES,
+    mismoQuePrevio: "herramientas.info_clientes",
   },
   {
     id: "herr.integracion",
@@ -843,6 +850,7 @@ export const CAMPOS_VISITA: CampoVisita[] = [
     privado: false,
     nivel: "N",
     opciones: OPCIONES_EXITO.map((o) => o.etiqueta),
+    mismoQuePrevio: "prioridad.exito",
   },
   {
     id: "e.restricciones",

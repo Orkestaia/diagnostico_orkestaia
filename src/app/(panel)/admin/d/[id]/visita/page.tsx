@@ -76,6 +76,7 @@ export default async function PaginaVisita({ params }: { params: Promise<{ id: s
     visitaCerradaAt: d.visita_cerrada_at,
     respuestasVisita,
     procesos: (d.procesos ?? []) as TarjetaProceso[],
+    previo,
     sugeridas: sugeridasDelPrevio(sector, previo, porConfirmar.keys()),
     entendido: loQueHeEntendido(previo, sector, porConfirmar.keys()),
     contado,

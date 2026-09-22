@@ -64,6 +64,8 @@ export interface DatosVisita {
   respuestasVisita: RespuestasVisita;
   procesos: TarjetaProceso[];
   sugeridas: TarjetaProceso[];
+  /** Respuestas del previo (con sus correcciones) para precargar las preguntas repetidas. */
+  previo: Respuestas;
   entendido: string[];
   contado: Contado[];
   /** Casilla de consentimiento agregado en la pantalla de cierre; `null` con el interruptor apagado. */
@@ -300,6 +302,7 @@ function Pantalla({
             <CamposBloque
               bloque={bloque}
               sector={datos.sector}
+              previo={{ ...datos.previo, ...correcciones }}
               campos={campos}
               ponerCampo={ponerCampo}
               procesos={procesos}
@@ -578,6 +581,7 @@ function LoQueNosContaste({
 function CamposBloque({
   bloque,
   sector,
+  previo,
   campos,
   ponerCampo,
   procesos,
@@ -586,12 +590,25 @@ function CamposBloque({
 }: {
   bloque: BloqueId;
   sector: SectorId;
+  previo?: Respuestas;
   campos: Record<string, unknown>;
   ponerCampo: (id: string, v: unknown) => void;
   procesos: TarjetaProceso[];
   ponerProcesos: (t: TarjetaProceso[]) => void;
   entrega?: string;
 }) {
+  // Pregunta repetida: si en la visita aún no hay respuesta, se enseña la del previo.
+  const valorDe = (c: CampoVisita) => {
+    if (c.id === "e.entrega") return campos[c.id] ?? entrega;
+    if (campos[c.id] !== undefined) return campos[c.id];
+    return c.mismoQuePrevio ? previo?.[c.mismoQuePrevio] : undefined;
+  };
+  const delPrevio = (c: CampoVisita) =>
+    !!c.mismoQuePrevio &&
+    campos[c.id] === undefined &&
+    previo?.[c.mismoQuePrevio] !== undefined &&
+    previo?.[c.mismoQuePrevio] !== null &&
+    previo?.[c.mismoQuePrevio] !== "";
   const privada = usePrivada();
   const delBloque = camposDeSector(CAMPOS_VISITA, sector).filter((c) => c.bloque === bloque);
   const pinta = (c: CampoVisita) =>
@@ -606,14 +623,20 @@ function CamposBloque({
         />
       </SoloPrivado>
     ) : (
-      <Campo
-        key={c.id}
-        c={c}
-        valor={c.id === "e.entrega" ? (campos[c.id] ?? entrega) : campos[c.id]}
-        poner={(v) => ponerCampo(c.id, v)}
-        procesos={procesos}
-        ponerProcesos={ponerProcesos}
-      />
+      <div key={c.id}>
+        <Campo
+          c={c}
+          valor={valorDe(c)}
+          poner={(v) => ponerCampo(c.id, v)}
+          procesos={procesos}
+          ponerProcesos={ponerProcesos}
+        />
+        {delPrevio(c) ? (
+          <p className="mt-1 text-small text-ork-cyan">
+            Respondido en el previo. Confírmalo o cámbialo aquí.
+          </p>
+        ) : null}
+      </div>
     );
 
   // Núcleo destacado; profundizar plegado debajo (batería v2 §0): el bloque se puede cerrar
