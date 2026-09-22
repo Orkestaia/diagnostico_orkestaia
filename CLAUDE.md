@@ -39,16 +39,9 @@ responde `diagnostico-orkestaia.vercel.app`).
 En producción y usado con clientes reales (3 previos contestados; visitas el 22, 23 y 24-sep).
 Detalle y guía: `GUIA-DE-USO.md`.
 
-**Congelación de despliegues:** nada a `main` desde el martes 22-sep a las 20:00 hasta que acabe
-la visita del jueves 24, salvo un fallo grave.
-
-Ramas abiertas (22-sep):
-
-- `grabacion-pausa`: pausa de la grabación, aviso de más de 60 min en todas las áreas salvo
-  Operación y Dirección, consentimiento agregado apagado, botón «Mapa» en el panel. Aitor la prueba
-  el martes 22 por la mañana con «Marta Test» (`docs/prueba-martes-22-sep.md`); si va bien, se
-  fusiona antes de las 20:00; si no, después del jueves.
-- `mapa-v1-2`: campos opcionales de la spec §7 (21-sep). **No desplegar hasta después del jueves 24.**
+Aitor levantó la congelación el 22-sep por la tarde: pausa de grabación, mapa_v1.2 (A–F), preguntas
+repetidas precargadas del previo (`mismoQuePrevio`) y el rediseño UX del mapa están en producción
+desde el 22-sep ~21:00. No quedan ramas abiertas. Eventos nuevos ya montados en n8n.
 
 - Previo `/d/[token]`, visita `/admin/d/[id]/visita` (batería v2: 8 bloques, núcleo/profundizar,
   vista privada, sin conexión, grabación + transcripción, notas, encuesta del equipo), cierre,
