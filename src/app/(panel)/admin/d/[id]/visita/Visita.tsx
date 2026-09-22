@@ -16,7 +16,13 @@ import { camposDeSector } from "@/config/consultor/sector";
 import type { TarjetaProceso } from "@/config/consultor/tarjeta";
 import type { Respuestas, SectorId, TipoPregunta, ValorRespuesta } from "@/config/tipos";
 import { redondearHoras } from "@/lib/calculo";
-import { ID_NOTAS, sumarDiasHabiles, type ParcheVisita, type RespuestasVisita } from "@/lib/visita";
+import {
+  ID_NOTAS,
+  sumarDiasHabiles,
+  valorCampo,
+  type ParcheVisita,
+  type RespuestasVisita,
+} from "@/lib/visita";
 import { BOTON, BOTON_PRIMARIO, CAMPO, Chips, Etiqueta, Numero, Seccion, Texto } from "./campos";
 import { BotonCandado, SoloPrivado, usePrivada, VistaPrivada } from "./privada";
 import { BloqueEncuesta } from "./encuesta";
@@ -663,7 +669,8 @@ function Campo({
           etiqueta={etiqueta}
           opciones={c.opciones ?? []}
           multi={c.tipo === "multi"}
-          valor={valor as string | string[]}
+          max={c.max}
+          valor={valorCampo(c, valor) as string | string[]}
           onCambio={poner}
         />
       );

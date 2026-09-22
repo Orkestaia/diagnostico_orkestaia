@@ -8,7 +8,7 @@
  * - `privado` (solo servidor y vista privada): campos 🔒 y la parte 🔒 de cada tarjeta.
  * El servidor rechaza cualquier campo privado que llegue por la parte visible (y al revés).
  */
-import { CAMPOS_VISITA, DIAS_HABILES_ENTREGA } from "@/config/consultor/bloques";
+import { CAMPOS_VISITA, DIAS_HABILES_ENTREGA, type CampoVisita } from "@/config/consultor/bloques";
 import { plantillasDeSector } from "@/config/consultor/plantillas";
 import { camposDeSector } from "@/config/consultor/sector";
 import {
@@ -235,6 +235,20 @@ export function unirParches(a: ParcheVisita, b: ParcheVisita): ParcheVisita {
         : undefined,
     privado_procesos: Object.keys(privado_procesos).length ? privado_procesos : undefined,
   };
+}
+
+// ── Valores guardados con otro tipo (solo hacia adelante) ──
+
+/**
+ * Un campo que pasó de una opción a varias (`d.info_clientes`, `e.exito`, 22-sep) puede tener
+ * guardado un texto: se lee como lista de un elemento. Nada se reescribe en la base de datos.
+ */
+export function valorCampo(c: Pick<CampoVisita, "tipo">, v: unknown): unknown {
+  if (c.tipo === "multi") {
+    if (typeof v === "string") return v ? [v] : [];
+    if (v === null || v === undefined) return [];
+  }
+  return v;
 }
 
 // ── Tarjetas sugeridas con datos del previo (banco §9) ──

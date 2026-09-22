@@ -26,21 +26,21 @@ bocetos, éxito = menos horas de administración y más clientes.
 
 ## Bloque A · Contexto y objetivos
 
-| Campo | Ensayo (Roberto) | Qué pedirle mañana |
-|---|---|---|
-| ¿Cómo empezó y qué vendéis? | Empezó Iñaki (padre) en 1998 con rotulación de vehículos; hoy rótulos luminosos, vinilos, lonas, stands y señalética para tiendas y naves. Taller propio con impresión digital y fresadora. | Productos que más facturan y cuáles quiere empujar |
-| Equipo por roles | Gerencia 1 · Comercial 2 (Roberto y otro) · Diseño 2 · Taller/montaje 4 · Administración 1 → **10** | Nombres no hacen falta; sí número por rol (manda en el tope de horas) |
-| Quién decide una inversión así · ¿está aquí? | Iñaki (gerente) y Roberto juntos · **No** («hoy no ha podido, se lo cuento yo») | Si el decisor no está: cuándo se lo presentas a él |
-| Dónde en 12 meses | Facturar un 20 % más sin contratar en oficina; que el taller no pare por falta de información | Una cifra o un hecho, no «crecer» |
-| Qué haría que estas 3 h merezcan la pena | Saber cuántas horas se nos van en oficina y qué se puede quitar sin liarla | — |
-| Qué habéis probado ya | Un CRM (Holded) hace 3 años: nadie lo rellenaba, lo dejaron a los 4 meses. ChatGPT gratis para textos de presupuestos | Por qué se abandonó: es la clave para no repetirlo |
-| Si entrara el doble de clientes | «Diseño. Los bocetos se atascan y los presupuestos salen tarde» | Qué se rompe primero = primera prioridad |
-| **P** De dónde sale la facturación / más rentable | 60 % rotulación de vehículos y locales (más rentable), 25 % lonas y vinilos, 15 % stands | — |
-| **P** Cliente tipo · qué pide que cuesta dar | Pyme local y concesionarios; piden **plazo cerrado y boceto en 48 h** | — |
-| **P** Cómo va el negocio | Creciendo | — |
-| **P** Quién más debería estar | Iñaki y Maite (administración) | — |
-| 🔒 Última herramienta contratada | Holded, mal: sin tiempo para configurarlo, nadie lo usaba | — |
-| 🔒 Facturación | 250.000-1 M€ | Pregúntalo con naturalidad; si no, «prefiere no decirlo» |
+| Campo                                             | Ensayo (Roberto)                                                                                                                                                                            | Qué pedirle mañana                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| ¿Cómo empezó y qué vendéis?                       | Empezó Iñaki (padre) en 1998 con rotulación de vehículos; hoy rótulos luminosos, vinilos, lonas, stands y señalética para tiendas y naves. Taller propio con impresión digital y fresadora. | Productos que más facturan y cuáles quiere empujar                    |
+| Equipo por roles                                  | Gerencia 1 · Comercial 2 (Roberto y otro) · Diseño 2 · Taller/montaje 4 · Administración 1 → **10**                                                                                         | Nombres no hacen falta; sí número por rol (manda en el tope de horas) |
+| Quién decide una inversión así · ¿está aquí?      | Iñaki (gerente) y Roberto juntos · **No** («hoy no ha podido, se lo cuento yo»)                                                                                                             | Si el decisor no está: cuándo se lo presentas a él                    |
+| Dónde en 12 meses                                 | Facturar un 20 % más sin contratar en oficina; que el taller no pare por falta de información                                                                                               | Una cifra o un hecho, no «crecer»                                     |
+| Qué haría que estas 3 h merezcan la pena          | Saber cuántas horas se nos van en oficina y qué se puede quitar sin liarla                                                                                                                  | —                                                                     |
+| Qué habéis probado ya                             | Un CRM (Holded) hace 3 años: nadie lo rellenaba, lo dejaron a los 4 meses. ChatGPT gratis para textos de presupuestos                                                                       | Por qué se abandonó: es la clave para no repetirlo                    |
+| Si entrara el doble de clientes                   | «Diseño. Los bocetos se atascan y los presupuestos salen tarde»                                                                                                                             | Qué se rompe primero = primera prioridad                              |
+| **P** De dónde sale la facturación / más rentable | 60 % rotulación de vehículos y locales (más rentable), 25 % lonas y vinilos, 15 % stands                                                                                                    | —                                                                     |
+| **P** Cliente tipo · qué pide que cuesta dar      | Pyme local y concesionarios; piden **plazo cerrado y boceto en 48 h**                                                                                                                       | —                                                                     |
+| **P** Cómo va el negocio                          | Creciendo                                                                                                                                                                                   | —                                                                     |
+| **P** Quién más debería estar                     | Iñaki y Maite (administración)                                                                                                                                                              | —                                                                     |
+| 🔒 Última herramienta contratada                  | Holded, mal: sin tiempo para configurarlo, nadie lo usaba                                                                                                                                   | —                                                                     |
+| 🔒 Facturación                                    | 250.000-1 M€                                                                                                                                                                                | Pregúntalo con naturalidad; si no, «prefiere no decirlo»              |
 
 ## Bloque B · Procesos (tarjetas)
 
@@ -102,64 +102,64 @@ ver el aviso de los 60 min.)
 
 ## Bloque C · Números
 
-| Campo | Ensayo | Qué pedirle |
-|---|---|---|
-| 🔒 Coste por hora | **Orientativo 14 / 25 / 40 €** (Roberto no lo sabe) | Pregúntalo siempre; si da el suyo, «me da su coste real» |
-| Picos | Septiembre, noviembre-diciembre y ferias (marzo) | — |
-| Consultas o presupuestos que se pierden al mes | **6** | Que lo diga él, aunque sea a ojo |
-| Horas a la semana en administración (entre todos) | **25** | Es el contraste con lo que sale de las tarjetas |
-| **P** Último error que costó dinero | Rótulo con medida mal copiada, rehecho: **unos 900 €** | — |
-| 🔒 Contratar a alguien para absorberlo | 28.000 €/año | — |
-| 🔒 Ticket medio | 1.200 € | — |
-| 🔒 Margen | 25-50 % | — |
+| Campo                                             | Ensayo                                                 | Qué pedirle                                              |
+| ------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------- |
+| 🔒 Coste por hora                                 | **Orientativo 14 / 25 / 40 €** (Roberto no lo sabe)    | Pregúntalo siempre; si da el suyo, «me da su coste real» |
+| Picos                                             | Septiembre, noviembre-diciembre y ferias (marzo)       | —                                                        |
+| Consultas o presupuestos que se pierden al mes    | **6**                                                  | Que lo diga él, aunque sea a ojo                         |
+| Horas a la semana en administración (entre todos) | **25**                                                 | Es el contraste con lo que sale de las tarjetas          |
+| **P** Último error que costó dinero               | Rótulo con medida mal copiada, rehecho: **unos 900 €** | —                                                        |
+| 🔒 Contratar a alguien para absorberlo            | 28.000 €/año                                           | —                                                        |
+| 🔒 Ticket medio                                   | 1.200 €                                                | —                                                        |
+| 🔒 Margen                                         | 25-50 %                                                | —                                                        |
 
 ## Bloque D · Datos e información
 
-| Campo | Ensayo |
-|---|---|
-| Mapa de datos | Clientes: Wontages + Excel · Excel · Roberto · confianza 3 — Pedidos: Wontages + hoja de papel · programa · Maite/taller · 3 — Facturación: Wontages · programa · Maite · 5 — Stock: «a ojo» · nadie · 1 — Documentos: carpetas en el PC de diseño y Drive · archivos · diseño · 2 |
-| Duplicados | A menudo (clientes en Excel y Wontages con nombres distintos) |
-| Si dos sitios dan cifras distintas, cuál manda | Wontages (facturación) |
-| Excel críticos | 2: el de presupuestos y el de tarifas de proveedores |
-| Documentos | PDF digital, Word/Excel, Adjuntos de email, Carpetas compartidas |
-| **P** Encontrar un documento de hace un año | Más de 15 min |
-| **P** Qué cifras mira dirección | Facturación mensual de Wontages; nada de presupuestos ganados/perdidos |
-| **P** Copias de seguridad comprobadas | No lo sé |
-| 🔒 Accesos | Todos ven todo; a un diseñador que se fue no se le quitó el Drive |
-| 🔒 Calidad de datos / preparados para IA | 2 / 2 |
+| Campo                                          | Ensayo                                                                                                                                                                                                                                                                             |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mapa de datos                                  | Clientes: Wontages + Excel · Excel · Roberto · confianza 3 — Pedidos: Wontages + hoja de papel · programa · Maite/taller · 3 — Facturación: Wontages · programa · Maite · 5 — Stock: «a ojo» · nadie · 1 — Documentos: carpetas en el PC de diseño y Drive · archivos · diseño · 2 |
+| Duplicados                                     | A menudo (clientes en Excel y Wontages con nombres distintos)                                                                                                                                                                                                                      |
+| Si dos sitios dan cifras distintas, cuál manda | Wontages (facturación)                                                                                                                                                                                                                                                             |
+| Excel críticos                                 | 2: el de presupuestos y el de tarifas de proveedores                                                                                                                                                                                                                               |
+| Documentos                                     | PDF digital, Word/Excel, Adjuntos de email, Carpetas compartidas                                                                                                                                                                                                                   |
+| **P** Encontrar un documento de hace un año    | Más de 15 min                                                                                                                                                                                                                                                                      |
+| **P** Qué cifras mira dirección                | Facturación mensual de Wontages; nada de presupuestos ganados/perdidos                                                                                                                                                                                                             |
+| **P** Copias de seguridad comprobadas          | No lo sé                                                                                                                                                                                                                                                                           |
+| 🔒 Accesos                                     | Todos ven todo; a un diseñador que se fue no se le quitó el Drive                                                                                                                                                                                                                  |
+| 🔒 Calidad de datos / preparados para IA       | 2 / 2                                                                                                                                                                                                                                                                              |
 
 ## Bloque E · Herramientas
 
-| Campo | Ensayo |
-|---|---|
-| Inventario | Wontages (facturación y pedidos · Maite y Roberto · no se conecta · ~60 €/mes · claves Maite) · Gmail (todos · no · 0 · Iñaki) · WhatsApp Business (comerciales · no · 0) · Illustrator/Adobe (diseño · no · 70 €/mes · diseño) · Google Drive (todos · no · 0) · Excel (todos) |
-| Dónde está la info de cada cliente | Excel u hojas de cálculo |
-| Se pasan datos entre ellas | Todo a mano |
-| Quién lleva la informática | Un proveedor (el de la web, poco) |
-| **P** Pagan y casi no usan | Holded todavía cobrando (30 €/mes) |
-| **P** Permanencias | Adobe anual, renueva en enero |
-| **P** Fuera de la oficina | Mucho (mediciones y montajes) |
-| **P** Claves compartidas | Sí |
-| 🔒 Cambiaría mañana | «Algo que una presupuesto y pedido» |
-| 🔒 Gasto mensual en software | 160 € |
+| Campo                              | Ensayo                                                                                                                                                                                                                                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inventario                         | Wontages (facturación y pedidos · Maite y Roberto · no se conecta · ~60 €/mes · claves Maite) · Gmail (todos · no · 0 · Iñaki) · WhatsApp Business (comerciales · no · 0) · Illustrator/Adobe (diseño · no · 70 €/mes · diseño) · Google Drive (todos · no · 0) · Excel (todos) |
+| Dónde está la info de cada cliente | Excel u hojas de cálculo                                                                                                                                                                                                                                                        |
+| Se pasan datos entre ellas         | Todo a mano                                                                                                                                                                                                                                                                     |
+| Quién lleva la informática         | Un proveedor (el de la web, poco)                                                                                                                                                                                                                                               |
+| **P** Pagan y casi no usan         | Holded todavía cobrando (30 €/mes)                                                                                                                                                                                                                                              |
+| **P** Permanencias                 | Adobe anual, renueva en enero                                                                                                                                                                                                                                                   |
+| **P** Fuera de la oficina          | Mucho (mediciones y montajes)                                                                                                                                                                                                                                                   |
+| **P** Claves compartidas           | Sí                                                                                                                                                                                                                                                                              |
+| 🔒 Cambiaría mañana                | «Algo que una presupuesto y pedido»                                                                                                                                                                                                                                             |
+| 🔒 Gasto mensual en software       | 160 €                                                                                                                                                                                                                                                                           |
 
 ## Bloque F · Equipo e IA
 
-| Campo | Ensayo |
-|---|---|
-| Quién usa IA | Algunos por su cuenta |
-| Herramientas | ChatGPT gratuito |
-| Cuentas | Personales |
-| Ejemplo real | Redactar textos de presupuestos y emails a clientes |
-| Normas | No hay |
-| Formación | Ninguna |
-| Actitud del equipo | Curiosidad, Miedo a perder el puesto (Maite) |
-| Campeón | Ane, de diseño |
-| Áreas y personas | Gerencia 1 · Comercial 2 · Diseño 2 · Taller 4 · Administración 1 |
-| Encuesta anónima | **Sí**, la reparte Roberto por WhatsApp → crea el enlace (así ensayas también la encuesta) |
-| **P** Cuánto crees que la IA puede ayudar | 4 |
-| **P** Fallidos con IA | Probaron que ChatGPT calculara metros de vinilo: se equivocaba |
-| 🔒 Tiempo de formación | 1 h a la semana · 🔒 Presupuesto 1.000-5.000 € · 🔒 Campeón: 4 |
+| Campo                                     | Ensayo                                                                                     |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Quién usa IA                              | Algunos por su cuenta                                                                      |
+| Herramientas                              | ChatGPT gratuito                                                                           |
+| Cuentas                                   | Personales                                                                                 |
+| Ejemplo real                              | Redactar textos de presupuestos y emails a clientes                                        |
+| Normas                                    | No hay                                                                                     |
+| Formación                                 | Ninguna                                                                                    |
+| Actitud del equipo                        | Curiosidad, Miedo a perder el puesto (Maite)                                               |
+| Campeón                                   | Ane, de diseño                                                                             |
+| Áreas y personas                          | Gerencia 1 · Comercial 2 · Diseño 2 · Taller 4 · Administración 1                          |
+| Encuesta anónima                          | **Sí**, la reparte Roberto por WhatsApp → crea el enlace (así ensayas también la encuesta) |
+| **P** Cuánto crees que la IA puede ayudar | 4                                                                                          |
+| **P** Fallidos con IA                     | Probaron que ChatGPT calculara metros de vinilo: se equivocaba                             |
+| 🔒 Tiempo de formación                    | 1 h a la semana · 🔒 Presupuesto 1.000-5.000 € · 🔒 Campeón: 4                             |
 
 ## Bloque G · Cumplimiento
 

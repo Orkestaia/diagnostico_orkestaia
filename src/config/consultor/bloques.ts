@@ -442,7 +442,9 @@ export const CAMPOS_VISITA: CampoVisita[] = [
     id: "d.info_clientes",
     bloque: "E",
     texto: "¿Dónde está la información de cada cliente?",
-    tipo: "chips",
+    // 22-sep (Aitor, tras el ensayo de Icónica): varias opciones. Lo guardado como texto se lee
+    // como lista de un elemento (`valorCampo`). Pendiente de reflejar en la batería (banco_v1.2).
+    tipo: "multi",
     privado: false,
     nivel: "N",
     opciones: OPCIONES_INFO_CLIENTES,
@@ -835,7 +837,9 @@ export const CAMPOS_VISITA: CampoVisita[] = [
     id: "e.exito",
     bloque: "H",
     texto: "¿Qué tendría que pasar en 6 meses para decir que ha merecido la pena?",
-    tipo: "chips",
+    // 22-sep (Aitor): hasta 2 opciones, como `prioridad.exito` en el previo.
+    tipo: "multi",
+    max: 2,
     privado: false,
     nivel: "N",
     opciones: OPCIONES_EXITO.map((o) => o.etiqueta),
