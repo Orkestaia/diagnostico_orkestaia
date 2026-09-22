@@ -129,6 +129,13 @@ export interface CampoVisita {
    * Aitor la cambia, se guarda como respuesta de la visita (la del previo no se toca).
    */
   mismoQuePrevio?: string;
+  /** Igual que `mismoQuePrevio`, pero la original está en otro bloque de la visita (JARVIS, 22-sep). */
+  mismoQueVisita?: string;
+  /**
+   * Referencias al lado (JARVIS, 22-sep): respuestas de otro sitio que se enseñan para tenerlas a
+   * mano, sin rellenar nada (Datos manda en lo que es dato; Herramientas, en lo que es herramienta).
+   */
+  referencias?: { previo?: string; visita?: string; etiqueta: string }[];
 }
 
 export const CAMPOS_VISITA: CampoVisita[] = [
@@ -229,6 +236,7 @@ export const CAMPOS_VISITA: CampoVisita[] = [
   },
   {
     id: "a.ultima_inversion",
+    mismoQueVisita: "a.probado",
     bloque: "A",
     texto: "¿Cuál fue la última herramienta o proveedor que contratasteis? ¿Cómo salió?",
     tipo: "texto",
@@ -274,6 +282,10 @@ export const CAMPOS_VISITA: CampoVisita[] = [
   },
   {
     id: "c.horas_admin",
+    referencias: [
+      { previo: "herramientas.horas_copiando", etiqueta: "En el previo: horas a la semana copiando datos o preparando informes" },
+      { previo: "dia.horas_redaccion", etiqueta: "En el previo: horas a la semana redactando" },
+    ],
     bloque: "C",
     texto: "Entre todos, ¿cuántas horas a la semana se van en administración?",
     tipo: "numero",
@@ -437,6 +449,7 @@ export const CAMPOS_VISITA: CampoVisita[] = [
   // ── E · Herramientas (era el bloque D de la v1) ──
   {
     id: "d.inventario",
+    referencias: [{ visita: "datos.mapa", etiqueta: "Dónde vive cada dato (bloque D)" }],
     bloque: "E",
     texto:
       "Por herramienta: nombre, para qué, quién la usa, ¿se conecta con otras? (sí / no / no sé), coste mensual aproximado, quién tiene las claves",
@@ -504,6 +517,7 @@ export const CAMPOS_VISITA: CampoVisita[] = [
   },
   {
     id: "herr.claves_compartidas",
+    referencias: [{ visita: "datos.accesos", etiqueta: "Quién puede ver y cambiar cada cosa (bloque D)" }],
     bloque: "E",
     texto: "¿Se comparten usuarios y contraseñas entre varias personas?",
     tipo: "si_no_nose",
@@ -625,6 +639,7 @@ export const CAMPOS_VISITA: CampoVisita[] = [
   },
   {
     id: "ia.areas",
+    mismoQueVisita: "a.equipo",
     bloque: "F",
     texto: "Áreas de la empresa y cuántas personas hay en cada una (se usan en la encuesta)",
     tipo: "lista_equipo",
@@ -650,6 +665,7 @@ export const CAMPOS_VISITA: CampoVisita[] = [
   },
   {
     id: "ia.fallidos",
+    referencias: [{ visita: "a.probado", etiqueta: "Lo que ya probasteis (bloque A)" }],
     bloque: "F",
     texto: "¿Habéis probado algo con IA que no funcionó? ¿Qué pasó?",
     tipo: "texto",
@@ -723,6 +739,8 @@ export const CAMPOS_VISITA: CampoVisita[] = [
   },
   {
     id: "cumpl.fuera_ue",
+    // Solo de referencia: es una deducción con efecto legal y la contesta el cliente.
+    referencias: [{ visita: "d.inventario", etiqueta: "Vuestras herramientas (bloque E)" }],
     bloque: "G",
     texto: "¿Usáis herramientas que guardan datos fuera de la Unión Europea?",
     tipo: "si_no_nose",
@@ -878,6 +896,7 @@ export const CAMPOS_VISITA: CampoVisita[] = [
   },
   {
     id: "e.presentacion",
+    mismoQueVisita: "a.otras_personas",
     bloque: "H",
     texto: "¿Cuándo nos vemos para presentar el mapa? ¿Quién debería estar?",
     tipo: "fecha_texto",

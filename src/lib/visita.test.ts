@@ -1,7 +1,37 @@
 import { describe, expect, it } from "vitest";
 import { tarjetaNueva } from "@/config/consultor/tarjeta";
 import { CAMPOS_VISITA } from "@/config/consultor/bloques";
-import { conRegistroHoy, costeHora, sugeridasDelPrevio, sumarDiasHabiles, unirParches, validarParche, valorCampo } from "./visita";
+import { conRegistroHoy, costeHora, legible, precargaDe, referenciasDe, sugeridasDelPrevio, sumarDiasHabiles, unirParches, validarParche, valorCampo } from "./visita";
+
+describe("preguntas repetidas y referencias (JARVIS, 22-sep)", () => {
+  const campo = (id: string) => CAMPOS_VISITA.find((c) => c.id === id)!;
+  const previo = { "captacion.canales": ["Recomendación", "Web"], "herramientas.horas_copiando": "2-5" };
+  const campos = {
+    "a.probado": "Holded, nadie lo rellenaba",
+    "a.otras_personas": "Iñaki y Maite",
+    "a.equipo": [{ rol: "Comercial", numero: 2 }],
+    "datos.mapa": [{ tipo: "Clientes", donde: "Wontages + Excel", formato: "Excel", mantiene: "Roberto", confianza: 3 }],
+    "d.inventario": [{ nombre: "Wontages" }, { nombre: "Gmail" }],
+  };
+  it("precarga desde otro bloque, adaptando el tipo, y dice de dónde viene", () => {
+    expect(precargaDe(campo("a.ultima_inversion"), undefined, campos, previo)).toEqual({ valor: "Holded, nadie lo rellenaba", origen: "el bloque A" });
+    expect(precargaDe(campo("e.presentacion"), undefined, campos, previo)).toEqual({ valor: { texto: "Iñaki y Maite" }, origen: "el bloque A" });
+    expect(precargaDe(campo("ia.areas"), [], campos, previo)?.valor).toEqual([{ rol: "Comercial", numero: 2 }]);
+  });
+  it("precarga del previo una lista de chips como texto, y no pisa lo ya contestado", () => {
+    const c = { tipo: "texto" as const, mismoQuePrevio: "captacion.canales" };
+    expect(precargaDe(c, undefined, campos, previo)).toEqual({ valor: "Recomendación, Web", origen: "el previo" });
+    expect(precargaDe(c, "Solo web", campos, previo)).toBeNull();
+    expect(precargaDe(campo("a.ultima_inversion"), undefined, {}, previo)).toBeNull();
+  });
+  it("las referencias se enseñan legibles y solo si hay valor", () => {
+    expect(referenciasDe(campo("d.inventario"), campos, previo)).toEqual([{ etiqueta: "Dónde vive cada dato (bloque D)", texto: "Clientes: Wontages + Excel" }]);
+    expect(referenciasDe(campo("cumpl.fuera_ue"), campos, previo)[0].texto).toBe("Wontages · Gmail");
+    expect(referenciasDe(campo("c.horas_admin"), campos, previo)).toEqual([{ etiqueta: "En el previo: horas a la semana copiando datos o preparando informes", texto: "2-5" }]);
+    expect(referenciasDe(campo("ia.fallidos"), {}, previo)).toEqual([]);
+    expect(legible(null)).toBe("");
+  });
+});
 
 describe("campos que pasaron de una opción a varias (22-sep)", () => {
   const campo = (id: string) => CAMPOS_VISITA.find((c) => c.id === id)!;

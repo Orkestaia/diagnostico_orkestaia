@@ -98,6 +98,7 @@ export const PREGUNTAS_SECTOR: Record<SectorId, CampoVisita[]> = {
   industria_distribucion: [
     {
       id: "id.canales_venta",
+      mismoQuePrevio: "captacion.canales",
       bloque: "A",
       texto: "¿Qué canales de venta tenéis y cuánto pesa cada uno?",
       tipo: "texto",

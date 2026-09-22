@@ -251,6 +251,69 @@ export function valorCampo(c: Pick<CampoVisita, "tipo">, v: unknown): unknown {
   return v;
 }
 
+// ── Preguntas repetidas y referencias (JARVIS, 22-sep) ──
+
+const hayValor = (v: unknown) =>
+  v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && v.length === 0);
+
+/** Adapta la respuesta original al tipo de la repetida (lista de chips → texto, texto → fecha_texto). */
+function adaptar(c: Pick<CampoVisita, "tipo">, v: unknown): unknown {
+  if (c.tipo === "texto" && Array.isArray(v)) return v.map(String).join(", ");
+  if (c.tipo === "fecha_texto" && typeof v === "string") return { texto: v };
+  return v;
+}
+
+/**
+ * Valor con el que se precarga una pregunta repetida, si en este campo aún no hay respuesta:
+ * la del previo (`mismoQuePrevio`) o la de otro bloque de la visita (`mismoQueVisita`). `origen`
+ * es lo que dice la etiqueta. Nada se guarda hasta que Aitor toca el campo.
+ */
+export function precargaDe(
+  c: Pick<CampoVisita, "tipo" | "mismoQuePrevio" | "mismoQueVisita">,
+  actual: unknown,
+  campos: Record<string, unknown>,
+  previo: Respuestas,
+): { valor: unknown; origen: string } | null {
+  if (hayValor(actual)) return null;
+  if (c.mismoQueVisita && hayValor(campos[c.mismoQueVisita])) {
+    const bloque = CAMPOS_VISITA.find((x) => x.id === c.mismoQueVisita)?.bloque;
+    return { valor: adaptar(c, campos[c.mismoQueVisita]), origen: bloque ? `el bloque ${bloque}` : "la visita" };
+  }
+  if (c.mismoQuePrevio && hayValor(previo[c.mismoQuePrevio])) {
+    return { valor: adaptar(c, previo[c.mismoQuePrevio]), origen: "el previo" };
+  }
+  return null;
+}
+
+/** Texto corto y legible de cualquier respuesta, para las referencias al lado. */
+export function legible(v: unknown): string {
+  if (!hayValor(v)) return "";
+  if (typeof v === "string" || typeof v === "number") return String(v);
+  if (typeof v === "boolean") return v ? "Sí" : "No";
+  if (Array.isArray(v)) return v.map(legible).filter(Boolean).join(" · ");
+  if (typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    // Filas de las listas: mapa de datos (tipo: dónde), herramientas (nombre), equipo (rol: n).
+    if ("tipo" in o && "donde" in o) return `${o.tipo}: ${legible(o.donde) || "—"}`;
+    if ("nombre" in o) return String(o.nombre ?? "");
+    if ("rol" in o) return `${o.rol}: ${legible(o.numero) || "—"}`;
+    if ("texto" in o) return legible(o.texto);
+    return Object.values(o).map(legible).filter(Boolean).join(" ");
+  }
+  return "";
+}
+
+/** Referencias con valor de una pregunta: lo que se enseña al lado sin rellenar. */
+export function referenciasDe(
+  c: Pick<CampoVisita, "referencias">,
+  campos: Record<string, unknown>,
+  previo: Respuestas,
+): { etiqueta: string; texto: string }[] {
+  return (c.referencias ?? [])
+    .map((r) => ({ etiqueta: r.etiqueta, texto: legible(r.visita ? campos[r.visita] : r.previo ? previo[r.previo] : null) }))
+    .filter((r) => r.texto);
+}
+
 // ── Tarjetas sugeridas con datos del previo (banco §9) ──
 
 let contador = 0;

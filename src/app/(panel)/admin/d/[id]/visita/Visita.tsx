@@ -18,6 +18,8 @@ import type { Respuestas, SectorId, TipoPregunta, ValorRespuesta } from "@/confi
 import { redondearHoras } from "@/lib/calculo";
 import {
   ID_NOTAS,
+  precargaDe,
+  referenciasDe,
   sumarDiasHabiles,
   valorCampo,
   type ParcheVisita,
@@ -597,18 +599,30 @@ function CamposBloque({
   ponerProcesos: (t: TarjetaProceso[]) => void;
   entrega?: string;
 }) {
-  // Pregunta repetida: si en la visita aún no hay respuesta, se enseña la del previo.
+  // Pregunta repetida (JARVIS, 22-sep): si aquí aún no hay respuesta, se enseña la original
+  // (del previo o de otro bloque), editable y con etiqueta. Referencias: solo se enseñan.
+  const precarga = (c: CampoVisita) => precargaDe(c, campos[c.id], campos, previo ?? {});
   const valorDe = (c: CampoVisita) => {
     if (c.id === "e.entrega") return campos[c.id] ?? entrega;
-    if (campos[c.id] !== undefined) return campos[c.id];
-    return c.mismoQuePrevio ? previo?.[c.mismoQuePrevio] : undefined;
+    return precarga(c)?.valor ?? campos[c.id];
   };
-  const delPrevio = (c: CampoVisita) =>
-    !!c.mismoQuePrevio &&
-    campos[c.id] === undefined &&
-    previo?.[c.mismoQuePrevio] !== undefined &&
-    previo?.[c.mismoQuePrevio] !== null &&
-    previo?.[c.mismoQuePrevio] !== "";
+  const alLado = (c: CampoVisita) => {
+    const p = precarga(c);
+    const refs = referenciasDe(c, campos, previo ?? {});
+    if (!p && !refs.length) return null;
+    return (
+      <div className="mt-1 space-y-1 text-small">
+        {p ? (
+          <p className="text-ork-cyan">Respondido en {p.origen}. Confírmalo o cámbialo aquí.</p>
+        ) : null}
+        {refs.map((r) => (
+          <p key={r.etiqueta} className="text-ork-text-faint">
+            <span className="text-ork-text-muted">{r.etiqueta}:</span> {r.texto}
+          </p>
+        ))}
+      </div>
+    );
+  };
   const privada = usePrivada();
   const delBloque = camposDeSector(CAMPOS_VISITA, sector).filter((c) => c.bloque === bloque);
   const pinta = (c: CampoVisita) =>
@@ -631,11 +645,7 @@ function CamposBloque({
           procesos={procesos}
           ponerProcesos={ponerProcesos}
         />
-        {delPrevio(c) ? (
-          <p className="mt-1 text-small text-ork-cyan">
-            Respondido en el previo. Confírmalo o cámbialo aquí.
-          </p>
-        ) : null}
+        {alLado(c)}
       </div>
     );
 
