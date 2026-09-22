@@ -23,10 +23,38 @@ export function Comparador({
   hoy: Grafo | null;
   sistema: Grafo;
 }) {
-  const [vista, setVista] = useState<"hoy" | "sistema">("sistema");
+  // UX (22-sep): se empieza viendo «Hoy» (todo violeta) y un botón lleva a «Con el sistema».
+  const [vista, setVista] = useState<"hoy" | "sistema">(hoy ? "hoy" : "sistema");
   const grafo = vista === "hoy" && hoy ? hoy : sistema;
+  const personas = (g: Grafo) => g.nodos.filter((n) => n.humano).length;
   return (
     <div className="space-y-3">
+      {hoy ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="cifra text-small text-ork-text-muted">
+            Pasos que hace una persona:{" "}
+            <span className={vista === "hoy" ? "text-ork-violet" : "text-ork-text-faint line-through"}>
+              {personas(hoy)}
+            </span>
+            <span aria-hidden="true"> → </span>
+            <span className={vista === "sistema" ? "text-ork-cyan-hi" : "text-ork-text-faint"}>
+              {personas(sistema)}
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={() => setVista(vista === "hoy" ? "sistema" : "hoy")}
+            className={
+              "inline-flex min-h-11 items-center rounded-xl px-5 font-medium " +
+              (vista === "hoy"
+                ? "bg-ork-cyan text-ork-bg hover:bg-ork-cyan-hi"
+                : "border border-ork-border-hi text-ork-text hover:border-ork-cyan")
+            }
+          >
+            {vista === "hoy" ? "Ver cómo sería" : "Volver a ver hoy"}
+          </button>
+        </div>
+      ) : null}
       {hoy ? (
         <div
           role="tablist"
@@ -126,7 +154,13 @@ export function EurosConTuCoste({
         Escribe lo que os cuesta una hora de trabajo (sueldo y cargas). Solo se usa en esta pantalla:
         no se envía ni se guarda.
       </p>
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-4">
+        <BotonesCoste valor={valor} onCambio={setValor} />
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <label htmlFor="coste-hora" className="text-small text-ork-text-muted">
+          Otro:
+        </label>
         <input
           id="coste-hora"
           inputMode="decimal"
@@ -399,4 +433,111 @@ export function MarcaPanel() {
     }
   }, []);
   return null;
+}
+
+/**
+ * Índice del mapa (UX, 22-sep): barra fina arriba con el progreso de lectura y la sección actual;
+ * al tocarla se despliega la lista de secciones. Sin él, el cliente no sabe cuánto queda.
+ */
+export function IndiceMapa({ secciones }: { secciones: { id: string; titulo: string }[] }) {
+  const [actual, setActual] = useState<string | null>(null);
+  const [abierto, setAbierto] = useState(false);
+  const [progreso, setProgreso] = useState(0);
+  useEffect(() => {
+    const alScroll = () => {
+      const h = document.documentElement;
+      const total = h.scrollHeight - h.clientHeight;
+      setProgreso(total > 0 ? Math.min(1, h.scrollTop / total) : 0);
+      let id: string | null = null;
+      for (const s of secciones) {
+        const el = document.getElementById(s.id);
+        if (el && el.getBoundingClientRect().top <= 120) id = s.id;
+      }
+      setActual(id);
+    };
+    alScroll();
+    window.addEventListener("scroll", alScroll, { passive: true });
+    return () => window.removeEventListener("scroll", alScroll);
+  }, [secciones]);
+  const titulo = secciones.find((s) => s.id === actual)?.titulo;
+  return (
+    <nav
+      aria-label="Secciones del mapa"
+      className="fixed inset-x-0 top-0 z-40 border-b border-ork-border bg-ork-bg/90 backdrop-blur"
+    >
+      <div aria-hidden="true" className="h-0.5 bg-ork-surface-2">
+        <div className="h-full bg-ork-cyan transition-[width]" style={{ width: `${progreso * 100}%` }} />
+      </div>
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2 sm:px-8">
+        <button
+          type="button"
+          aria-expanded={abierto}
+          onClick={() => setAbierto(!abierto)}
+          className="flex min-h-9 items-center gap-2 text-small text-ork-text-muted hover:text-ork-text"
+        >
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-ork-cyan" />
+          {titulo ?? "Tu mapa"}
+          <span aria-hidden="true" className="text-ork-text-faint">{abierto ? "▴" : "▾"}</span>
+        </button>
+        <span className="font-mono text-[0.68rem] uppercase tracking-[0.14em] text-ork-text-faint">
+          {secciones.findIndex((s) => s.id === actual) + 1 || 0}/{secciones.length}
+        </span>
+      </div>
+      {abierto ? (
+        <ol className="mx-auto max-w-5xl space-y-1 px-4 pb-3 sm:px-8">
+          {secciones.map((s, i) => (
+            <li key={s.id}>
+              <a
+                href={`#${s.id}`}
+                onClick={() => setAbierto(false)}
+                className={
+                  "flex min-h-10 items-center gap-3 rounded-lg px-2 text-small hover:bg-ork-surface-1 " +
+                  (s.id === actual ? "text-ork-cyan-hi" : "text-ork-text-muted")
+                }
+              >
+                <span className="cifra w-6 font-mono text-[0.68rem] text-ork-text-faint">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                {s.titulo}
+              </a>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+    </nav>
+  );
+}
+
+/** Coste por hora con un toque (UX, 22-sep): los tres perfiles del banco, y «otro» para escribirlo. */
+export function BotonesCoste({
+  valor,
+  onCambio,
+}: {
+  valor: string;
+  onCambio: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Coste por hora orientativo">
+      {[
+        ["14", "14 € · operativo"],
+        ["25", "25 € · responsable"],
+        ["40", "40 € · dirección"],
+      ].map(([v, t]) => (
+        <button
+          key={v}
+          type="button"
+          aria-pressed={valor === v}
+          onClick={() => onCambio(valor === v ? "" : v)}
+          className={
+            "min-h-11 rounded-xl border px-4 text-small transition-colors " +
+            (valor === v
+              ? "border-ork-cyan bg-ork-cyan/[0.12] text-ork-text"
+              : "border-ork-border-hi text-ork-text-muted hover:text-ork-text")
+          }
+        >
+          {t}
+        </button>
+      ))}
+    </div>
+  );
 }

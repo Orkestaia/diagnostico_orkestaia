@@ -13,6 +13,7 @@ import {
   Desplegable,
   ElegirPrioridades,
   EurosConTuCoste,
+  IndiceMapa,
   Regalo,
   VigiaApertura,
 } from "./Interactivos";
@@ -181,37 +182,47 @@ function AsiFuncionaHoy({ procesos, imprimir }: { procesos: ProcesoMapa[]; impri
       .sort((a, b) => (b.horasHoy ?? 0) - (a.horasHoy ?? 0)),
   }));
   let i = 0;
+  // UX (22-sep): con pocos procesos, una sola lista de mayor a menor; por área solo si son muchos.
+  const lista = grupos.some((g) => g.procesos.length) && procesos.length > 6
+    ? grupos.filter((g) => g.procesos.length)
+    : [{ area: "", procesos: [...procesos].sort((a, b) => (b.horasHoy ?? 0) - (a.horasHoy ?? 0)) }];
   return (
     <div className="space-y-8">
-      {grupos
-        .filter((g) => g.procesos.length)
+      {lista
         .map((g) => (
           <div key={g.area} className="space-y-3">
-            <p className="mapa-titulo text-small uppercase tracking-[0.12em] text-ork-text-faint">
-              {g.area}
-            </p>
+            {g.area ? (
+              <p className="mapa-titulo text-small uppercase tracking-[0.12em] text-ork-text-faint">
+                {g.area}
+              </p>
+            ) : null}
             <ul className="grid gap-3">
               {g.procesos.map((p) => {
                 // Intensidad según las horas que consume hoy (spec §6.2).
                 const peso = 0.25 + 0.75 * ((p.horasHoy ?? 0) / max);
                 const cabecera = (
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="min-w-0">
-                      <span className="block text-body-lg text-ork-text">{p.nombre}</span>
-                      {!imprimir ? (
-                        <span className="text-small text-ork-text-faint">
-                          Toca para ver el detalle
-                        </span>
-                      ) : null}
-                    </span>
-                    <span
-                      className="cifra shrink-0 rounded-full px-3 py-1 font-display text-ork-bg"
-                      style={{
-                        backgroundColor: `color-mix(in srgb, var(--color-ork-cyan-hi) ${Math.round(peso * 100)}%, transparent)`,
-                      }}
-                    >
-                      {p.horasHoy !== null ? `~${h(p.horasHoy)}/mes` : "—"}
-                    </span>
+                  <div className="space-y-2">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <span className="min-w-0 text-body-lg text-ork-text">
+                        {p.nombre}
+                        {p.area ? (
+                          <span className="ml-2 text-small text-ork-text-faint">{p.area}</span>
+                        ) : null}
+                      </span>
+                      <span className="cifra shrink-0 font-display text-body-lg text-ork-cyan-hi">
+                        {p.horasHoy !== null ? `~${h(p.horasHoy)}/mes` : "—"}
+                      </span>
+                    </div>
+                    {/* La barra ES la cifra: de un vistazo se ve cuál se lo lleva todo. */}
+                    <div className="h-2 overflow-hidden rounded-full bg-ork-surface-2" aria-hidden="true">
+                      <div
+                        className="h-full rounded-full bg-ork-cyan"
+                        style={{ width: `${Math.max(4, peso * 100)}%`, opacity: 0.35 + 0.65 * peso }}
+                      />
+                    </div>
+                    {!imprimir ? (
+                      <span className="block text-small text-ork-text-faint">Toca para ver el detalle</span>
+                    ) : null}
                   </div>
                 );
                 return (
@@ -226,7 +237,7 @@ function AsiFuncionaHoy({ procesos, imprimir }: { procesos: ProcesoMapa[]; impri
                         <DetalleProceso p={p} imprimir={imprimir} />
                       </div>
                     ) : (
-                      <Desplegable cabecera={cabecera}>
+                      <Desplegable cabecera={cabecera} abierto={i === 1}>
                         <DetalleProceso p={p} imprimir={imprimir} />
                       </Desplegable>
                     )}
@@ -396,15 +407,25 @@ function AsiSeria({
 }
 
 function HojaDeRuta({ mapa }: { mapa: Mapa }) {
+  // UX (22-sep): una línea, no tres cajas iguales: se ve el orden y que la fase 1 es corta.
   return (
-    <ol className="grid gap-4 lg:grid-cols-3">
+    <ol className="relative space-y-6 border-l border-ork-border-hi pl-8">
       {mapa.hoja_de_ruta.map((f) => (
         <li
           key={f.fase}
           className="mapa-junto relative rounded-2xl border border-ork-border bg-ork-surface-1/85 p-6"
         >
+          <span
+            aria-hidden="true"
+            className={
+              "absolute -left-[2.45rem] top-6 flex h-7 w-7 items-center justify-center rounded-full border font-display text-small " +
+              (f.fase === 1 ? "border-ork-cyan bg-ork-cyan text-ork-bg" : "border-ork-border-hi bg-ork-bg text-ork-text-muted")
+            }
+          >
+            {f.fase}
+          </span>
           <p className="font-mono text-[0.72rem] uppercase tracking-[0.16em] text-ork-cyan">
-            Fase {f.fase}
+            Fase {f.fase}{f.fase === 1 ? " · lo primero que se nota" : ""}
           </p>
           <p className="mt-2 font-display text-h3 text-ork-text">{f.nombre}</p>
           <p className="mt-1 text-small text-ork-text-muted">Plazo orientativo: {f.plazo}</p>
@@ -475,6 +496,20 @@ export function MapaCliente({
   const hayCriterio =
     mapa.no_automatizar.length > 0 || mapa.validar.length > 0 || (mapa.no_rentables?.length ?? 0) > 0;
   const dias = datos.caducaAt ? diasHasta(datos.caducaAt) : null;
+  // Índice: las secciones que existen en este mapa, en su orden.
+  const indice = [
+    inesperado && { id: "inesperado", titulo: "Lo que no esperabais" },
+    otrosHallazgos.length && { id: "hallazgos", titulo: "Lo que hemos visto" },
+    { id: "hoy", titulo: "Así funciona hoy" },
+    { id: "tiempo", titulo: "Dónde se os va el tiempo" },
+    conDiagrama.length && { id: "asi-seria", titulo: "Así sería" },
+    { id: "ruta", titulo: "Vuestra hoja de ruta" },
+    mapa.regalo && { id: "regalo", titulo: "Un regalo de 10 minutos" },
+    mapa.preocupaciones?.length && { id: "preocupaciones", titulo: "Lo que os preocupa" },
+    hayCriterio && { id: "criterio", titulo: "Con criterio" },
+    mejoras.length && !imprimir && { id: "prioridades", titulo: `Elige tus ${MAX_PRIORIDADES} prioridades` },
+    { id: "siguiente", titulo: "Siguiente paso" },
+  ].filter((x): x is { id: string; titulo: string } => !!x);
 
   return (
     <div className={"relative min-h-dvh " + (imprimir ? "sin-animacion" : "")}>
@@ -485,7 +520,8 @@ export function MapaCliente({
         />
       ) : null}
 
-      <div className="relative mx-auto max-w-5xl space-y-20 px-4 py-10 sm:px-8 print:px-12 print:py-12">
+      {!imprimir ? <IndiceMapa secciones={indice} /> : null}
+      <div className={"relative mx-auto max-w-5xl space-y-20 px-4 py-10 sm:px-8 print:px-12 print:py-12 " + (imprimir ? "" : "pt-16")}>
         {!imprimir && dias !== null && dias <= AVISO_CADUCIDAD_DIAS ? (
           <p
             role="status"
@@ -523,17 +559,34 @@ export function MapaCliente({
               {mapa.resumen}
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          {mapa.fugas.length ? (
+            <div className="mapa-entra grid gap-4 rounded-3xl border border-ork-border bg-ork-surface-1/85 p-6 sm:grid-cols-[1.4fr_1fr] sm:p-8" style={{ ["--i" as string]: 3 }}>
+              <div>
+                <p className="cifra font-display text-[clamp(3rem,9vw,5.5rem)] leading-none text-ork-cyan-hi">
+                  ~{h(horasHoy)}
+                </p>
+                <p className="mt-2 text-body-lg text-ork-text">
+                  al mes se os van hoy en {mapa.fugas.length === 1 ? "un proceso" : `${mapa.fugas.length} procesos`} que se pueden mejorar
+                </p>
+              </div>
+              <div className="flex flex-col justify-between gap-4 border-t border-ork-border pt-4 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
+                <div>
+                  <p className="cifra font-display text-h2 text-ork-text">{rango(liberarMin, liberarMax)}</p>
+                  <p className="text-small text-ork-text-muted">al mes se podrían liberar con el sistema</p>
+                </div>
+                {!imprimir ? (
+                  <a
+                    href="#tiempo"
+                    className="inline-flex min-h-11 w-fit items-center rounded-xl border border-ork-border-hi px-5 text-ork-text hover:border-ork-cyan"
+                  >
+                    Ver dónde
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          ) : (
             <Cifra valor={String(procesos.length)} texto="procesos analizados en la visita" />
-            <Cifra
-              valor={`~${h(horasHoy)}`}
-              texto="al mes se van hoy en los procesos que proponemos mejorar"
-            />
-            <Cifra
-              valor={rango(liberarMin, liberarMax)}
-              texto="al mes que se podrían liberar con el sistema"
-            />
-          </div>
+          )}
         </header>
 
         {cliente?.aperturaActiva && !imprimir ? <VigiaApertura token={cliente.token} /> : null}
@@ -590,7 +643,7 @@ export function MapaCliente({
           id="hoy"
           numero={num()}
           titulo={`Así funciona hoy ${datos.empresa}`}
-          entrada="Los procesos que vimos juntos, por área. Cuanto más intenso el color, más horas consumen al mes."
+          entrada="Los procesos que vimos juntos, de mayor a menor. La barra son las horas que consume cada uno al mes."
           imprimir={imprimir}
           salto
         >
@@ -771,6 +824,7 @@ export function MapaCliente({
         ) : null}
 
         <section
+          id="siguiente"
           aria-labelledby="siguiente-t"
           className="mapa-junto rounded-3xl border border-ork-cyan/50 bg-ork-cyan/[0.06] p-8 sm:p-10"
         >
@@ -813,9 +867,12 @@ export function MapaCliente({
         </details>
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-ork-border pt-6 text-small text-ork-text-faint">
-          <Marca className="text-small" />
+          <span className="flex flex-col gap-1">
+            <Marca className="text-small" />
+            <span>Preparado por Aitor Colino</span>
+          </span>
           <span>
-            Preparado para {datos.empresa} · {fechaLarga(mapa.fecha_diagnostico)} · Documento
+            Para {datos.empresa} · {fechaLarga(mapa.fecha_diagnostico)} · Documento
             confidencial
             {datos.caducaAt ? ` · Enlace disponible hasta el ${fechaLarga(datos.caducaAt)}` : ""}
           </span>
