@@ -1,6 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { tarjetaNueva } from "@/config/consultor/tarjeta";
-import { conRegistroHoy, costeHora, sugeridasDelPrevio, sumarDiasHabiles, unirParches, validarParche } from "./visita";
+import { CAMPOS_VISITA } from "@/config/consultor/bloques";
+import { conRegistroHoy, costeHora, sugeridasDelPrevio, sumarDiasHabiles, unirParches, validarParche, valorCampo } from "./visita";
+
+describe("campos que pasaron de una opción a varias (22-sep)", () => {
+  const campo = (id: string) => CAMPOS_VISITA.find((c) => c.id === id)!;
+  it("d.info_clientes admite varias y e.exito como mucho 2", () => {
+    expect(campo("d.info_clientes").tipo).toBe("multi");
+    expect(campo("e.exito").tipo).toBe("multi");
+    expect(campo("e.exito").max).toBe(2);
+  });
+  it("lo guardado como texto se lee como lista de un elemento, sin tocar el dato", () => {
+    const c = campo("d.info_clientes");
+    expect(valorCampo(c, "Excel u hojas de cálculo")).toEqual(["Excel u hojas de cálculo"]);
+    expect(valorCampo(c, ["CRM", "Excel u hojas de cálculo"])).toEqual(["CRM", "Excel u hojas de cálculo"]);
+    expect(valorCampo(c, null)).toEqual([]);
+    expect(valorCampo({ tipo: "chips" }, "Un proveedor")).toBe("Un proveedor");
+  });
+});
 
 describe("Privado nunca por la parte visible", () => {
   it("rechaza un campo 🔒 en campos visibles y uno visible en privado", () => {

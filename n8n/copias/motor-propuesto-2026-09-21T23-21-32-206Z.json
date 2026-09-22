@@ -1,0 +1,1123 @@
+{
+  "name": "Orkesta - Motor de Diagnóstico - v1",
+  "nodes": [
+    {
+      "id": "06a071c0-360e-45f0-90ee-c7d4a1ce81a6",
+      "name": "Webhook app",
+      "webhookId": "125f7379-5d36-4e03-964b-3cb2dbc177bd",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "diagnostico-motor",
+        "responseMode": "onReceived",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SU6JD77rWqcyxTYI",
+          "name": "Diagnóstico · token app ↔ motor"
+        }
+      }
+    },
+    {
+      "id": "483bead2-945d-4232-ac62-f30134abd2d7",
+      "name": "Datos del evento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// El webhook ya ha comprobado la cabecera x-orkesta-token (credencial Header Auth).\nreturn [{ json: $input.first().json.body }];"
+      }
+    },
+    {
+      "id": "21cf7e4c-06a5-4b6a-9108-7b1bbb55be7b",
+      "name": "Según el evento",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "0945a8e3-2a57-4d50-896e-4d2e6d5006d2",
+                    "leftValue": "={{ $json.evento }}",
+                    "rightValue": "diagnostico.previo_completado",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "previo_completado"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "dda90f0b-b800-46a9-9c3d-e36cf1b60e29",
+                    "leftValue": "={{ $json.evento }}",
+                    "rightValue": "diagnostico.visita_cerrada",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "visita_cerrada"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "bdf120cf-acdc-4253-8d45-e2dd77320c5e",
+                    "leftValue": "={{ $json.evento }}",
+                    "rightValue": "diagnostico.prioridades_elegidas",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "prioridades_elegidas"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "15a37beb-7558-4064-bdf8-8ab7a5c02332",
+                    "leftValue": "={{ $json.evento }}",
+                    "rightValue": "diagnostico.mapa_abierto",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "mapa_abierto"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "825b5d53-f71f-418d-83c3-5352fcb28f81",
+      "name": "Contexto para la IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        160
+      ],
+      "parameters": {
+        "jsCode": "// Contexto para el modelo: SIN cifras calculadas (spec del motor §3 y §8.1).\nconst d = $input.first().json;\nconst ctx = {\n  modo: 'pre_reunion',\n  sector: d.sector,\n  tipo_negocio: d.tipo_negocio,\n  empresa: d.empresa,\n  nombre: (d.contacto || {}).nombre,\n  prioridad_tarea: d.prioridad_tarea,\n  respuestas: d.respuestas_legibles,\n  quick_wins: (d.quick_wins || []).map(q => ({ id: q.id, peso: q.peso, tipo: q.tipo, categoria: q.categoria, titulo_base: q.titulo_base })),\n  temas_base: d.temas_base,\n};\nconst system = [\n  'Eres el redactor de Orkesta. Escribes para el dueño de un negocio, en español de España, de tú, directo y cercano. Negocio primero; la tecnología no se nombra.',\n  'NUNCA escribas números de horas, euros, porcentajes, minutos ni plazos.',\n  'Usa solo lo que dicen las respuestas. No añadas procesos, herramientas ni problemas que el lead no haya mencionado.',\n  'Usa sus datos tal cual, sin interpretarlos: si dice \"6-15\" personas, escribe \"entre 6 y 15 personas\", nunca \"un equipo pequeño\"; si dice \"5-15\" expedientes, \"entre 5 y 15 expedientes al mes\".',\n  'resumen_entendido: entre 3 y 5 frases, ni una más.',\n  'Frases prohibidas: \"automatizamos todo\", \"100 %\", \"garantizado\", \"no tendrás que hacer nada\", \"la IA lo hará por ti\", \"sin límites\".',\n  'Los programas que nombra el cliente (Presto, Excel, Zoho...) se escriben tal cual, igual que sus palabras y sus datos. Lo prohibido es nombrar tecnología de Orkesta o tecnicismos (API, webhook, n8n, ChatGPT, OpenAI, integraciones).',\n  'Salud: nada clínico. Legal: nada sobre casos concretos. Si las respuestas mencionan violencia, añádelo a interno.alertas.',\n  'temas_reunion: parte de temas_base y adáptalos con las palabras del lead. Son TAREAS que hoy le quitan tiempo, dichas como las diría él (\"Perseguir los papeles de cada propietario\"), NUNCA soluciones: prohibido empezar por Optimizar, Mejorar, Automatizar, Reducir, Implementar o Digitalizar. Mantén el orden de temas_base.',\n  'Las hipótesis se formulan como hipótesis (\"Parece que...\"), cada una ligada a una respuesta concreta, nunca como diagnóstico cerrado.',\n  'Devuelve SOLO un objeto JSON con esta forma exacta:',\n  '{\"frase_orkestador\":\"<=160 caracteres\",\"resumen_entendido\":[\"3 a 5 frases de <=160, visibles para el lead\"],\"temas_reunion\":[\"3 temas de <=80, visibles para el lead, sin cifras, desde el punto de vista del lead\"],\"interno\":{\"hipotesis\":[{\"hipotesis\":\"<=200, empieza por Parece que\",\"basada_en\":\"texto de la pregunta\"}],\"preguntas_visita\":[\"5 preguntas de <=160 para la visita\"],\"alertas\":[\"0 a 3 alertas de <=160\"]}}',\n].join('\\n');\nreturn [{ json: { ...d, _prompt: { system, user: JSON.stringify(ctx) } } }];"
+      }
+    },
+    {
+      "id": "814085b8-f3f0-4db8-88e2-9b985df2a8f7",
+      "name": "Redacción IA (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput",
+      "position": [
+        900,
+        160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4.1-mini', temperature: 0.3, max_tokens: 1500, response_format: { type: 'json_object' }, messages: [ { role: 'system', content: $json._prompt.system }, { role: 'user', content: $json._prompt.user } ] }) }}",
+        "options": {
+          "timeout": 45000
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "5kigaZr9JOgJyCrQ",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "id": "d9e10e92-cf40-4e1b-8b33-914c48b48daa",
+      "name": "Validar redacción",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        160
+      ],
+      "parameters": {
+        "jsCode": "// Valida la redacción (spec del motor §7, fase 4). Si no pasa, textos base: el cliente ya vio\n// las plantillas en pantalla, así que en modo base no se envía `informe` a la app.\nconst d = $('Contexto para la IA').first().json;\nconst r = $input.first().json;\nlet out = null;\ntry { out = JSON.parse(r.choices[0].message.content); } catch (e) { out = null; }\n\nconst conUnidad = /\\d+([.,]\\d+)?\\s*(h\\b|horas?|€|eur(os)?|%|min(utos)?\\b|semanas?|d[ií]as?)/i;\nconst prohibidas = ['automatizamos todo', '100 %', '100%', 'garantizado', 'no tendrás que hacer nada', 'la ia lo hará por ti', 'sin límites'];\n// Tecnología de Orkesta y tecnicismos; los programas del cliente sí se nombran (JARVIS, 19-sep).\nconst tecnicas = /\\b(api|webhook|n8n|chatgpt|openai|zapier)\\b/i;\nconst bien = (t, max) => typeof t === 'string' && t.trim().length > 0 && t.length <= max && !conUnidad.test(t) && !tecnicas.test(t) && !prohibidas.some(p => t.toLowerCase().includes(p));\nconst lista = (v, min, max, lim) => Array.isArray(v) && v.length >= min && v.length <= max && v.every(x => bien(x, lim));\n// Los temas son tareas del lead, no soluciones (decisión de Aitor, 18-sep).\nconst esSolucion = t => /^(optimizar|mejorar|automatizar|reducir|implementar|digitalizar|c[oó]mo)\b/i.test(String(t).trim());\n\n// Si trae de más, se recorta (spec del motor: recortar, no descartar).\nif (out && Array.isArray(out.resumen_entendido)) out.resumen_entendido = out.resumen_entendido.slice(0, 5);\nif (out && Array.isArray(out.temas_reunion)) out.temas_reunion = out.temas_reunion.slice(0, 3);\nif (out && out.interno && Array.isArray(out.interno.preguntas_visita)) out.interno.preguntas_visita = out.interno.preguntas_visita.slice(0, 5);\n\nlet valida = !!out\n  && bien(out.frase_orkestador, 160)\n  && lista(out.resumen_entendido, 3, 5, 160)\n  && lista(out.temas_reunion, 1, 3, 80)\n  && !out.temas_reunion.some(esSolucion)\n  && out.interno && Array.isArray(out.interno.hipotesis)\n  && out.interno.hipotesis.every(x => x && typeof x.hipotesis === 'string' && x.hipotesis.length <= 200)\n  && Array.isArray(out.interno.preguntas_visita)\n  && out.interno.preguntas_visita.every(x => typeof x === 'string' && x.length <= 160);\n\nlet informe, interno, redaccion;\nif (valida) {\n  redaccion = 'ia';\n  informe = { frase_orkestador: out.frase_orkestador, resumen_entendido: out.resumen_entendido, temas_reunion: out.temas_reunion };\n  interno = { hipotesis: out.interno.hipotesis, preguntas_visita: out.interno.preguntas_visita, alertas: (out.interno.alertas || []).slice(0, 3) };\n} else {\n  redaccion = 'base';\n  informe = null;\n  interno = { hipotesis: [], preguntas_visita: [], alertas: ['Redacción IA no disponible: se han usado los textos base.'] };\n}\nreturn [{ json: { ...d, _prompt: undefined, informe, interno, redaccion } }];"
+      }
+    },
+    {
+      "id": "fc8caf98-962a-4cd2-8774-c4951237c681",
+      "name": "Componer mensajes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        160
+      ],
+      "parameters": {
+        "jsCode": "// Emails, Telegram y fila de Airtable. Plantillas fijas con la marca (spec del motor §6): el\n// modelo no escribe los emails, solo los textos que ya se validaron.\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Diseño CLARO (21-sep): fondo blanco y texto oscuro se leen con cualquier tema de Gmail, Outlook\n// o Apple Mail. Los colores van también como atributo bgcolor (lo que más clientes respetan) y\n// nada importante depende de un fondo: si un cliente los borra, el email sigue siendo legible.\nconst C = { fondo: '#f4f4f5', caja: '#ffffff', borde: '#e4e4e7', texto: '#27272a', titulo: '#09090b', suave: '#52525b', cian: '#0e7490', cianHi: '#00b4d8', violeta: '#6d28d9', botonFondo: '#e0f7fb' };\nconst FUENTE = \"Inter,'Segoe UI',Roboto,Helvetica,Arial,sans-serif\";\nconst MONO = \"'JetBrains Mono',Consolas,'Courier New',monospace\";\nconst LOGO = 'https://diagnostico.orkestaia.com/marca/simbolo-email.png';\nconst parrafo = t => '<p style=\"margin:0 0 14px;font-family:' + FUENTE + ';font-size:16px;line-height:1.6;color:' + C.texto + '\">' + t + '</p>';\nconst etiqueta = (t, color) => '<p style=\"margin:26px 0 10px;font-family:' + MONO + ';font-size:12px;font-weight:600;line-height:1.2;letter-spacing:2px;text-transform:uppercase;color:' + (color || C.cian) + '\">' + esc(t) + '</p>';\n// Viñeta de texto, no una cajita con fondo: los fondos son lo primero que borran algunos clientes.\nconst lista = (xs, color) => xs.length\n  ? '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">' + xs.map(x =>\n      '<tr><td width=\"20\" valign=\"top\" style=\"padding:0;font-family:' + FUENTE + ';font-size:18px;line-height:1.35;color:' + (color || C.cian) + '\">&#8226;</td>'\n      + '<td style=\"padding:0 0 8px;font-family:' + FUENTE + ';font-size:15px;line-height:1.55;color:' + C.texto + '\">' + esc(x) + '</td></tr>').join('') + '</table>'\n  : parrafo('—');\n// Botón con texto oscuro sobre un fondo muy claro y borde: se lee con fondo y sin él.\nconst boton = (texto, url) => '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:6px 0 4px\"><tr>'\n  + '<td bgcolor=\"' + C.botonFondo + '\" style=\"background-color:' + C.botonFondo + ';border:2px solid ' + C.cian + ';border-radius:10px\">'\n  + '<a href=\"' + esc(url) + '\" style=\"display:inline-block;padding:11px 22px;font-family:' + FUENTE + ';font-size:15px;font-weight:600;color:' + C.cian + ';text-decoration:none;border-radius:10px\">' + esc(texto) + '</a></td></tr></table>';\nconst email = (previa, titulo, cuerpo) => '<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"color-scheme\" content=\"light\"><meta name=\"supported-color-schemes\" content=\"light\"><title>' + esc(titulo) + '</title></head>'\n  + '<body bgcolor=\"' + C.fondo + '\" style=\"margin:0;padding:0;background-color:' + C.fondo + '\">'\n  + '<div style=\"display:none;max-height:0;overflow:hidden;opacity:0\">' + esc(previa) + '</div>'\n  + '<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"' + C.fondo + '\" style=\"background-color:' + C.fondo + '\"><tr><td align=\"center\" style=\"padding:28px 12px\">'\n  + '<table role=\"presentation\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"' + C.caja + '\" style=\"width:100%;max-width:600px;background-color:' + C.caja + ';border:1px solid ' + C.borde + ';border-radius:18px\">'\n  // Cabecera: símbolo del logo + marca, en texto oscuro.\n  + '<tr><td style=\"padding:24px 30px 0\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr>'\n  + '<td valign=\"middle\" style=\"padding-right:14px\"><img src=\"' + LOGO + '\" width=\"64\" height=\"46\" alt=\"ORKESTA\" style=\"display:block;border:0\"></td>'\n  + '<td valign=\"middle\" style=\"font-family:' + FUENTE + ';font-size:20px;font-weight:700;line-height:1;letter-spacing:1px;color:' + C.titulo + '\">ORKESTA <span style=\"font-weight:400;font-size:14px;letter-spacing:0;color:' + C.suave + '\">Automatización &amp; IA</span></td>'\n  + '</tr></table></td></tr>'\n  // Línea de marca (si un cliente borra el color, simplemente no se ve).\n  + '<tr><td style=\"padding:20px 30px 0\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr><td height=\"3\" bgcolor=\"' + C.cianHi + '\" style=\"height:3px;line-height:3px;font-size:0;background-color:' + C.cianHi + '\">&nbsp;</td></tr></table></td></tr>'\n  + '<tr><td style=\"padding:26px 30px 30px\">'\n  + '<h1 style=\"margin:0 0 18px;font-family:' + FUENTE + ';font-size:24px;font-weight:700;line-height:1.25;color:' + C.titulo + '\">' + esc(titulo) + '</h1>'\n  + cuerpo\n  + '</td></tr></table>'\n  + '</td></tr></table></body></html>';\nconst d = $input.first().json;\nconst DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];\nconst nombre = ((d.contacto || {}).nombre || '').trim();\nconst hoy = new Date().toISOString().slice(0, 10);\nconst futura = d.fecha_reunion && d.fecha_reunion >= hoy;\nlet dia = null;\nif (futura) {\n  const [a, m, dd] = d.fecha_reunion.split('-').map(Number);\n  dia = DIAS[new Date(Date.UTC(a, m - 1, dd)).getUTCDay()] + ' ' + dd;\n  if (d.hora_reunion) dia += ' a las ' + String(d.hora_reunion).slice(0, 5);\n}\nconst temas = (d.informe && d.informe.temas_reunion) || d.temas_base || [];\nconst entendido = (d.informe && d.informe.resumen_entendido) || d.entendido_base || [];\n\n// ── Cliente (sin firma: decisión de Aitor, 18-sep) ──\nconst asunto_cliente = dia ? 'Recibido, ' + nombre + '. Nos vemos el ' + dia : 'Recibido, ' + nombre;\nconst html_cliente = email(\n  'Gracias por contestar. ' + (futura && d.cita_texto ? d.cita_texto : ''),\n  'Gracias, ' + nombre + '.',\n  parrafo('Ya tengo tus respuestas. ' + esc(futura && d.cita_texto ? d.cita_texto : 'Lo vemos cuando nos reunamos.'))\n  + (futura && d.calendario_google ? boton('Añadir a Google Calendar', d.calendario_google) : '')\n  + (temas.length ? etiqueta('Lo que revisaremos juntos', C.violeta) + lista(temas, C.violeta) : '')\n  + ((d.preparacion || []).length ? etiqueta('Qué tener a mano ese día') + lista(d.preparacion) : '')\n  + '<p style=\"margin:26px 0 0;font:14px/1.6 ' + FUENTE + ';color:' + C.suave + '\">Si quieres añadir algo antes de vernos, responde a este email.</p>'\n);\n\n// ── Interno (Aitor): aquí sí van las cifras ──\nconst rc = d.resumen_cifras || {};\nconst cifras = (rc.quick_wins || []).map(q => {\n  const partes = [q.id];\n  if (q.horas) partes.push(q.horas.min + '-' + q.horas.max + ' h/mes');\n  if (q.eur) partes.push(q.eur.min + '-' + q.eur.max + ' €/mes');\n  if (q.oportunidades != null) partes.push('~' + q.oportunidades + ' ' + (q.unidad_oportunidad || 'oportunidades/mes'));\n  if (q.sin_cifras) partes.push('sin cifras (falta dato)');\n  return partes.join(' · ');\n});\nconst i = d.interno || {};\nconst hip = (i.hipotesis || []).map(x => x.hipotesis + (x.basada_en ? ' (' + x.basada_en + ')' : ''));\nconst horas_txt = rc.horas_mes_total ? rc.horas_mes_total.min + '-' + rc.horas_mes_total.max + ' h/mes' + (rc.ajustado_por_tope ? ' (ajustado por tope)' : '') : '';\nconst c = d.contacto || {};\nconst html_interno = email(\n  'Previo completado: ' + d.empresa,\n  d.empresa + ': previo completado',\n  parrafo(esc(d.tipo_negocio || d.sector) + ' · ' + esc(nombre) + '<br>' + esc(c.email || 'sin email') + ' · ' + esc(c.telefono || 'sin teléfono') + '<br>' + esc(d.cita_texto || 'Sin fecha de reunión'))\n  + boton('Abrir el panel', (d.urls || {}).admin)\n  + etiqueta('Lo que se quitaría') + parrafo('«' + esc(d.prioridad_tarea || '—') + '»')\n  + etiqueta('Cifras (calculo.ts)') + lista(cifras) + (horas_txt ? parrafo('Total: <b>' + esc(horas_txt) + '</b>') : '')\n  + etiqueta('Hipótesis', C.violeta) + lista(hip, C.violeta)\n  + etiqueta('Preguntas para la visita', C.violeta) + lista(i.preguntas_visita || [], C.violeta)\n  + ((i.alertas || []).length ? etiqueta('Alertas', '#b42318') + lista(i.alertas, '#b42318') : '')\n  + etiqueta('Lo que ve el cliente') + lista(entendido) + parrafo('<b>Temas:</b> ' + esc(temas.join(' · ')))\n  + etiqueta('Respuestas del previo') + lista((d.respuestas_legibles || []).map(x => x.fase + ' · ' + x.pregunta + ' → ' + x.respuesta))\n  + '<p style=\"margin:22px 0 0;font:12px ' + MONO + ';color:' + C.suave + '\">Redacción: ' + (d.redaccion === 'ia' ? 'IA' : 'textos base') + '</p>'\n);\n\nconst telegram = '🎼 Previo completado · ' + d.empresa + ' (' + (d.tipo_negocio || d.sector) + ')\\n'\n  + (d.cita_texto ? d.cita_texto + '\\n' : '')\n  + temas.map((t, n) => (n + 1) + ') ' + t).join('\\n')\n  + (horas_txt ? '\\nCifras: ' + horas_txt : '')\n  + '\\n' + ((d.urls || {}).admin || '');\n\nconst airtable = {\n  'Empresa': d.empresa,\n  'Diagnóstico ID': d.diagnostico_id,\n  'Estado': 'Previo completado',\n  'Tipo de negocio': d.tipo_negocio || '',\n  'Sector (preguntas)': d.sector,\n  'Contacto': nombre,\n  'Email': c.email || null,\n  'Teléfono': c.telefono || null,\n  'Fecha reunión': d.fecha_reunion || null,\n  'Hora': d.hora_reunion ? String(d.hora_reunion).slice(0, 5) : '',\n  'Lugar': d.lugar_reunion || '',\n  'Origen': d.origen || '',\n  'Tarea que se quitaría': d.prioridad_tarea || '',\n  'Respuestas del previo': (d.respuestas_legibles || []).map(x => x.fase + ' · ' + x.pregunta + ' → ' + x.respuesta).join('\\n'),\n  'Lo que revisaremos': temas.join('\\n'),\n  'Horas estimadas (interno)': horas_txt,\n  'Hipótesis (interno)': hip.join('\\n'),\n  'Preguntas para la visita (interno)': (i.preguntas_visita || []).join('\\n'),\n  'Alertas (interno)': (i.alertas || []).join('\\n'),\n  'Redacción': d.redaccion === 'ia' ? 'IA' : 'Textos base',\n  'Enlace del previo': (d.urls || {}).previo || null,\n  'Panel': (d.urls || {}).admin || null,\n  'Actualizado': new Date().toISOString(),\n};\nreturn [{ json: { ...d, asunto_cliente, html_cliente, asunto_interno: 'Previo completado · ' + d.empresa, html_interno, telegram, airtable } }];"
+      }
+    },
+    {
+      "id": "b4b7699d-d601-4209-80f2-ab5094da1cba",
+      "name": "Preparar callback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        160
+      ],
+      "parameters": {
+        "jsCode": "// Callback a la app (spec del motor §7, fase 5). La cabecera x-orkesta-token la pone la\n// credencial «Header Auth» del nodo siguiente: aquí no hay ningún secreto.\nconst d = $input.first().json;\nconst body = JSON.stringify({\n  diagnostico_id: d.diagnostico_id,\n  estado: 'previo_completado',\n  redaccion: d.redaccion,\n  informe: d.informe || undefined,\n  interno: d.interno,\n  modelo: 'gpt-4.1-mini',\n  execution_id: String($execution.id),\n  generado_at: new Date().toISOString(),\n});\nreturn [{ json: { ...d, _callback: { body } } }];"
+      }
+    },
+    {
+      "id": "24ec0ad8-0116-431a-8aa1-336759961a4e",
+      "name": "Callback a la app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput",
+      "position": [
+        1780,
+        160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://diagnostico-orkestaia.vercel.app/api/motor/callback",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json._callback.body }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SU6JD77rWqcyxTYI",
+          "name": "Diagnóstico · token app ↔ motor"
+        }
+      }
+    },
+    {
+      "id": "04f44f0e-6aa6-4c5b-9df9-48895ee02f71",
+      "name": "¿La app ya tenía redacción?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        620
+      ],
+      "parameters": {
+        "jsCode": "// La app no aceptó el callback. 409 = ya tenía redacción (un diagnóstico, una redacción): se para\n// aquí sin enviar emails. Cualquier otro fallo, tras los reintentos: aviso a Aitor y se sigue.\nconst e = $input.first().json;\nif (/\\b409\\b/.test(JSON.stringify(e))) return [];\nconst d = $('Componer mensajes').first().json;\nreturn [{ json: { telegram: '🔴 La app no aceptó el callback de ' + d.empresa + ' (' + d.diagnostico_id + '). Los emails salen igual; revisa el panel.\\n' + String((e.error || {}).message || JSON.stringify(e)).slice(0, 300) } }];"
+      }
+    },
+    {
+      "id": "e6c4ff49-900b-442f-a887-ba67a69c1b99",
+      "name": "Telegram: callback falló",
+      "webhookId": "43e6fa0e-1359-4d62-b6e8-257452f0de7a",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "onError": "continueRegularOutput",
+      "position": [
+        2220,
+        620
+      ],
+      "parameters": {
+        "chatId": "6674289801",
+        "text": "={{ $json.telegram }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "lFqrk5zgIca5nxYh",
+          "name": "Telegram Hermes (avisos diagnóstico)"
+        }
+      }
+    },
+    {
+      "id": "3825079b-3aaf-4695-b709-d564c33e8e81",
+      "name": "¿Tiene email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2000,
+        40
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "23049297-aa12-4343-9063-605906277b11",
+              "leftValue": "={{ $('Componer mensajes').first().json.contacto.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "54a24db2-b17f-4dda-897e-2d4387a9eb27",
+      "name": "Email al cliente",
+      "webhookId": "4a215770-7f21-4713-85ab-f045e11f1aeb",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "onError": "continueRegularOutput",
+      "position": [
+        2220,
+        0
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Componer mensajes').first().json.contacto.email }}",
+        "subject": "={{ $('Componer mensajes').first().json.asunto_cliente }}",
+        "emailType": "html",
+        "message": "={{ $('Componer mensajes').first().json.html_cliente }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Aitor Colino · Orkesta",
+          "replyTo": "aitor@orkestaia.com"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dUucGjc2pUzK5evE",
+          "name": "Orkesta Gmail"
+        }
+      }
+    },
+    {
+      "id": "9aca913e-0373-40ae-a984-723e38554f5e",
+      "name": "Email interno a Aitor",
+      "webhookId": "7926168f-25bc-43a5-ad9b-7048a9f2520d",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "onError": "continueRegularOutput",
+      "position": [
+        2000,
+        180
+      ],
+      "parameters": {
+        "sendTo": "aitor@orkestaia.com",
+        "subject": "={{ $('Componer mensajes').first().json.asunto_interno }}",
+        "emailType": "html",
+        "message": "={{ $('Componer mensajes').first().json.html_interno }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Aitor Colino · Orkesta",
+          "replyTo": "aitor@orkestaia.com"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dUucGjc2pUzK5evE",
+          "name": "Orkesta Gmail"
+        }
+      }
+    },
+    {
+      "id": "97e168d8-49dc-456e-95bb-0ab2b86dfc18",
+      "name": "Telegram a Aitor",
+      "webhookId": "dfb12397-0ba0-4889-87f4-58e6b662bae8",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "onError": "continueRegularOutput",
+      "position": [
+        2000,
+        320
+      ],
+      "parameters": {
+        "chatId": "6674289801",
+        "text": "={{ $('Componer mensajes').first().json.telegram }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "lFqrk5zgIca5nxYh",
+          "name": "Telegram Hermes (avisos diagnóstico)"
+        }
+      }
+    },
+    {
+      "id": "8f568ff4-caae-4ed8-b530-4b6a45ac2e5b",
+      "name": "Guardar en Airtable",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "position": [
+        2000,
+        460
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://api.airtable.com/v0/appHxPMuotho4R1sV/tbl6AQQt7Nbmgy2Vi",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ performUpsert: { fieldsToMergeOn: ['Diagnóstico ID'] }, typecast: true, records: [{ fields: $('Componer mensajes').first().json.airtable }] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "CesDCLoKpSIu1Yfx",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "id": "c95db761-eb0a-491e-a000-4d38f61d8604",
+      "name": "Componer aviso de visita",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        520
+      ],
+      "parameters": {
+        "jsCode": "// visita_cerrada: aviso a Aitor \"listo para JARVIS\" (sin IA). Se completa en la fase 5.\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Diseño CLARO (21-sep): fondo blanco y texto oscuro se leen con cualquier tema de Gmail, Outlook\n// o Apple Mail. Los colores van también como atributo bgcolor (lo que más clientes respetan) y\n// nada importante depende de un fondo: si un cliente los borra, el email sigue siendo legible.\nconst C = { fondo: '#f4f4f5', caja: '#ffffff', borde: '#e4e4e7', texto: '#27272a', titulo: '#09090b', suave: '#52525b', cian: '#0e7490', cianHi: '#00b4d8', violeta: '#6d28d9', botonFondo: '#e0f7fb' };\nconst FUENTE = \"Inter,'Segoe UI',Roboto,Helvetica,Arial,sans-serif\";\nconst MONO = \"'JetBrains Mono',Consolas,'Courier New',monospace\";\nconst LOGO = 'https://diagnostico.orkestaia.com/marca/simbolo-email.png';\nconst parrafo = t => '<p style=\"margin:0 0 14px;font-family:' + FUENTE + ';font-size:16px;line-height:1.6;color:' + C.texto + '\">' + t + '</p>';\nconst etiqueta = (t, color) => '<p style=\"margin:26px 0 10px;font-family:' + MONO + ';font-size:12px;font-weight:600;line-height:1.2;letter-spacing:2px;text-transform:uppercase;color:' + (color || C.cian) + '\">' + esc(t) + '</p>';\n// Viñeta de texto, no una cajita con fondo: los fondos son lo primero que borran algunos clientes.\nconst lista = (xs, color) => xs.length\n  ? '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">' + xs.map(x =>\n      '<tr><td width=\"20\" valign=\"top\" style=\"padding:0;font-family:' + FUENTE + ';font-size:18px;line-height:1.35;color:' + (color || C.cian) + '\">&#8226;</td>'\n      + '<td style=\"padding:0 0 8px;font-family:' + FUENTE + ';font-size:15px;line-height:1.55;color:' + C.texto + '\">' + esc(x) + '</td></tr>').join('') + '</table>'\n  : parrafo('—');\n// Botón con texto oscuro sobre un fondo muy claro y borde: se lee con fondo y sin él.\nconst boton = (texto, url) => '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:6px 0 4px\"><tr>'\n  + '<td bgcolor=\"' + C.botonFondo + '\" style=\"background-color:' + C.botonFondo + ';border:2px solid ' + C.cian + ';border-radius:10px\">'\n  + '<a href=\"' + esc(url) + '\" style=\"display:inline-block;padding:11px 22px;font-family:' + FUENTE + ';font-size:15px;font-weight:600;color:' + C.cian + ';text-decoration:none;border-radius:10px\">' + esc(texto) + '</a></td></tr></table>';\nconst email = (previa, titulo, cuerpo) => '<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"color-scheme\" content=\"light\"><meta name=\"supported-color-schemes\" content=\"light\"><title>' + esc(titulo) + '</title></head>'\n  + '<body bgcolor=\"' + C.fondo + '\" style=\"margin:0;padding:0;background-color:' + C.fondo + '\">'\n  + '<div style=\"display:none;max-height:0;overflow:hidden;opacity:0\">' + esc(previa) + '</div>'\n  + '<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"' + C.fondo + '\" style=\"background-color:' + C.fondo + '\"><tr><td align=\"center\" style=\"padding:28px 12px\">'\n  + '<table role=\"presentation\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"' + C.caja + '\" style=\"width:100%;max-width:600px;background-color:' + C.caja + ';border:1px solid ' + C.borde + ';border-radius:18px\">'\n  // Cabecera: símbolo del logo + marca, en texto oscuro.\n  + '<tr><td style=\"padding:24px 30px 0\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr>'\n  + '<td valign=\"middle\" style=\"padding-right:14px\"><img src=\"' + LOGO + '\" width=\"64\" height=\"46\" alt=\"ORKESTA\" style=\"display:block;border:0\"></td>'\n  + '<td valign=\"middle\" style=\"font-family:' + FUENTE + ';font-size:20px;font-weight:700;line-height:1;letter-spacing:1px;color:' + C.titulo + '\">ORKESTA <span style=\"font-weight:400;font-size:14px;letter-spacing:0;color:' + C.suave + '\">Automatización &amp; IA</span></td>'\n  + '</tr></table></td></tr>'\n  // Línea de marca (si un cliente borra el color, simplemente no se ve).\n  + '<tr><td style=\"padding:20px 30px 0\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr><td height=\"3\" bgcolor=\"' + C.cianHi + '\" style=\"height:3px;line-height:3px;font-size:0;background-color:' + C.cianHi + '\">&nbsp;</td></tr></table></td></tr>'\n  + '<tr><td style=\"padding:26px 30px 30px\">'\n  + '<h1 style=\"margin:0 0 18px;font-family:' + FUENTE + ';font-size:24px;font-weight:700;line-height:1.25;color:' + C.titulo + '\">' + esc(titulo) + '</h1>'\n  + cuerpo\n  + '</td></tr></table>'\n  + '</td></tr></table></body></html>';\nconst d = $input.first().json;\nreturn [{ json: {\n  ...d,\n  telegram: '✅ Visita cerrada · ' + (d.empresa || '') + '. Lista para exportar a JARVIS.\\n' + ((d.urls || {}).admin || ''),\n  asunto_interno: 'Visita cerrada · ' + (d.empresa || '') + ': listo para JARVIS',\n  html_interno: email('Visita cerrada: ' + (d.empresa || ''), (d.empresa || '') + ': visita cerrada',\n    parrafo('Lista para exportar a JARVIS.') + boton('Abrir el panel', (d.urls || {}).admin)),\n  airtable: { 'Empresa': d.empresa, 'Diagnóstico ID': d.diagnostico_id, 'Estado': 'Visita cerrada', 'Actualizado': new Date().toISOString() },\n} }];"
+      }
+    },
+    {
+      "id": "129d7b09-5fc5-42e0-8bfd-d490aafdfd51",
+      "name": "Telegram visita cerrada",
+      "webhookId": "4be962a4-20d5-49a2-a200-d36a1c82d0fb",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "onError": "continueRegularOutput",
+      "position": [
+        900,
+        460
+      ],
+      "parameters": {
+        "chatId": "6674289801",
+        "text": "={{ $json.telegram }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "lFqrk5zgIca5nxYh",
+          "name": "Telegram Hermes (avisos diagnóstico)"
+        }
+      }
+    },
+    {
+      "id": "2b4bd469-f515-4565-a616-4384e8c7c442",
+      "name": "Email visita cerrada",
+      "webhookId": "acd2cde7-ee5d-4d25-8559-bbc410859743",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "onError": "continueRegularOutput",
+      "position": [
+        900,
+        600
+      ],
+      "parameters": {
+        "sendTo": "aitor@orkestaia.com",
+        "subject": "={{ $json.asunto_interno }}",
+        "emailType": "html",
+        "message": "={{ $json.html_interno }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Aitor Colino · Orkesta",
+          "replyTo": "aitor@orkestaia.com"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dUucGjc2pUzK5evE",
+          "name": "Orkesta Gmail"
+        }
+      }
+    },
+    {
+      "id": "7c8217c9-290b-4a5d-aa62-daa795877df3",
+      "name": "Airtable visita cerrada",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "position": [
+        900,
+        740
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://api.airtable.com/v0/appHxPMuotho4R1sV/tbl6AQQt7Nbmgy2Vi",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ performUpsert: { fieldsToMergeOn: ['Diagnóstico ID'] }, typecast: true, records: [{ fields: $json.airtable }] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "CesDCLoKpSIu1Yfx",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "id": "5666e1b1-76e1-4257-85f6-ef36aed56ba6",
+      "name": "Cada día a las 10:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        900
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "9ac7b47f-bc37-45f9-9b94-c531697b033b",
+      "name": "Previos sin terminar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        900
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://diagnostico-orkestaia.vercel.app/api/motor/pendientes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": false,
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SU6JD77rWqcyxTYI",
+          "name": "Diagnóstico · token app ↔ motor"
+        }
+      }
+    },
+    {
+      "id": "5dd2966b-51e9-4e21-8118-2fda737cfddb",
+      "name": "Uno por diagnóstico",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        900
+      ],
+      "parameters": {
+        "jsCode": "// Un elemento por diagnóstico a recordar (la app ya los ha marcado como avisados).\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Diseño CLARO (21-sep): fondo blanco y texto oscuro se leen con cualquier tema de Gmail, Outlook\n// o Apple Mail. Los colores van también como atributo bgcolor (lo que más clientes respetan) y\n// nada importante depende de un fondo: si un cliente los borra, el email sigue siendo legible.\nconst C = { fondo: '#f4f4f5', caja: '#ffffff', borde: '#e4e4e7', texto: '#27272a', titulo: '#09090b', suave: '#52525b', cian: '#0e7490', cianHi: '#00b4d8', violeta: '#6d28d9', botonFondo: '#e0f7fb' };\nconst FUENTE = \"Inter,'Segoe UI',Roboto,Helvetica,Arial,sans-serif\";\nconst MONO = \"'JetBrains Mono',Consolas,'Courier New',monospace\";\nconst LOGO = 'https://diagnostico.orkestaia.com/marca/simbolo-email.png';\nconst parrafo = t => '<p style=\"margin:0 0 14px;font-family:' + FUENTE + ';font-size:16px;line-height:1.6;color:' + C.texto + '\">' + t + '</p>';\nconst etiqueta = (t, color) => '<p style=\"margin:26px 0 10px;font-family:' + MONO + ';font-size:12px;font-weight:600;line-height:1.2;letter-spacing:2px;text-transform:uppercase;color:' + (color || C.cian) + '\">' + esc(t) + '</p>';\n// Viñeta de texto, no una cajita con fondo: los fondos son lo primero que borran algunos clientes.\nconst lista = (xs, color) => xs.length\n  ? '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">' + xs.map(x =>\n      '<tr><td width=\"20\" valign=\"top\" style=\"padding:0;font-family:' + FUENTE + ';font-size:18px;line-height:1.35;color:' + (color || C.cian) + '\">&#8226;</td>'\n      + '<td style=\"padding:0 0 8px;font-family:' + FUENTE + ';font-size:15px;line-height:1.55;color:' + C.texto + '\">' + esc(x) + '</td></tr>').join('') + '</table>'\n  : parrafo('—');\n// Botón con texto oscuro sobre un fondo muy claro y borde: se lee con fondo y sin él.\nconst boton = (texto, url) => '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:6px 0 4px\"><tr>'\n  + '<td bgcolor=\"' + C.botonFondo + '\" style=\"background-color:' + C.botonFondo + ';border:2px solid ' + C.cian + ';border-radius:10px\">'\n  + '<a href=\"' + esc(url) + '\" style=\"display:inline-block;padding:11px 22px;font-family:' + FUENTE + ';font-size:15px;font-weight:600;color:' + C.cian + ';text-decoration:none;border-radius:10px\">' + esc(texto) + '</a></td></tr></table>';\nconst email = (previa, titulo, cuerpo) => '<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"color-scheme\" content=\"light\"><meta name=\"supported-color-schemes\" content=\"light\"><title>' + esc(titulo) + '</title></head>'\n  + '<body bgcolor=\"' + C.fondo + '\" style=\"margin:0;padding:0;background-color:' + C.fondo + '\">'\n  + '<div style=\"display:none;max-height:0;overflow:hidden;opacity:0\">' + esc(previa) + '</div>'\n  + '<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"' + C.fondo + '\" style=\"background-color:' + C.fondo + '\"><tr><td align=\"center\" style=\"padding:28px 12px\">'\n  + '<table role=\"presentation\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"' + C.caja + '\" style=\"width:100%;max-width:600px;background-color:' + C.caja + ';border:1px solid ' + C.borde + ';border-radius:18px\">'\n  // Cabecera: símbolo del logo + marca, en texto oscuro.\n  + '<tr><td style=\"padding:24px 30px 0\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr>'\n  + '<td valign=\"middle\" style=\"padding-right:14px\"><img src=\"' + LOGO + '\" width=\"64\" height=\"46\" alt=\"ORKESTA\" style=\"display:block;border:0\"></td>'\n  + '<td valign=\"middle\" style=\"font-family:' + FUENTE + ';font-size:20px;font-weight:700;line-height:1;letter-spacing:1px;color:' + C.titulo + '\">ORKESTA <span style=\"font-weight:400;font-size:14px;letter-spacing:0;color:' + C.suave + '\">Automatización &amp; IA</span></td>'\n  + '</tr></table></td></tr>'\n  // Línea de marca (si un cliente borra el color, simplemente no se ve).\n  + '<tr><td style=\"padding:20px 30px 0\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr><td height=\"3\" bgcolor=\"' + C.cianHi + '\" style=\"height:3px;line-height:3px;font-size:0;background-color:' + C.cianHi + '\">&nbsp;</td></tr></table></td></tr>'\n  + '<tr><td style=\"padding:26px 30px 30px\">'\n  + '<h1 style=\"margin:0 0 18px;font-family:' + FUENTE + ';font-size:24px;font-weight:700;line-height:1.25;color:' + C.titulo + '\">' + esc(titulo) + '</h1>'\n  + cuerpo\n  + '</td></tr></table>'\n  + '</td></tr></table></body></html>';\nconst r = $input.first().json;\nreturn (r.pendientes || []).map(p => {\n  const nombre = (p.contacto.nombre || '').trim();\n  // El texto del recordatorio lo redacta la app (mensajeRecordatorio); aquí solo se maqueta.\n  const lineas = String(p.mensaje).split('\\n').filter(x => x.trim() && x.trim() !== p.enlace);\n  return { json: {\n    ...p,\n    asunto: 'Te recuerdo las preguntas del diagnóstico, ' + nombre,\n    html: email('Son 5 minutos y el enlace guarda lo que ya hayas contestado.', 'Hola, ' + nombre + '.',\n      lineas.map(l => parrafo(esc(l.replace(/^Hola [^,]*, /, '')))).join('') + boton('Seguir con las preguntas', p.enlace)),\n    telegram: '⏰ ' + p.empresa + ' no ha terminado el previo (' + p.respondidas + '/' + p.total + ').\\n'\n      + (p.contacto.email ? 'Le he enviado un recordatorio por email.\\n' : 'No tiene email: mándale el recordatorio tú.\\n')\n      + (p.whatsapp ? 'WhatsApp con el mensaje escrito: ' + p.whatsapp : 'Sin teléfono.'),\n    airtable: {\n      'Empresa': p.empresa,\n      'Diagnóstico ID': p.diagnostico_id,\n      'Estado': 'Recordatorio enviado',\n      'Contacto': nombre,\n      'Email': p.contacto.email || null,\n      'Teléfono': p.contacto.telefono || null,\n      'Enlace del previo': p.enlace,\n      'Actualizado': new Date().toISOString(),\n    },\n  } };\n});"
+      }
+    },
+    {
+      "id": "6c757d81-3343-44d1-8e8d-b00719ae1858",
+      "name": "¿Tiene email? (recordatorio)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        820
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9045ef37-b99b-4e89-9481-704203146ba2",
+              "leftValue": "={{ $json.contacto.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b2a4b564-8700-4d3b-8525-b8888794bef5",
+      "name": "Recordatorio al cliente",
+      "webhookId": "a1fae7cb-6139-4729-a138-fc120bf3baa1",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "onError": "continueRegularOutput",
+      "position": [
+        1100,
+        800
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.contacto.email }}",
+        "subject": "={{ $json.asunto }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Aitor Colino · Orkesta",
+          "replyTo": "aitor@orkestaia.com"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dUucGjc2pUzK5evE",
+          "name": "Orkesta Gmail"
+        }
+      }
+    },
+    {
+      "id": "61250ccf-4b48-4275-a611-bb2c3e55b7be",
+      "name": "Telegram recordatorio",
+      "webhookId": "3d96977a-6b07-4cf5-8015-d5ea4301f762",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "onError": "continueRegularOutput",
+      "position": [
+        880,
+        960
+      ],
+      "parameters": {
+        "chatId": "6674289801",
+        "text": "={{ $json.telegram }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "lFqrk5zgIca5nxYh",
+          "name": "Telegram Hermes (avisos diagnóstico)"
+        }
+      }
+    },
+    {
+      "id": "472c33b4-d514-47e8-b069-82eb6411a150",
+      "name": "Airtable recordatorio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "position": [
+        880,
+        1100
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://api.airtable.com/v0/appHxPMuotho4R1sV/tbl6AQQt7Nbmgy2Vi",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ performUpsert: { fieldsToMergeOn: ['Diagnóstico ID'] }, typecast: true, records: [{ fields: $json.airtable }] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "CesDCLoKpSIu1Yfx",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "id": "1f732865-71c8-4030-992a-90aa749957f7",
+      "name": "Componer aviso de mapa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        940
+      ],
+      "parameters": {
+        "jsCode": "// mapa_v1.2: prioridades elegidas por el cliente y aperturas del mapa (plantilla de email de «Componer aviso de visita»).\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Diseño CLARO (21-sep): fondo blanco y texto oscuro se leen con cualquier tema de Gmail, Outlook\n// o Apple Mail. Los colores van también como atributo bgcolor (lo que más clientes respetan) y\n// nada importante depende de un fondo: si un cliente los borra, el email sigue siendo legible.\nconst C = { fondo: '#f4f4f5', caja: '#ffffff', borde: '#e4e4e7', texto: '#27272a', titulo: '#09090b', suave: '#52525b', cian: '#0e7490', cianHi: '#00b4d8', violeta: '#6d28d9', botonFondo: '#e0f7fb' };\nconst FUENTE = \"Inter,'Segoe UI',Roboto,Helvetica,Arial,sans-serif\";\nconst MONO = \"'JetBrains Mono',Consolas,'Courier New',monospace\";\nconst LOGO = 'https://diagnostico.orkestaia.com/marca/simbolo-email.png';\nconst parrafo = t => '<p style=\"margin:0 0 14px;font-family:' + FUENTE + ';font-size:16px;line-height:1.6;color:' + C.texto + '\">' + t + '</p>';\nconst etiqueta = (t, color) => '<p style=\"margin:26px 0 10px;font-family:' + MONO + ';font-size:12px;font-weight:600;line-height:1.2;letter-spacing:2px;text-transform:uppercase;color:' + (color || C.cian) + '\">' + esc(t) + '</p>';\n// Viñeta de texto, no una cajita con fondo: los fondos son lo primero que borran algunos clientes.\nconst lista = (xs, color) => xs.length\n  ? '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">' + xs.map(x =>\n      '<tr><td width=\"20\" valign=\"top\" style=\"padding:0;font-family:' + FUENTE + ';font-size:18px;line-height:1.35;color:' + (color || C.cian) + '\">&#8226;</td>'\n      + '<td style=\"padding:0 0 8px;font-family:' + FUENTE + ';font-size:15px;line-height:1.55;color:' + C.texto + '\">' + esc(x) + '</td></tr>').join('') + '</table>'\n  : parrafo('—');\n// Botón con texto oscuro sobre un fondo muy claro y borde: se lee con fondo y sin él.\nconst boton = (texto, url) => '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:6px 0 4px\"><tr>'\n  + '<td bgcolor=\"' + C.botonFondo + '\" style=\"background-color:' + C.botonFondo + ';border:2px solid ' + C.cian + ';border-radius:10px\">'\n  + '<a href=\"' + esc(url) + '\" style=\"display:inline-block;padding:11px 22px;font-family:' + FUENTE + ';font-size:15px;font-weight:600;color:' + C.cian + ';text-decoration:none;border-radius:10px\">' + esc(texto) + '</a></td></tr></table>';\nconst email = (previa, titulo, cuerpo) => '<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"color-scheme\" content=\"light\"><meta name=\"supported-color-schemes\" content=\"light\"><title>' + esc(titulo) + '</title></head>'\n  + '<body bgcolor=\"' + C.fondo + '\" style=\"margin:0;padding:0;background-color:' + C.fondo + '\">'\n  + '<div style=\"display:none;max-height:0;overflow:hidden;opacity:0\">' + esc(previa) + '</div>'\n  + '<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"' + C.fondo + '\" style=\"background-color:' + C.fondo + '\"><tr><td align=\"center\" style=\"padding:28px 12px\">'\n  + '<table role=\"presentation\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"' + C.caja + '\" style=\"width:100%;max-width:600px;background-color:' + C.caja + ';border:1px solid ' + C.borde + ';border-radius:18px\">'\n  // Cabecera: símbolo del logo + marca, en texto oscuro.\n  + '<tr><td style=\"padding:24px 30px 0\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr>'\n  + '<td valign=\"middle\" style=\"padding-right:14px\"><img src=\"' + LOGO + '\" width=\"64\" height=\"46\" alt=\"ORKESTA\" style=\"display:block;border:0\"></td>'\n  + '<td valign=\"middle\" style=\"font-family:' + FUENTE + ';font-size:20px;font-weight:700;line-height:1;letter-spacing:1px;color:' + C.titulo + '\">ORKESTA <span style=\"font-weight:400;font-size:14px;letter-spacing:0;color:' + C.suave + '\">Automatización &amp; IA</span></td>'\n  + '</tr></table></td></tr>'\n  // Línea de marca (si un cliente borra el color, simplemente no se ve).\n  + '<tr><td style=\"padding:20px 30px 0\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr><td height=\"3\" bgcolor=\"' + C.cianHi + '\" style=\"height:3px;line-height:3px;font-size:0;background-color:' + C.cianHi + '\">&nbsp;</td></tr></table></td></tr>'\n  + '<tr><td style=\"padding:26px 30px 30px\">'\n  + '<h1 style=\"margin:0 0 18px;font-family:' + FUENTE + ';font-size:24px;font-weight:700;line-height:1.25;color:' + C.titulo + '\">' + esc(titulo) + '</h1>'\n  + cuerpo\n  + '</td></tr></table>'\n  + '</td></tr></table></body></html>';\nconst d = $input.first().json;\nconst empresa = d.empresa || '';\nconst admin = (d.urls || {}).admin || '';\nif (d.evento === 'diagnostico.prioridades_elegidas') {\n  const ps = Array.isArray(d.prioridades) ? d.prioridades : [];\n  const verbo = d.cambios > 0 ? 'ha cambiado sus prioridades' : 'ha elegido sus prioridades';\n  const lineas = ps.length ? ps.map((p, i) => (i + 1) + ') ' + p).join('\\n') : '(ha quitado todas)';\n  return [{ json: {\n    ...d,\n    telegram: empresa + ' ' + verbo + ':\\n' + lineas + '\\n' + admin,\n    lleva_email: true,\n    asunto_interno: empresa + ' ' + verbo,\n    html_interno: email(empresa + ' ' + verbo, empresa + ': ' + verbo,\n      parrafo((d.contacto && d.contacto.nombre ? esc(d.contacto.nombre) + ' (' + esc(empresa) + ')' : esc(empresa)) + ' ' + verbo + ' en su mapa:')\n      + lista(ps.map(esc))\n      + boton('Ver el mapa en el panel', admin)),\n  } }];\n}\n// diagnostico.mapa_abierto (solo con MAPA_APERTURA_ACTIVO=1)\nconst disp = { movil: 'el móvil', tableta: 'una tableta', escritorio: 'un ordenador' }[d.dispositivo] || 'un dispositivo';\nconst txt = d.aviso === 'primera'\n  ? empresa + ' ha abierto su mapa por primera vez (desde ' + disp + ').'\n  : d.aviso === 'otro_dispositivo'\n    ? empresa + ' ha abierto su mapa desde otro dispositivo (' + disp + ').'\n    : empresa + ' ha vuelto a abrir su mapa (' + d.aperturas + ' veces en total).';\nreturn [{ json: { ...d, telegram: txt + '\\n' + admin, lleva_email: false } }];\n"
+      }
+    },
+    {
+      "id": "5fe59605-9b8f-4c67-9800-2e09a0d4a0a8",
+      "name": "Telegram aviso de mapa",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        920,
+        880
+      ],
+      "parameters": {
+        "chatId": "6674289801",
+        "text": "={{ $json.telegram }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "lFqrk5zgIca5nxYh",
+          "name": "Telegram Hermes (avisos diagnóstico)"
+        }
+      }
+    },
+    {
+      "id": "6f47c56a-259b-4950-85f2-4e7a1cff0ea1",
+      "name": "¿El aviso lleva email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        920,
+        1040
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4b7fe9c9-cd57-4a35-87c2-0c81cac3cac8",
+              "leftValue": "={{ $json.lleva_email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "560c4838-b011-43b4-993a-6c02269c3d02",
+      "name": "Email aviso de mapa",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1160,
+        1040
+      ],
+      "parameters": {
+        "sendTo": "aitor@orkestaia.com",
+        "subject": "={{ $json.asunto_interno }}",
+        "emailType": "html",
+        "message": "={{ $json.html_interno }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Aitor Colino · Orkesta",
+          "replyTo": "aitor@orkestaia.com"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dUucGjc2pUzK5evE",
+          "name": "Orkesta Gmail"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook app": {
+      "main": [
+        [
+          {
+            "node": "Datos del evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Datos del evento": {
+      "main": [
+        [
+          {
+            "node": "Según el evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Según el evento": {
+      "main": [
+        [
+          {
+            "node": "Contexto para la IA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Componer aviso de visita",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Componer aviso de mapa",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Componer aviso de mapa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contexto para la IA": {
+      "main": [
+        [
+          {
+            "node": "Redacción IA (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redacción IA (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Validar redacción",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar redacción": {
+      "main": [
+        [
+          {
+            "node": "Componer mensajes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Componer mensajes": {
+      "main": [
+        [
+          {
+            "node": "Preparar callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar callback": {
+      "main": [
+        [
+          {
+            "node": "Callback a la app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback a la app": {
+      "main": [
+        [
+          {
+            "node": "¿Tiene email?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email interno a Aitor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram a Aitor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Guardar en Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿La app ya tenía redacción?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿La app ya tenía redacción?": {
+      "main": [
+        [
+          {
+            "node": "Telegram: callback falló",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram: callback falló": {
+      "main": [
+        [
+          {
+            "node": "¿Tiene email?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email interno a Aitor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram a Aitor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Guardar en Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Tiene email?": {
+      "main": [
+        [
+          {
+            "node": "Email al cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Componer aviso de visita": {
+      "main": [
+        [
+          {
+            "node": "Telegram visita cerrada",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email visita cerrada",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Airtable visita cerrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cada día a las 10:00": {
+      "main": [
+        [
+          {
+            "node": "Previos sin terminar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Previos sin terminar": {
+      "main": [
+        [
+          {
+            "node": "Uno por diagnóstico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Uno por diagnóstico": {
+      "main": [
+        [
+          {
+            "node": "¿Tiene email? (recordatorio)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram recordatorio",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Airtable recordatorio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Tiene email? (recordatorio)": {
+      "main": [
+        [
+          {
+            "node": "Recordatorio al cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Componer aviso de mapa": {
+      "main": [
+        [
+          {
+            "node": "Telegram aviso de mapa",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "¿El aviso lleva email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿El aviso lleva email?": {
+      "main": [
+        [
+          {
+            "node": "Email aviso de mapa",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "timezone": "Europe/Madrid",
+    "executionOrder": "v1",
+    "errorWorkflow": "dYdCdIkmNtUoKCuj"
+  }
+}
