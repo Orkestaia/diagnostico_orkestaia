@@ -7,6 +7,7 @@ import { Orkestador } from "@/components/compartido/Orkestador";
 import {
   BLOQUES,
   CAMPOS_VISITA,
+  IDS_VALORACION_AITOR,
   MINUTOS_VISITA,
   REGLAS_VISITA,
   type BloqueId,
@@ -624,7 +625,12 @@ function CamposBloque({
     );
   };
   const privada = usePrivada();
-  const delBloque = camposDeSector(CAMPOS_VISITA, sector).filter((c) => c.bloque === bloque);
+  const delSector = camposDeSector(CAMPOS_VISITA, sector);
+  const esValoracion = (c: CampoVisita) =>
+    (IDS_VALORACION_AITOR as readonly string[]).includes(c.id);
+  // Las valoraciones de Aitor salen de su bloque y van juntas al panel del cierre (H).
+  const delBloque = delSector.filter((c) => c.bloque === bloque && !esValoracion(c));
+  const valoraciones = bloque === "H" ? delSector.filter(esValoracion) : [];
   const pinta = (c: CampoVisita) =>
     c.privado ? (
       <SoloPrivado key={c.id}>
@@ -662,6 +668,33 @@ function CamposBloque({
           </summary>
           <div className="mt-4 space-y-5">{profundizar.map(pinta)}</div>
         </details>
+      ) : null}
+      {valoraciones.length ? (
+        <SoloPrivado>
+          <section
+            aria-labelledby="valoracion-aitor"
+            className="space-y-5 rounded-xl border border-ork-violet/50 bg-ork-violet/[0.06] p-4"
+          >
+            <div>
+              <h3 id="valoracion-aitor" className="font-display text-body-lg text-ork-text">
+                Valoración de Aitor
+              </h3>
+              <p className="text-small text-ork-text-muted">
+                Solo tú lo ves. Datos, preparación para IA, campeón, riesgo de cumplimiento y señales.
+              </p>
+            </div>
+            {valoraciones.map((c) => (
+              <Campo
+                key={c.id}
+                c={c}
+                valor={privada.campo(c.id)}
+                poner={(v) => privada.ponerCampo(c.id, v)}
+                procesos={procesos}
+                ponerProcesos={ponerProcesos}
+              />
+            ))}
+          </section>
+        </SoloPrivado>
       ) : null}
     </>
   );

@@ -138,6 +138,19 @@ export interface CampoVisita {
   referencias?: { previo?: string; visita?: string; etiqueta: string }[];
 }
 
+/**
+ * Valoraciones de Aitor (JARVIS, 22-sep): cinco escalas 🔒 repartidas por cuatro bloques que en la
+ * visita se rellenan juntas, en un único panel privado del bloque H. Los ids no cambian: el export
+ * y JARVIS las siguen leyendo donde siempre.
+ */
+export const IDS_VALORACION_AITOR = [
+  "datos.calidad",
+  "datos.preparacion_ia",
+  "ia.valoracion_campeon",
+  "cumpl.riesgo",
+  "e.senales",
+] as const;
+
 export const CAMPOS_VISITA: CampoVisita[] = [
   // ── A · Contexto y objetivos ──
   {
